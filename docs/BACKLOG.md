@@ -32,16 +32,11 @@ Ideas and known gaps, roughly in the order they'd pay off.
 
 ## Deferred from the effects review
 - The preview can draw a cutout from the wrong time for a frame at a cut, while the matte video is still seeking.
-- Mattes should be cut with `fps=30:start_time=0`, so a file whose video starts after its audio stays aligned.
-- `rotationOf` reads only side-data rotation; older files with `tags.rotate` get a landscape matte for portrait footage.
 - cover-story's issue label goes off-screen in RTL.
 - Some effect text fades in instead of typing (cover-story lines, wall, orbit).
-- A failed background matte run only retries when the footage changes.
-- One missing clip stops the mattes for the clips after it.
 - `FrameReader` copies every queued chunk on each frame.
 - Small cleanup gaps: the encoder starts before the export's `try`; joining a matte run already in progress shows no progress.
 - Existing workspaces never get preset updates (seeding doesn't overwrite), so an older `~/Vibe` lacks the new `aims` flag on digital-zoom and zoom-cut and keeps aiming at a guess.
 
 ## Deferred from the v1 review
-- The preview shows an empty stage, not "missing media", for a missing clip.
 - An English tag inside an Arabic frame shows as "VIBE#" (wrap in LRI/PDI).
