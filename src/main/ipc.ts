@@ -2,7 +2,7 @@
 import { BrowserWindow, dialog, ipcMain } from 'electron';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { duplicateDir, importMedia, listLibrary, listProjects, readText, resolveInside, writeText } from './workspace';
+import { duplicateDir, importMedia, MEDIA_EXTENSIONS, listLibrary, listProjects, readText, resolveInside, writeText } from './workspace';
 import type { SelfWriteGuard } from './watch';
 
 export function registerIpc(root: string, guard: SelfWriteGuard, initialProject: string | null) {
@@ -28,7 +28,7 @@ export function registerIpc(root: string, guard: SelfWriteGuard, initialProject:
       const win = BrowserWindow.fromWebContents(e.sender)!;
       const r = await dialog.showOpenDialog(win, {
         properties: ['openFile', 'multiSelections'],
-        filters: [{ name: 'Video and audio', extensions: ['mov', 'mp4', 'm4v', 'webm', 'wav', 'mp3', 'm4a', 'aac'] }],
+        filters: [{ name: 'Video and audio', extensions: MEDIA_EXTENSIONS }],
       });
       if (r.canceled) return [];
       files = r.filePaths;

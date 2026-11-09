@@ -72,12 +72,21 @@ export function probe(abs: string): Promise<Probe> {
   });
 }
 
+export const MEDIA_EXTENSIONS = ['mov', 'mp4', 'm4v', 'webm', 'wav', 'mp3', 'm4a', 'aac'];
+
+/** Only regular files with a video or audio extension may be imported. */
+export function importable(abs: string): boolean {
+  if (!MEDIA_EXTENSIONS.includes(extname(abs).slice(1).toLowerCase())) return false;
+  try { return statSync(abs).isFile(); } catch { return false; }
+}
+
 /** Copy files into projects/<name>/media and describe them. */
 export async function importMedia(root: string, project: string, paths: string[]) {
   const mediaDir = resolveInside(root, `projects/${project}/media`);
   mkdirSync(mediaDir, { recursive: true });
   const out: { src: string; duration: number; kind: 'video' | 'audio' }[] = [];
   for (const p of paths) {
+    if (!importable(p)) throw new Error(`not a video or audio file: ${basename(p)}`);
     const name = uniqueName(mediaDir, basename(p));
     copyFileSync(p, join(mediaDir, name));
     const info = await probe(join(mediaDir, name));

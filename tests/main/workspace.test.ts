@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { resolveInside, seedWorkspace, listLibrary, listProjects, uniqueName } from '../../src/main/workspace';
+import { resolveInside, seedWorkspace, listLibrary, listProjects, uniqueName, importable } from '../../src/main/workspace';
 
 let root: string, presets: string;
 beforeEach(() => {
@@ -39,6 +39,18 @@ describe('seedWorkspace', () => {
     writeFileSync(join(root, 'library/styles/flat9k/style.json'), '{"mine":true}');
     seedWorkspace(root, presets);
     expect(readFileSync(join(root, 'library/styles/flat9k/style.json'), 'utf8')).toBe('{"mine":true}');
+  });
+});
+
+describe('importable', () => {
+  it('accepts regular video and audio files only', () => {
+    writeFileSync(join(root, 'take.MOV'), '');
+    writeFileSync(join(root, 'notes.txt'), '');
+    mkdirSync(join(root, 'folder.mp4'));
+    expect(importable(join(root, 'take.MOV'))).toBe(true);
+    expect(importable(join(root, 'notes.txt'))).toBe(false);
+    expect(importable(join(root, 'folder.mp4'))).toBe(false);
+    expect(importable(join(root, 'missing.wav'))).toBe(false);
   });
 });
 
