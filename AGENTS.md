@@ -84,7 +84,7 @@ Components (`library/components/<id>/component.{json,js}`) and styles (`library/
 
 #### `presets/` is the seed for a new workspace
 
-On startup `seedWorkspace` copies every file from `presets/` into the workspace **only if it is missing; it never overwrites**. So editing a preset does not change an existing `~/Vibe`; copy the file over (or use a fresh `VIBE_HOME`) to see it. `presets/CLAUDE.md` is the guide for a Claude session working *inside the workspace* (writing films, components and styles); keep it in sync when you change the painter API, component flags or `vibe.json` format. `tests/core/presets.test.ts` checks every preset component's schema and defaults.
+On startup `seedWorkspace` copies in every file from `presets/` that is missing, and records each file's hash in the workspace's `.vibe/presets.json`. A later start updates a file only if it still holds the recorded text (nobody touched it), and never anything under `projects/`; an edited file is kept. So an edited preset reaches an existing `~/Vibe` on the next start only where that file is untouched; `vibe presets` lists the files that differ and `vibe presets --take <file>` forces one (or use a fresh `VIBE_HOME`). `presets/CLAUDE.md` is the guide for a Claude session working *inside the workspace* (writing films, components and styles); keep it in sync when you change the painter API, component flags or `vibe.json` format. `tests/core/presets.test.ts` checks every preset component's schema and defaults.
 
 #### Disk wins
 

@@ -47,7 +47,7 @@ The app is unsigned, so it is meant for the Mac that built it. ffmpeg and whispe
 
 ## The workspace
 
-Everything lives in `~/Vibe` (or in `$VIBE_HOME`). On first run the app copies in the presets: the 9k brand, seven styles, twenty-seven components, two demo films and a `CLAUDE.md` that teaches Claude Code how to work here. It copies only missing files and never overwrites yours.
+Everything lives in `~/Vibe` (or in `$VIBE_HOME`). On first run the app copies in the presets: the 9k brand, seven styles, twenty-seven components, two demo films and a `CLAUDE.md` that teaches Claude Code how to work here. It copies in missing files, and later updates the ones nobody has touched since; a file you (or Claude) changed is never overwritten. `vibe presets` lists library files that differ from the app's version, and `vibe presets --take <file>` takes the app's (keeping yours in `.vibe/replaced/`).
 
 ```
 ~/Vibe/

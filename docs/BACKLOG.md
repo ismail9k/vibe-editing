@@ -38,12 +38,8 @@ Both are illustrated films with no footage. Their styles came in as footage look
 - **Ripple edits** (open question): deleting or trimming footage doesn't move later captions and graphics. CapCut does.
 
 ## Deferred from the effects review
-- The preview can draw a cutout from the wrong time for a frame at a cut, while the matte video is still seeking.
-- cover-story's issue label goes off-screen in RTL.
-- Some effect text fades in instead of typing (cover-story lines, wall, orbit).
-- `FrameReader` copies every queued chunk on each frame.
-- Small cleanup gaps: the encoder starts before the export's `try`; joining a matte run already in progress shows no progress.
-- Existing workspaces never get preset updates (seeding doesn't overwrite), so an older `~/Vibe` lacks the new `aims` flag on digital-zoom and zoom-cut and keeps aiming at a guess.
+- Some effect text fades in instead of typing: orbit's words (badges have no typed reveal in the painter yet) and wall's headline rows (they scroll in from off-frame, so a typed reveal would barely show; maybe type just the row behind your head).
+- A workspace seeded before preset updates were tracked (`.vibe/presets.json`) doesn't follow them for files that differ: `vibe presets` lists them and `--take` brings each in. The app could offer this itself.
 
 ## Deferred from the v1 review
 - An English tag inside an Arabic frame shows as "VIBE#" (wrap in LRI/PDI).
