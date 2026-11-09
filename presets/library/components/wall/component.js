@@ -19,7 +19,8 @@ export default {
       const accentRow = Math.floor(head.y / lh);
       for (let r = 0; r * lh < p.H + lh; r++) {
         const dirn = r % 2 ? 1 : -1, shift = (((t * p.rem * 4 * dirn) % (p.W * 2)) - p.W) + (r % 3) * p.rem * 5;
-        p.text(str, shift, r * lh + size * 0.85, { role: 'display', size, weight: 700, color: r === accentRow ? p.brand.colors.accent : r % 2 ? p.theme.border : p.theme.muted });
+        // shift is where the row starts in the reading direction: from the left in LTR, from the right in RTL.
+        p.text(str, p.sx(shift), r * lh + size * 0.85, { role: 'display', size, weight: 700, color: r === accentRow ? p.brand.colors.accent : r % 2 ? p.theme.border : p.theme.muted });
       }
     }
     c.restore();
