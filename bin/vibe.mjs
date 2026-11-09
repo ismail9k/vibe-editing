@@ -5,6 +5,7 @@ import { existsSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { staleReason } from './stale.mjs';
 
 const appDir = join(dirname(fileURLToPath(import.meta.url)), '..');
 const require = createRequire(import.meta.url);
@@ -17,8 +18,9 @@ if (!existsSync(electron)) {
   console.error(`vibe: the Electron binary is missing. Run: node ${join(appDir, 'node_modules/electron/install.js')}`);
   process.exit(1);
 }
-if (!existsSync(join(appDir, 'out/main/index.js'))) {
-  console.error('vibe: building the app first…');
+const stale = staleReason(appDir);
+if (stale) {
+  console.error(`vibe: ${stale}`);
   const b = spawnSync('npm', ['run', 'build'], { cwd: appDir, stdio: ['ignore', 'ignore', 'inherit'] });
   if (b.status !== 0) process.exit(b.status ?? 1);
 }
