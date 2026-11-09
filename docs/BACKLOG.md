@@ -11,7 +11,10 @@ Ideas and known gaps, roughly in the order they'd pay off.
 ## Engine
 - **Zoom headroom**: footage is decoded at the output size, so a 2× punch-in is soft. Decode at 2× for clips under a zoom effect.
 - **Cutouts off the Mac**: mattes use Apple Vision. For open source, add MediaPipe or Robust Video Matting as a second engine.
-- **Matte refinement**: soft edges on fast hand movement; a temporal smoothing pass would help.
+- **Matte refinement**: the matte bleeds into a dark chair right behind the head (soft grey that outlines and paper cut make visible), and edges go soft on fast hand movement. Ideas: threshold and feather the edge, a temporal smoothing pass, or Vision's instance labels to drop the chair.
+- **Preview colour on HDR clips**: the preview now draws the video into the canvas, and Chromium's HLG → SDR there is more contrasty than the export's reinhard tone map. Match one to the other.
+- **Light-mode Studio tiles for photo effects**: cover story's white masthead and cover lines vanish on the light stand-in (they're meant for a photo).
+- **Effect timing on a cut**: zoom-through cut must be placed by hand across a cut; snapping it to the cut would help.
 - **Studio tiles with your footage**: tiles use a drawn stand-in; showing a still from the open project would preview cutout effects for real.
 - **Ripple edits** (open question): deleting or trimming footage doesn't move later captions and graphics. CapCut does.
 
