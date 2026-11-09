@@ -8,6 +8,14 @@ Ideas and known gaps, roughly in the order they'd pay off.
 - **Real 3D tilt** for the phone mock-up and the orbit card: canvas 2D only does flat transforms, so v1 uses rotation and scale. Needs WebGL quads or slice-warping.
 - **Vertigo on the real background**: v1 swaps in a drawn tunnel. A true dolly zoom of your own room needs the background filled in behind you (inpainting).
 
+## Looks from the reference reel (instagram.com/reel/DfgtLums66K) not built yet
+- **Graphics styles to match the looks**: neon, comic, riso, paper and bricks restyle only the footage; panels and text keep the project's style. Chalkboard, pixel and terminal already exist as styles.
+- **A look on just you or just the room**: `p.subject({ look })`, so you stay real in a sketched room (or the reverse).
+- **Comic burst**: the jagged "BOOM!" sticker over the comic look, typed in the brand's display font.
+- **Pixel-art HUD**: a score counter and hearts over the pixel look, game-style.
+- **Chalk notes**: handwritten labels and arrows on the chalkboard look, pointing at you.
+- **Live preview cost**: every frame of a look is sampled and redrawn on the CPU; terminal (≈4,000 characters) and bricks are the heaviest. Not measured in the Edit room yet; if it stutters, cache the look per video frame or move it to WebGL.
+
 ## Engine
 - **Zoom headroom**: footage is decoded at the output size, so a 2× punch-in is soft. Decode at 2× for clips under a zoom effect.
 - **Cutouts off the Mac**: mattes use Apple Vision. For open source, add MediaPipe or Robust Video Matting as a second engine.

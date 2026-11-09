@@ -1,0 +1,18 @@
+{
+  "name": "Look grid",
+  "description": "The closing shot: your shot in every look as two rows of tiles sliding in from the top and bottom, with a typed call to action and the keyword in the accent.",
+  "duration": 4,
+  "scene": true,
+  "defaults": {
+    "looks": ["neon", "sketch", "comic", "chalk", "pixel", "riso", "lowpoly", "papercut", "bricks", "terminal"],
+    "text": "Comment",
+    "keyword": "STYLE",
+    "line": "and I'll send you the prompts"
+  },
+  "schema": {
+    "looks": { "type": "list", "label": "Looks (half on top, half below)" },
+    "text": { "type": "text", "label": "Call to action" },
+    "keyword": { "type": "text", "label": "Keyword (shown in quotes, in the accent)" },
+    "line": { "type": "text", "label": "Second line" }
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "name": "Look roll",
+  "description": "The reel's format: a title, a numbered list of looks that fills in one by one, and a card of your shot that wipes from each look to the next.",
+  "duration": 12,
+  "scene": true,
+  "defaults": {
+    "title": "10 looks, one shot",
+    "subtitle": "made with Claude",
+    "looks": ["neon", "sketch", "comic", "chalk", "pixel", "riso", "lowpoly", "papercut", "bricks", "terminal"],
+    "names": [],
+    "each": 1.1
+  },
+  "schema": {
+    "title": { "type": "text", "label": "Title" },
+    "subtitle": { "type": "text", "label": "Subtitle" },
+    "looks": { "type": "list", "label": "Looks, in order" },
+    "names": { "type": "list", "label": "Names in the list (same order as the looks; blank keeps the look's own)" },
+    "each": { "type": "number", "label": "Seconds per look" }
+  }
+}

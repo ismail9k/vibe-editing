@@ -3,6 +3,7 @@
 // footage(), subject() and subjectBox(). Sources may be any size: they're cover-fitted to the frame, the same
 // way ffmpeg fits a clip, and a view (zoom + focus) picks the part of that frame a call shows.
 import type { Ctx, Painter, Rect } from './painter';
+import { drawLooked, isLook } from './looks';
 
 export interface FrameMedia {
   /** The footage frame at this time, or null while it isn't available (preview loading). */
@@ -22,6 +23,8 @@ export interface FootageOpts {
   /** A canvas filter, e.g. 'grayscale(1) brightness(.6)' or 'blur(12px)'. */
   filter?: string;
   alpha?: number;
+  /** Redraw the shot in a look: neon, sketch, comic, chalk, pixel, riso, lowpoly, papercut, bricks, terminal. */
+  look?: string;
 }
 export interface SubjectOpts extends FootageOpts { outline?: { color?: string; width?: number } }
 export interface SubjectBox extends Rect { head: { x: number; y: number; r: number } }
@@ -114,6 +117,11 @@ export function mediaMethods(env: MediaEnv) {
 
   return {
     footage(this: Painter, o: FootageOpts = {}) {
+      if (isLook(o.look)) {
+        const { look, alpha, filter: _f, ...rest } = o;
+        drawLooked(this, look, o.rect ?? { x: 0, y: 0, w: this.W, h: this.H }, alpha, (q, rect) => q.footage({ ...rest, rect }));
+        return;
+      }
       const v = view(this.W, this.H, o), c = this.ctx;
       if (media?.frame) {
         c.save();
