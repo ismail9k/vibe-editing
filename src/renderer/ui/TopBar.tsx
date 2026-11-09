@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
 import { retryMattes, useStore } from '../store';
 
+// The workspace as people type it: ~/Vibe, not /Users/name/Vibe. It's $VIBE_HOME when that's set, so say which.
+const short = (root?: string) => (root ? root.replace(/^\/(Users|home)\/[^/]+(?=\/|$)/, '~') : '~/Vibe');
 const ago = (at: number) => { const s = Math.round((Date.now() - at) / 1000); return s < 5 ? 'just now' : s < 60 ? `${s}s ago` : `${Math.round(s / 60)}m ago`; };
 
 export function TopBar() {
@@ -33,7 +35,7 @@ export function TopBar() {
         {libError && <span className="bad" title={libError}>● library: {libError}</span>}
         {!parseError && errors.length > 0 && <span className="bad" title={errors.map((e) => `${e.path}: ${e.message}`).join('\n')}>● {errors.length} problem{errors.length > 1 ? 's' : ''}: {errors[0].message}</span>}
         {!parseError && !libError && !errors.length && diskNote && <span className="ok">● {diskNote.text} · {ago(diskNote.at)}</span>}
-        {!parseError && !libError && !errors.length && !diskNote && <span className="muted">● watching ~/Vibe for Claude Code</span>}
+        {!parseError && !libError && !errors.length && !diskNote && <span className="muted" title={info?.root}>● watching {short(info?.root)} for Claude Code</span>}
       </div>
       {mattes?.state === 'working' && (
         <span className="chip" title={`Apple Vision is cutting you out of ${mattes.src}. Cutout effects show the whole frame until it's done.`}>
