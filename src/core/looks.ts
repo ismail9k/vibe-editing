@@ -21,7 +21,7 @@ export const isLook = (v: unknown): v is Look => typeof v === 'string' && (LOOKS
 // Samples across the rect: coarse looks sample on their own grid (one sample per pixel, brick, dot, character or
 // cube). Thermal and clay sample softer than the default on purpose: both should read smooth, not detailed.
 const ACROSS: Partial<Record<Look, number>> = {
-  pixel: 72, bricks: 32, terminal: 60, riso: 90, lowpoly: 120, papercut: 270, isometric: 44, thermal: 200, clay: 240,
+  pixel: 72, bricks: 32, terminal: 60, riso: 90, lowpoly: 120, papercut: 270, isometric: 30, thermal: 200, clay: 240,
 };
 // How much taller than wide a sample cell is: terminal characters are tall, isometric cube rows overlap
 // (a row of pointy-top hexagons advances √3/2 of a cube's width).
@@ -48,10 +48,10 @@ export function ramp(stops: [number, [number, number, number]][], v: number): [n
   return [...stops[stops.length - 1][1]];
 }
 
-/** Heat for the thermal look, 0..1: brightness, pushed up for warm colours (skin, a red top) and down for cool. */
+/** Heat for the thermal look, 0..1: mostly how warm the colour is (skin reads hot), a little how bright. */
 export function heatOf(r: number, g: number, b: number): number {
   const l = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
-  return clamp(0.55 * l + 0.45 * clamp((r - b) / 255 + 0.35));
+  return clamp(0.35 * l + 0.65 * clamp(((r - b) / 255) * 2.2));
 }
 
 /** The six corners and centre of a pointy-top cube (a hexagon of width w) centred on x, y. */
@@ -211,7 +211,10 @@ function scanlines(p: Painter, r: Rect, band: string, speed: number) {
 const IRONBOW: [number, RGB][] = [[0, [4, 0, 18]], [0.22, [48, 4, 120]], [0.45, [168, 18, 150]], [0.65, [236, 76, 52]], [0.83, [255, 168, 20]], [1, [255, 250, 200]]];
 const CYBER: [number, RGB][] = [[0, [4, 6, 26]], [0.3, [8, 74, 112]], [0.62, [150, 40, 205]], [0.86, [255, 92, 205]], [1, [255, 228, 246]]];
 
-const LOOK_DRAW: Record<Look, (p: Painter, r: Rect, src: OffscreenCanvas, img: Img) => void> = {
+// Where you are in the sample, 0..1 per sample, for the looks that ask: from the cutout (real) or a guess.
+type Body = { a: Float32Array; real: boolean } | null;
+
+const LOOK_DRAW: Record<Look, (p: Painter, r: Rect, src: OffscreenCanvas, img: Img, body: Body) => void> = {
   neon(p, r, src, { data, width: w, height: h }) {
     const c = p.ctx, e = edges(lumaOf(data, w, h), w, h);
     const cyan: RGB = [41, 230, 255], pink: RGB = [255, 61, 242];
@@ -412,7 +415,7 @@ const LOOK_DRAW: Record<Look, (p: Painter, r: Rect, src: OffscreenCanvas, img: I
     c.restore();
   },
 
-  hologram(p, r, _src, { data, width: w, height: h }) {
+  hologram(p, r, _src, { data, width: w, height: h }, body) {
     const c = p.ctx, u = unitOf(r), l = stretch(lumaOf(data, w, h)), e = edges(l, w, h);
     const deep: RGB = [0, 64, 118], cyan: RGB = [150, 246, 255];
     c.fillStyle = '#01060d'; c.fillRect(r.x, r.y, r.w, r.h);
@@ -420,18 +423,19 @@ const LOOK_DRAW: Record<Look, (p: Painter, r: Rect, src: OffscreenCanvas, img: I
     const fx = r.x + r.w / 2, glow = c.createRadialGradient(fx, r.y + r.h, 0, fx, r.y + r.h, r.w * 0.9);
     glow.addColorStop(0, 'rgba(40,200,255,0.28)'); glow.addColorStop(1, 'rgba(40,200,255,0)');
     c.fillStyle = glow; c.fillRect(r.x, r.y, r.w, r.h);
-    // See-through light: brighter where the shot is bright, brightest on its edges.
-    const body = pixels(p, w, h, (o) => {
+    // See-through light: brighter where the shot is bright, brightest on its edges. With a cutout, only you are
+    // projected; the room is a faint ghost.
+    const light = pixels(p, w, h, (o) => {
       for (let i = 0; i < w * h; i++) {
-        const v = l[i], col = mix(deep, cyan, clamp(v * 0.8 + e[i] * 1.2)), k = i * 4;
-        o[k] = col[0]; o[k + 1] = col[1]; o[k + 2] = col[2]; o[k + 3] = 255 * 0.9 * clamp(v * 0.8 + e[i] * 1.8);
+        const v = l[i], col = mix(deep, cyan, clamp(v * 0.8 + e[i] * 1.2)), k = i * 4, room = body?.real ? 0.18 + 0.82 * body.a[i] : 1;
+        o[k] = col[0]; o[k + 1] = col[1]; o[k + 2] = col[2]; o[k + 3] = 255 * 0.9 * room * clamp(v * 0.8 + e[i] * 1.8);
       }
     });
     const flicker = 0.86 + 0.14 * Math.sin(p.t * 31) * Math.sin(p.t * 5.7);
     c.save();
     c.globalCompositeOperation = 'lighter';
     c.globalAlpha *= flicker;
-    c.filter = `blur(${(u * 0.5).toFixed(1)}px)`; put(c, body, r);
+    c.filter = `blur(${(u * 0.5).toFixed(1)}px)`; put(c, light, r);
     c.filter = 'none';
     // The sharp layer in strips; now and then a few slip sideways, a dozen times a second (the glitch).
     const g = p.rng(`holo${Math.floor(p.t * 12)}`), strips = 24, sh = r.h / strips;
@@ -439,7 +443,7 @@ const LOOK_DRAW: Record<Look, (p: Painter, r: Rect, src: OffscreenCanvas, img: I
       const slip = g() < 0.08 ? (g() - 0.5) * u * 1.4 : 0;
       c.save();
       c.beginPath(); c.rect(r.x, r.y + k * sh, r.w, sh + 0.5); c.clip();
-      c.drawImage(body, r.x + slip, r.y, r.w, r.h);
+      c.drawImage(light, r.x + slip, r.y, r.w, r.h);
       c.restore();
     }
     c.restore();
@@ -483,23 +487,24 @@ const LOOK_DRAW: Record<Look, (p: Painter, r: Rect, src: OffscreenCanvas, img: I
     c.fillStyle = '#f4d8c6'; c.fillRect(r.x, r.y, r.w, r.h);
     c.save();
     c.lineJoin = 'round';
-    c.lineWidth = Math.max(0.5, cw * 0.03);
+    c.lineWidth = Math.max(0.5, cw * 0.035);
     const white: RGB = [255, 248, 240], shade: RGB = [40, 24, 40];
+    const stroked = (fc: RGB) => css(mix(fc, shade, 0.18));
     // A pointy-top cube per sample; odd rows sit half a cube along, so the cubes tile like a honeycomb. One more
     // row and one more cube on odd rows cover the ragged edges.
     for (let y = 0; y <= h; y++) for (let x = y % 2 ? -1 : 0; x < w; x++) {
       const k = (Math.min(h - 1, y) * w + Math.max(0, x)) * 4, lum = 0.2126 * data[k] + 0.7152 * data[k + 1] + 0.0722 * data[k + 2];
       // Toy plastic: brighter, a little more saturated, a few steps, a touch of white.
-      const col = mix([0, 1, 2].map((i) => posterize(Math.min(255, Math.max(0, (lum + (data[k + i] - lum) * 1.25) * 1.08)), 7)) as RGB, white, 0.12);
+      const col = mix([0, 1, 2].map((i) => posterize(Math.min(255, Math.max(0, (lum + (data[k + i] - lum) * 1.3) * 1.06)), 6)) as RGB, white, 0.1);
       const q = cube(r.x + (x + (y % 2 ? 1 : 0.5)) * cw, r.y + (y + 0.5) * pitch, cw);
+      // Lit from above: a bright top, the shot's colour on the left face, a shaded right face.
       const faces: [[number, number][], RGB][] = [
-        [[q.top, q.ur, q.mid, q.ul], mix(col, white, 0.3)],
+        [[q.top, q.ur, q.mid, q.ul], mix(col, white, 0.22)],
         [[q.ul, q.mid, q.bottom, q.ll], col],
-        [[q.mid, q.ur, q.lr, q.bottom], mix(col, shade, 0.28)],
+        [[q.mid, q.ur, q.lr, q.bottom], mix(col, shade, 0.2)],
       ];
       for (const [pts, fc] of faces) {
-        const s = css(fc);
-        c.fillStyle = s; c.strokeStyle = s;
+        c.fillStyle = css(fc); c.strokeStyle = stroked(fc);
         c.beginPath(); c.moveTo(...pts[0]); for (const pt of pts.slice(1)) c.lineTo(...pt); c.closePath(); c.fill(); c.stroke();
       }
     }
@@ -550,10 +555,11 @@ const LOOK_DRAW: Record<Look, (p: Painter, r: Rect, src: OffscreenCanvas, img: I
     c.restore();
   },
 
-  thermal(p, r, _src, img) {
+  thermal(p, r, _src, img, body) {
     const c = p.ctx, u = unitOf(r), { data, width: w, height: h } = img;
-    const raw = new Float32Array(w * h);
-    for (let i = 0; i < w * h; i++) raw[i] = heatOf(data[i * 4], data[i * 4 + 1], data[i * 4 + 2]);
+    // You're the warm thing in the room: the cutout (or a guess at where you sit) adds body heat.
+    const raw = new Float32Array(w * h), warm = body?.real ? 0.65 : 0.4;
+    for (let i = 0; i < w * h; i++) raw[i] = heatOf(data[i * 4], data[i * 4 + 1], data[i * 4 + 2]) * (1 - warm * 0.5) + (body ? body.a[i] * warm : 0);
     const heat = stretch(blur(raw, w, h, 1));
     const cv = pixels(p, w, h, (o) => {
       for (let i = 0; i < w * h; i++) {
@@ -605,11 +611,12 @@ const LOOK_DRAW: Record<Look, (p: Painter, r: Rect, src: OffscreenCanvas, img: I
   },
 
   watercolor(p, r, _src, img) {
-    const { data, width: w, height: h } = img, [R, G, B] = planes(img, 2);
+    // Flat washes: the colour softened and snapped to a few tones per channel, so each wash is one pass of paint.
+    const { data, width: w, height: h } = img, [R, G, B] = planes(img, 3).map((pl) => pl.map((v) => posterize(v, 6)));
     const wash = new Float32Array(w * h);
     for (let i = 0; i < w * h; i++) wash[i] = (0.2126 * R[i] + 0.7152 * G[i] + 0.0722 * B[i]) / 255;
-    // Pigment pools where the wash changes (the dark rim a drying wash leaves), and a pencil line under it.
-    const far = blur(wash, w, h, 4), e = edges(stretch(lumaOf(data, w, h)), w, h);
+    // Pigment pools where one wash meets the next (the dark rim a drying wash leaves), over a pencil line.
+    const far = blur(wash, w, h, 2), e = edges(stretch(lumaOf(data, w, h)), w, h);
     const grain = p.rng('paper'), paper: RGB = [247, 242, 231], fade = Math.max(2, w * 0.05);
     const cv = pixels(p, w, h, (o) => {
       for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
@@ -618,7 +625,7 @@ const LOOK_DRAW: Record<Look, (p: Painter, r: Rect, src: OffscreenCanvas, img: I
         const edge = smooth(Math.min(x, w - 1 - x, y, h - 1 - y) / fade + (n - 0.5) * 0.7, 0.15, 1);
         // Pigment: the colour a little greyer and lighter than the shot's.
         const pig = [R[i], G[i], B[i]].map((ch) => { const v = y0 + (ch - y0) * 0.85; return v + (255 - v) * 0.12; });
-        const density = 0.9 * edge * (0.88 + 0.12 * n), rim = 1 - 0.3 * clamp(Math.abs(wash[i] - far[i]) * 4);
+        const density = 0.9 * edge * (0.88 + 0.12 * n), rim = 1 - 0.4 * clamp(Math.abs(wash[i] - far[i]) * 7);
         const line = 1 - 0.4 * smooth(e[i], 0.12, 0.35) * edge, k = i * 4;
         for (let ch = 0; ch < 3; ch++) o[k + ch] = paper[ch] * (1 - density * (1 - pig[ch] / 255)) * rim * line * (0.97 + 0.03 * n);
         o[k + 3] = 255;
@@ -628,21 +635,22 @@ const LOOK_DRAW: Record<Look, (p: Painter, r: Rect, src: OffscreenCanvas, img: I
   },
 
   clay(p, r, _src, img) {
-    const c = p.ctx, u = unitOf(r), { width: w, height: h } = img, [R, G, B] = planes(img, 2);
+    // Lumps of clay: the colour softened and snapped to a few tones, so the shot breaks into smooth blobs.
+    const c = p.ctx, u = unitOf(r), { width: w, height: h } = img, [R, G, B] = planes(img, 3).map((pl) => pl.map((v) => posterize(v, 6)));
     const l = new Float32Array(w * h);
     for (let i = 0; i < w * h; i++) l[i] = (0.2126 * R[i] + 0.7152 * G[i] + 0.0722 * B[i]) / 255;
-    // The shot's brightness as a height map: lit from the top-start corner, with a soft shine on the bumps.
+    // Each blob's brightness as a height: its edges bevel, lit from the top-start corner, with a soft shine.
     const hm = blur(l, w, h, 2), at = (x: number, y: number) => hm[Math.min(h - 1, Math.max(0, y)) * w + Math.min(w - 1, Math.max(0, x))];
     const lx = -0.45, ly = -0.65, lz = 0.62, hl = Math.hypot(lx, ly, lz + 1), [hx, hy, hz] = [lx / hl, ly / hl, (lz + 1) / hl];
     const prints = p.rng('thumbprints'), warm: RGB = [255, 228, 200];
     const cv = pixels(p, w, h, (o) => {
       for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
-        const i = y * w + x, gx = (at(x + 1, y) - at(x - 1, y)) * 7, gy = (at(x, y + 1) - at(x, y - 1)) * 7;
+        const i = y * w + x, gx = (at(x + 1, y) - at(x - 1, y)) * 12, gy = (at(x, y + 1) - at(x, y - 1)) * 12;
         const nl = Math.hypot(gx, gy, 1), nx = -gx / nl, ny = -gy / nl, nz = 1 / nl;
-        const diff = Math.max(0, nx * lx + ny * ly + nz * lz), spec = Math.max(0, nx * hx + ny * hy + nz * hz) ** 24;
+        const diff = Math.max(0, nx * lx + ny * ly + nz * lz), spec = Math.max(0, nx * hx + ny * hy + nz * hz) ** 16;
         const y0 = l[i] * 255, base = mix([R[i], G[i], B[i]].map((ch) => y0 + (ch - y0) * 1.3) as RGB, warm, 0.1);
-        const k = i * 4, light = 0.6 + 0.55 * diff + (prints() - 0.5) * 0.04;
-        for (let ch = 0; ch < 3; ch++) o[k + ch] = base[ch] * light + 255 * 0.3 * spec;
+        const k = i * 4, light = 0.5 + 0.65 * diff + (prints() - 0.5) * 0.04;
+        for (let ch = 0; ch < 3; ch++) o[k + ch] = base[ch] * light + 255 * 0.32 * spec;
         o[k + 3] = 255;
       }
     });
@@ -654,27 +662,55 @@ const LOOK_DRAW: Record<Look, (p: Painter, r: Rect, src: OffscreenCanvas, img: I
   },
 };
 
-/** Draws the footage through a look. `plain` draws the plain footage with a given painter (the sample's). */
-export function drawLooked(p: Painter, look: Look, r: Rect, alpha: number | undefined, plain: (q: Painter, rect: Rect) => void) {
-  const [sw, sh] = lookSample(look, r.w, r.h);
-  // The shot at the rect's own shape first (footage crops to the shape it's given), then onto the look's grid.
+// Looks that treat you differently from the room: they read the clip's cutout when it has one.
+const WANTS_BODY: Partial<Record<Look, true>> = { thermal: true, hologram: true };
+
+/** Where the speaker probably is without a cutout, 0..1 per sample: a soft head-and-shoulders in the middle. */
+export function guessBody(w: number, h: number): Float32Array {
+  const b = new Float32Array(w * h);
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    const head = Math.hypot((x / w - 0.5) / 0.16, ((y / h - 0.4) / 0.11)), torso = Math.hypot((x / w - 0.5) / 0.36, (y / h - 0.85) / 0.36);
+    b[y * w + x] = Math.max(smooth(1.3 - head, 0, 0.6), smooth(1.2 - torso, 0, 0.5));
+  }
+  return b;
+}
+
+/** A painter that draws into a sw×sh canvas: the drawing is made at the rect's shape, then squeezed onto the grid. */
+function sampleWith(p: Painter, r: Rect, sw: number, sh: number, draw: (q: Painter, rect: Rect) => void) {
+  // The rect's own shape first (footage crops to the shape it's given), then onto the look's grid.
   const ah = Math.max(1, Math.round((sw * r.h) / r.w));
   const shot = p.canvas(sw, ah), a = shot.getContext('2d', { willReadFrequently: true })!;
   a.imageSmoothingQuality = 'high'; // an area-averaged shrink, so a coarse brick grid doesn't flicker
   const q = Object.create(p) as Painter;
   q.ctx = a;
-  plain(q, { x: 0, y: 0, w: sw, h: ah });
-  let sample = shot, g = a;
-  if (ah !== sh) {
-    sample = p.canvas(sw, sh); g = sample.getContext('2d', { willReadFrequently: true })!;
-    g.imageSmoothingQuality = 'high';
-    g.drawImage(shot, 0, 0, sw, sh);
+  draw(q, { x: 0, y: 0, w: sw, h: ah });
+  if (ah === sh) return { canvas: shot, img: a.getImageData(0, 0, sw, sh) };
+  const sample = p.canvas(sw, sh), g = sample.getContext('2d', { willReadFrequently: true })!;
+  g.imageSmoothingQuality = 'high';
+  g.drawImage(shot, 0, 0, sw, sh);
+  return { canvas: sample, img: g.getImageData(0, 0, sw, sh) };
+}
+
+/**
+ * Draws the footage through a look. `plain` draws the plain footage with a given painter (the sample's);
+ * `cutout`, when the clip has a matte, draws the matte (you opaque, the room clear) the same way.
+ */
+export function drawLooked(p: Painter, look: Look, r: Rect, alpha: number | undefined, plain: (q: Painter, rect: Rect) => void,
+  cutout?: ((q: Painter, rect: Rect) => void) | null) {
+  const [sw, sh] = lookSample(look, r.w, r.h);
+  const { canvas: sample, img } = sampleWith(p, r, sw, sh, plain);
+  let body: Body = null;
+  if (WANTS_BODY[look]) {
+    if (cutout) {
+      const m = sampleWith(p, r, sw, sh, cutout).img.data, b = new Float32Array(sw * sh);
+      for (let i = 0; i < sw * sh; i++) b[i] = m[i * 4 + 3] / 255;
+      body = { a: b, real: true };
+    } else body = { a: guessBody(sw, sh), real: false };
   }
-  const img = g.getImageData(0, 0, sw, sh);
   const c = p.ctx;
   c.save();
   if (alpha !== undefined) c.globalAlpha *= alpha;
   c.beginPath(); c.rect(r.x, r.y, r.w, r.h); c.clip();
-  LOOK_DRAW[look](p, r, sample, img);
+  LOOK_DRAW[look](p, r, sample, img, body);
   c.restore();
 }

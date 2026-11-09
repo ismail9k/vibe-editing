@@ -119,7 +119,12 @@ export function mediaMethods(env: MediaEnv) {
     footage(this: Painter, o: FootageOpts = {}) {
       if (isLook(o.look)) {
         const { look, alpha, filter: _f, ...rest } = o;
-        drawLooked(this, look, o.rect ?? { x: 0, y: 0, w: this.W, h: this.H }, alpha, (q, rect) => q.footage({ ...rest, rect }));
+        // The cutout, framed like the shot, for looks that treat you apart from the room (made only if one asks).
+        const cutout = media?.frame && media.matte ? (q: Painter, rect: Rect) => {
+          const m = alphaMatte(this)!;
+          q.ctx.drawImage(m.canvas, ...sourceRect(m.canvas, this.W, this.H, view(this.W, this.H, { ...rest, rect })), rect.x, rect.y, rect.w, rect.h);
+        } : null;
+        drawLooked(this, look, o.rect ?? { x: 0, y: 0, w: this.W, h: this.H }, alpha, (q, rect) => q.footage({ ...rest, rect }), cutout);
         return;
       }
       const v = view(this.W, this.H, o), c = this.ctx;

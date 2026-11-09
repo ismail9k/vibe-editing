@@ -1,6 +1,6 @@
 // The footage looks: the pure parts (sampling sizes, edges, the low-poly mesh, the ASCII ramp, brick colours).
 import { describe, it, expect } from 'vitest';
-import { LOOKS, LOOK_NAMES, isLook, lookSample, lumaOf, edges, mesh, asciiFor, posterize, ramp, heatOf, cube } from '../../src/core/looks';
+import { LOOKS, LOOK_NAMES, isLook, lookSample, lumaOf, edges, mesh, asciiFor, posterize, ramp, heatOf, cube, guessBody } from '../../src/core/looks';
 
 describe('look list', () => {
   it('has the looks from both reels, each with a display name', () => {
@@ -26,8 +26,8 @@ describe('lookSample', () => {
     expect(lookSample('neon', 1080, 1920)).toEqual([360, 640]);
     // Isometric cube rows overlap: a row advances √3/2 of a cube's width.
     const [iw, ih] = lookSample('isometric', 1080, 1920);
-    expect(iw).toBe(44);
-    expect(ih).toBe(Math.round(1920 / ((1080 / 44) * (Math.sqrt(3) / 2))));
+    expect(iw).toBe(30);
+    expect(ih).toBe(Math.round(1920 / ((1080 / 30) * (Math.sqrt(3) / 2))));
   });
 
   it('never samples finer than the rect it draws into', () => {
@@ -119,10 +119,11 @@ describe('footage({ look })', async () => {
     });
     return { width: w, height: h, getContext: () => ctx };
   };
-  const painter = (log: string[], made: [number, number][]) => {
+  const painter = (log: string[], made: [number, number][], withMatte = false) => {
     const W = 1080, H = 1920, main = fakeCanvas(W, H, log).getContext();
     const frame = { videoWidth: 1080, videoHeight: 1920 } as unknown as CanvasImageSource;
-    const m = mediaMethods({ media: { frame, matte: null }, clip: true, W, H });
+    const matte = withMatte ? { videoWidth: 540, videoHeight: 960 } as unknown as CanvasImageSource : null;
+    const m = mediaMethods({ media: { frame, matte, matteIsAlpha: true }, clip: true, W, H });
     return Object.assign(Object.create(null), m, {
       ctx: main, W, H, t: 0, rem: 32, dir: 'ltr',
       theme: { surface: '#111', border: '#333' }, brand: { colors: { accent: '#f60' } },
@@ -152,6 +153,17 @@ describe('footage({ look })', async () => {
       expect(() => painter(log, made).footage({ look, rect }), look).not.toThrow();
       expect(log.length, look).toBeGreaterThan(0);
     }
+  });
+
+  it('reads the cutout for thermal when the clip has one, and never for looks that ignore it', () => {
+    const run = (look: string, withMatte: boolean) => {
+      const made: [number, number][] = [];
+      painter([], made, withMatte).footage({ look, rect: { x: 0, y: 0, w: 540, h: 960 } });
+      return made;
+    };
+    expect(run('thermal', true)).toContainEqual([540, 960]); // the matte, read once for this frame
+    expect(run('thermal', false)).not.toContainEqual([540, 960]);
+    expect(run('comic', true)).not.toContainEqual([540, 960]);
   });
 
   it('draws the plain shot for no look or an unknown one', () => {
@@ -199,5 +211,15 @@ describe('cube', () => {
     const n = cube(100 + w / 2, 100 + (w * Math.sqrt(3)) / 2, w);
     expect(n.ul[0]).toBeCloseTo(q.bottom[0]); expect(n.ul[1]).toBeCloseTo(q.bottom[1]);
     expect(n.top[0]).toBeCloseTo(q.lr[0]); expect(n.top[1]).toBeCloseTo(q.lr[1]);
+  });
+});
+
+describe('guessBody', () => {
+  it('puts you in the middle of the frame, not at its edges', () => {
+    const w = 36, h = 64, b = guessBody(w, h), at = (x: number, y: number) => b[Math.floor(y * h) * w + Math.floor(x * w)];
+    expect(at(0.5, 0.4)).toBeGreaterThan(0.9); // the head
+    expect(at(0.5, 0.85)).toBeGreaterThan(0.9); // the chest
+    expect(at(0.02, 0.1)).toBe(0);
+    expect(at(0.98, 0.5)).toBe(0);
   });
 });
