@@ -152,7 +152,12 @@ export function mediaMethods(env: MediaEnv) {
       const m = media?.frame ? alphaMatte(this) : null;
       if (media?.frame && m) {
         const out = this.canvas(v.r.w, v.r.h), g = out.getContext('2d')!;
-        g.drawImage(media.frame, ...sourceRect(media.frame, this.W, this.H, v), 0, 0, v.r.w, v.r.h);
+        if (isLook(o.look)) {
+          // You in a look: the looked shot drawn off-screen over the same window, then cut out like the plain one.
+          const { outline: _o, alpha: _a, filter: _f, rect: _r, ...rest } = o, own = this.ctx;
+          this.ctx = g;
+          try { this.footage({ ...rest, rect: { x: 0, y: 0, w: v.r.w, h: v.r.h } }); } finally { this.ctx = own; }
+        } else g.drawImage(media.frame, ...sourceRect(media.frame, this.W, this.H, v), 0, 0, v.r.w, v.r.h);
         g.globalCompositeOperation = 'destination-in';
         g.drawImage(m.canvas, ...sourceRect(m.canvas, this.W, this.H, v), 0, 0, v.r.w, v.r.h);
         c.save();

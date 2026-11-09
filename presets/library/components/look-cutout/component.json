@@ -1,0 +1,33 @@
+{
+  "name": "Look on you",
+  "description": "A look on just you or just the room, using the clip's cutout: a hologram of you over the dimmed room, you in paper cut against the real room, or you as you are in a comic-book room. Wipes in from the plain shot and back out.",
+  "duration": 3,
+  "scene": true,
+  "matte": true,
+  "defaults": {
+    "look": "hologram",
+    "on": "you",
+    "dim": true,
+    "wipe": true
+  },
+  "schema": {
+    "look": {
+      "type": "select",
+      "label": "Look",
+      "options": ["neon", "sketch", "comic", "chalk", "pixel", "riso", "lowpoly", "papercut", "bricks", "terminal", "hologram", "cyberpunk", "isometric", "blueprint", "thermal", "anime", "watercolor", "clay", "woodblock", "noir", "oldcartoon", "crt", "sumi", "knit", "ps2", "synthwave", "marble", "underwater", "collage"]
+    },
+    "on": {
+      "type": "select",
+      "label": "Look on",
+      "options": ["you", "room"]
+    },
+    "dim": {
+      "type": "bool",
+      "label": "Dim the room (look on you)"
+    },
+    "wipe": {
+      "type": "bool",
+      "label": "Wipe in and out"
+    }
+  }
+}

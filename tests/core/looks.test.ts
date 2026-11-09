@@ -167,6 +167,17 @@ describe('footage({ look })', async () => {
     expect(run('comic', true)).not.toContainEqual([540, 960]);
   });
 
+  it('cuts you out of the looked shot with subject({ look }), and puts the canvas back after', () => {
+    const made: [number, number][] = [], p = painter([], made, true), main = p.ctx;
+    p.subject({ look: 'pixel', rect: { x: 100, y: 200, w: 540, h: 960 } });
+    expect(made).toContainEqual([540, 960]); // the cutout canvas, the rect's size
+    expect(made).toContainEqual([72, 128]); // the look's sample grid, drawn into it
+    expect(p.ctx).toBe(main);
+    const plain: [number, number][] = [];
+    painter([], plain, true).subject({ rect: { x: 100, y: 200, w: 540, h: 960 } });
+    expect(plain).not.toContainEqual([72, 128]);
+  });
+
   it('draws the plain shot for no look or an unknown one', () => {
     for (const look of [undefined, 'lego']) {
       const log: string[] = [], made: [number, number][] = [];

@@ -1,0 +1,10 @@
+{
+  "name": "Old film",
+  "preset": true,
+  "description": "A 1930s cartoon reel: serif title cards with a double ink border, motion stepped at 12 drawings a second, and the graphics on scratched, flickering, weaving film. Pairs with the oldcartoon look.",
+  "params": {
+    "grain": { "type": "number", "label": "Grain and scratches", "value": 0.5, "min": 0, "max": 1, "step": 0.05 },
+    "weave": { "type": "number", "label": "Gate weave", "value": 0.5, "min": 0, "max": 1, "step": 0.05 },
+    "fps": { "type": "number", "label": "Drawings a second", "value": 12, "min": 6, "max": 30, "step": 1 }
+  }
+}

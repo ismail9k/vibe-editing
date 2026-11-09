@@ -10,7 +10,6 @@ Ideas and known gaps, roughly in the order they'd pay off.
 
 ## Looks from the reference reel (instagram.com/reel/DfgtLums66K) not built yet
 - **Graphics styles to match the looks**: neon, comic, riso, paper and bricks restyle only the footage; panels and text keep the project's style. Chalkboard, pixel and terminal already exist as styles.
-- **A look on just you or just the room**: `p.subject({ look })`, so you stay real in a sketched room (or the reverse).
 - **Comic burst**: the jagged "BOOM!" sticker over the comic look, typed in the brand's display font.
 - **Pixel-art HUD**: a score counter and hearts over the pixel look, game-style.
 - **Chalk notes**: handwritten labels and arrows on the chalkboard look, pointing at you.
@@ -18,13 +17,12 @@ Ideas and known gaps, roughly in the order they'd pay off.
 
 ## Looks from the second reel (instagram.com/reel/DffdKwWES9B) not built yet
 - **Scene rebuilds**: the reel's isometric, claymation and anime shots are generated, so the room itself is remodelled (an isometric diorama, a clay figure). Our looks restyle the shot's pixels: isometric is your shot in toy cubes, clay is your shot lit like clay. A true rebuild needs an image model per frame.
-- **Hologram on just you**: the reel's hologram floats over a dark room. Needs `p.subject({ look })` (also in the list above).
 
 ## The "30 animations" and "10 styles, one prompt" reels (instagram.com/reel/DffhyPkv7Uv, instagram.com/reel/DfZ_iPdttLt)
 Both are illustrated films with no footage. Their styles came in as footage looks (woodblock, noir, 1930s cartoon, CRT, sumi, knit, PS2, synthwave, marble, underwater, collage), graphics styles to match (synthwave, woodblock, noir, sumi, frosted glass), components (bar race, flowchart, type slam, flying cards, pixel dissolve) and drawn `scenery` (night, sea, museum). Not built:
 - **More scenes**: the kids cartoon, felt story and the 3D character need characters drawn from nothing; `scenery` has places, not people.
 - **Avatar dashboard, gold chart**: close to `stat` and `chart-grow` under the glass style. Gold is outside the brand's one-accent rule, so it's left out on purpose.
-- **Styles for the other new looks**: 1930s cartoon, CRT, knit, PS2, marble, underwater and collage are footage looks only.
+- **Styles for the other new looks**: knit, PS2, marble and underwater are footage looks only (1930s cartoon has `film`, collage has `collage`, CRT is close to `terminal`).
 
 ## Engine
 - **Zoom headroom**: footage is decoded at the output size, so a 2× punch-in is soft. Decode at 2× for clips under a zoom effect.

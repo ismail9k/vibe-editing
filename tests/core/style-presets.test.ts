@@ -3,7 +3,7 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 
-const STYLES = ['synthwave', 'woodblock', 'noir', 'sumi', 'glass'];
+const STYLES = ['synthwave', 'woodblock', 'noir', 'sumi', 'glass', 'collage', 'film'];
 const styleMeta = (id: string) => JSON.parse(readFileSync(`presets/library/styles/${id}/style.json`, 'utf8'));
 const loadStyle = async (id: string) => (await import(`../../presets/library/styles/${id}/style.js`)).default;
 const loadComponent = async (id: string) => await import(`../../presets/library/components/${id}/component.js`);
@@ -15,7 +15,7 @@ function fakeCanvas(w: number, h: number, log: string[]) {
       : k === 'createLinearGradient' || k === 'createRadialGradient' ? () => ({ addColorStop: () => {} })
       : k === 'getTransform' ? () => ({ a: 1, b: 0, c: 0, d: 1, e: 0, f: 0 })
       : k === 'getImageData' ? () => ({ data: new Uint8ClampedArray(w * h * 4), width: w, height: h })
-      : (..._a: unknown[]) => { log.push(k); },
+      : (...a: unknown[]) => { log.push(k === 'fillRect' ? `${k}@${(a as number[]).map(Math.round).join(',')}` : k); },
     set: (o, k: string, v) => { o[k] = v; return true; },
   });
   return { width: w, height: h, getContext: () => ctx };
@@ -28,7 +28,10 @@ function basePainter(mode: 'dark' | 'light', dir: 'ltr' | 'rtl', params: Record<
     theme: { bg: '#0F0F0F', text: '#F5F5F5', muted: '#999', primaryText: '#2FB161', surface: '#1A1A1A', raised: '#242424', sunken: '#141414', border: '#404040', selected: '#1F3327', warning: '#F4C871', glow: ['#499B56', '#4FA866', '#E85A02'], glowOpacity: 0.35 },
     brand: { colors: { primary: '#166434', accent: '#E85A02', onAccent: '#000', onPrimary: '#fff', ink: '#0A111A' } },
     m: { clamp: (v: number) => Math.min(1, Math.max(0, v)), hash: () => 1 },
-    rng: () => { let s = 0.137; return () => (s = (s * 9301 + 0.49297) % 1); },
+    rng: (seed: string | number) => { // seeded like the painter's: the same seed gives the same numbers
+      let h = 2166136261; for (const ch of String(seed)) h = Math.imul(h ^ ch.charCodeAt(0), 16777619);
+      return () => { h = Math.imul(h ^ (h >>> 15), 2246822507) + 0x6d2b79f5 | 0; return ((h >>> 0) % 1e6) / 1e6; };
+    },
     canvas: (w: number, h: number) => fakeCanvas(w, h, []),
     measure: (s: string) => { calls.push(`measure:${s}`); return s.length * 20; },
     text: (s: string) => { calls.push(`text:${s}`); return { w: s.length * 20, h: 30 }; },
@@ -64,6 +67,8 @@ describe('the reel styles', () => {
       p.line([[0, 0], [100, 100]], {});
       p.rule(100, 100, 300, { progress: 0.5 });
       p.measure('Hi', { role: 'display' });
+      if (p.post) p.post();
+      if (p.enter !== base.enter) expect(p.enter(0.5)).toBeGreaterThanOrEqual(0);
       expect(log.length, id).toBeGreaterThan(0);
     });
   }
@@ -92,6 +97,49 @@ describe('the reel styles', () => {
     (await loadStyle('glass'))(base).panel!.call(base, { x: 100, y: 100, w: 400, h: 200 }, {});
     expect(log).toContain('drawImage');
     expect(String((base.ctx as Record<string, unknown>).filter)).toMatch(/blur\(/);
+  });
+});
+
+describe('old film', () => {
+  // The post pass, run on a canvas that records the size and place of every speck.
+  const post = async (t: number) => {
+    const log: string[] = [], base = basePainter('dark', 'ltr', { grain: 0.5, weave: 0.5, fps: 12 }, log, []);
+    const p = Object.assign(Object.create(null), base, (await loadStyle('film'))(base), { t });
+    p.post();
+    return log.join();
+  };
+
+  it('puts the same dust on every frame of one drawing, and new dust on the next drawing', async () => {
+    expect(await post(1.0)).toBe(await post(1.04)); // both in drawing 12
+    expect(await post(1.0)).not.toBe(await post(1.1));
+  });
+
+  it('moves in steps, twelve drawings a second', async () => {
+    const base = basePainter('dark', 'ltr', { fps: 12 }, [], []);
+    const p = Object.assign(Object.create(null), base, (await loadStyle('film'))(base));
+    expect(p.enter(0.1)).toBe(p.enter(0.0834));
+    expect(p.enter(0.1)).toBeCloseTo(1 / 12);
+  });
+});
+
+describe('look on you', async () => {
+  const { split } = await loadComponent('look-cutout');
+  const meta = JSON.parse(readFileSync('presets/library/components/look-cutout/component.json', 'utf8'));
+  const record = (on: string, dim: boolean) => {
+    const calls: unknown[] = [];
+    split({ footage: (o: object) => calls.push(['footage', o]), subject: (o?: object) => calls.push(['subject', o]) }, 'hologram', on, dim);
+    return calls;
+  };
+
+  it('needs the cutout', () => { expect(meta.matte).toBe(true); expect(meta.scene).toBe(true); });
+
+  it('puts the look on you over the room, dimmed or not', () => {
+    expect(record('you', true)).toEqual([['footage', { filter: 'brightness(0.35) saturate(0.6)' }], ['subject', { look: 'hologram' }]]);
+    expect(record('you', false)).toEqual([['footage', {}], ['subject', { look: 'hologram' }]]);
+  });
+
+  it('or on the room, with you plain in front', () => {
+    expect(record('room', true)).toEqual([['footage', { look: 'hologram' }], ['subject', undefined]]);
   });
 });
 
