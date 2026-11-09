@@ -23,7 +23,7 @@ export interface FootageOpts {
   /** A canvas filter, e.g. 'grayscale(1) brightness(.6)' or 'blur(12px)'. */
   filter?: string;
   alpha?: number;
-  /** Redraw the shot in a look: neon, sketch, comic, chalk, pixel, riso, lowpoly, papercut, bricks, terminal. */
+  /** Redraw the shot in a look: one of LOOKS in looks.ts (neon, sketch, comic, … thermal, anime, watercolor, clay). */
   look?: string;
 }
 export interface SubjectOpts extends FootageOpts { outline?: { color?: string; width?: number } }

@@ -1,10 +1,13 @@
 // The footage looks: the pure parts (sampling sizes, edges, the low-poly mesh, the ASCII ramp, brick colours).
 import { describe, it, expect } from 'vitest';
-import { LOOKS, LOOK_NAMES, isLook, lookSample, lumaOf, edges, mesh, asciiFor, posterize } from '../../src/core/looks';
+import { LOOKS, LOOK_NAMES, isLook, lookSample, lumaOf, edges, mesh, asciiFor, posterize, ramp, heatOf, cube } from '../../src/core/looks';
 
 describe('look list', () => {
-  it('has the ten looks from the reel, each with a display name', () => {
-    expect(LOOKS).toEqual(['neon', 'sketch', 'comic', 'chalk', 'pixel', 'riso', 'lowpoly', 'papercut', 'bricks', 'terminal']);
+  it('has the looks from both reels, each with a display name', () => {
+    expect(LOOKS).toEqual([
+      'neon', 'sketch', 'comic', 'chalk', 'pixel', 'riso', 'lowpoly', 'papercut', 'bricks', 'terminal',
+      'hologram', 'cyberpunk', 'isometric', 'blueprint', 'thermal', 'anime', 'watercolor', 'clay',
+    ]);
     for (const l of LOOKS) expect(LOOK_NAMES[l]).toBeTruthy();
     expect(isLook('comic')).toBe(true);
     expect(isLook('lego')).toBe(false);
@@ -21,6 +24,10 @@ describe('lookSample', () => {
     // Characters are 1.7× taller than wide.
     expect(th).toBe(Math.round(1920 / ((1080 / 60) * 1.7)));
     expect(lookSample('neon', 1080, 1920)).toEqual([360, 640]);
+    // Isometric cube rows overlap: a row advances √3/2 of a cube's width.
+    const [iw, ih] = lookSample('isometric', 1080, 1920);
+    expect(iw).toBe(44);
+    expect(ih).toBe(Math.round(1920 / ((1080 / 44) * (Math.sqrt(3) / 2))));
   });
 
   it('never samples finer than the rect it draws into', () => {
@@ -105,7 +112,7 @@ describe('footage({ look })', async () => {
   const fakeCanvas = (w: number, h: number, log: string[]) => {
     const ctx: Record<string, unknown> = new Proxy({ canvas: { width: w, height: h } } as Record<string, unknown>, {
       get: (o, k: string) => k in o ? o[k]
-        : k === 'createLinearGradient' ? () => ({ addColorStop: () => {} })
+        : k === 'createLinearGradient' || k === 'createRadialGradient' ? () => ({ addColorStop: () => {} })
         : k === 'getImageData' || k === 'createImageData' ? (..._a: number[]) => ({ data: new Uint8ClampedArray(w * h * 4), width: w, height: h })
         : (...a: unknown[]) => { log.push(`${k}${k === 'drawImage' ? `@${(a as number[]).slice(-4).map(Math.round).join(',')}` : ''}`); },
       set: (o, k: string, v) => { o[k] = v; return true; },
@@ -139,6 +146,14 @@ describe('footage({ look })', async () => {
     expect(made.slice(0, 2)).toEqual([[60, 107], [60, 63]]);
   });
 
+  it('draws every look without throwing, in a full frame and in a small tile', () => {
+    for (const look of LOOKS) for (const rect of [undefined, { x: 10, y: 20, w: 180, h: 320 }]) {
+      const log: string[] = [], made: [number, number][] = [];
+      expect(() => painter(log, made).footage({ look, rect }), look).not.toThrow();
+      expect(log.length, look).toBeGreaterThan(0);
+    }
+  });
+
   it('draws the plain shot for no look or an unknown one', () => {
     for (const look of [undefined, 'lego']) {
       const log: string[] = [], made: [number, number][] = [];
@@ -146,5 +161,43 @@ describe('footage({ look })', async () => {
       expect(made).toEqual([]);
       expect(log).toContain('drawImage@0,0,540,960');
     }
+  });
+});
+
+describe('ramp', () => {
+  const stops: [number, [number, number, number]][] = [[0, [0, 0, 0]], [0.5, [100, 0, 200]], [1, [255, 255, 255]]];
+  it('hits each stop and blends between them', () => {
+    expect(ramp(stops, 0)).toEqual([0, 0, 0]);
+    expect(ramp(stops, 0.5)).toEqual([100, 0, 200]);
+    expect(ramp(stops, 1)).toEqual([255, 255, 255]);
+    expect(ramp(stops, 0.25)).toEqual([50, 0, 100]);
+  });
+  it('holds the end colours outside 0..1', () => {
+    expect(ramp(stops, -1)).toEqual([0, 0, 0]);
+    expect(ramp(stops, 2)).toEqual([255, 255, 255]);
+  });
+});
+
+describe('heatOf', () => {
+  it('reads warm colours hotter than cool ones of the same brightness', () => {
+    expect(heatOf(220, 140, 100)).toBeGreaterThan(heatOf(100, 150, 230));
+  });
+  it('rises with brightness and stays in 0..1', () => {
+    expect(heatOf(200, 200, 200)).toBeGreaterThan(heatOf(40, 40, 40));
+    for (const [r, g, b] of [[0, 0, 0], [255, 255, 255], [255, 0, 0], [0, 0, 255]]) {
+      const v = heatOf(r, g, b);
+      expect(v).toBeGreaterThanOrEqual(0); expect(v).toBeLessThanOrEqual(1);
+    }
+  });
+});
+
+describe('cube', () => {
+  it('is a hexagon as wide as asked, whose rows tile at √3/2 of its width', () => {
+    const w = 30, q = cube(100, 100, w);
+    expect(q.ur[0] - q.ul[0]).toBeCloseTo(w);
+    // The next row sits half a cube along and √3/2·w down: its top-left edge meets this cube's bottom-right edge.
+    const n = cube(100 + w / 2, 100 + (w * Math.sqrt(3)) / 2, w);
+    expect(n.ul[0]).toBeCloseTo(q.bottom[0]); expect(n.ul[1]).toBeCloseTo(q.bottom[1]);
+    expect(n.top[0]).toBeCloseTo(q.lr[0]); expect(n.top[1]).toBeCloseTo(q.lr[1]);
   });
 });

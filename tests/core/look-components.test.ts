@@ -60,6 +60,12 @@ describe('look components', () => {
     expect(texts).not.toContain('ليغو');
   });
 
+  it('look-roll: knows the second reel\'s looks by name', async () => {
+    const { texts, looks } = await draw('look-roll', 1.6, { looks: ['hologram', 'thermal', 'clay'], each: 1 });
+    expect(looks).toEqual(['hologram', 'thermal']);
+    expect(texts).toEqual(expect.arrayContaining(['Hologram', 'Thermal cam']));
+  });
+
   it('look-grid: a tile per look, and the call to action', async () => {
     const { looks, texts } = await draw('look-grid', 3, { looks: ['neon', 'pixel', 'terminal'], text: 'Comment', keyword: 'STYLE', line: 'and I will send the prompts' });
     expect(looks).toEqual(['neon', 'pixel', 'terminal']);

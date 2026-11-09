@@ -3,6 +3,8 @@
 const NAMES = {
   neon: 'Neon', sketch: 'Pencil sketch', comic: 'Comic', chalk: 'Chalkboard', pixel: 'Pixel art',
   riso: 'Riso print', lowpoly: 'Low poly', papercut: 'Paper cut', bricks: 'Bricks', terminal: 'Terminal',
+  hologram: 'Hologram', cyberpunk: 'Cyberpunk neon', isometric: 'Isometric', blueprint: 'Blueprint',
+  thermal: 'Thermal cam', anime: 'Anime cel', watercolor: 'Watercolour', clay: 'Claymation',
 };
 const LEAD = 0.5, WIPE = 0.3;
 const clamp = (v) => Math.min(1, Math.max(0, v));

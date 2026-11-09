@@ -16,6 +16,10 @@ Ideas and known gaps, roughly in the order they'd pay off.
 - **Chalk notes**: handwritten labels and arrows on the chalkboard look, pointing at you.
 - **Live preview cost**: every frame of a look is sampled and redrawn on the CPU; terminal (≈4,000 characters) and bricks are the heaviest. Not measured in the Edit room yet; if it stutters, cache the look per video frame or move it to WebGL.
 
+## Looks from the second reel (instagram.com/reel/DffdKwWES9B) not built yet
+- **Scene rebuilds**: the reel's isometric, claymation and anime shots are generated, so the room itself is remodelled (an isometric diorama, a clay figure). Our looks restyle the shot's pixels: isometric is your shot in toy cubes, clay is your shot lit like clay. A true rebuild needs an image model per frame.
+- **Hologram on just you**: the reel's hologram floats over a dark room. Needs `p.subject({ look })` (also in the list above).
+
 ## Engine
 - **Zoom headroom**: footage is decoded at the output size, so a 2× punch-in is soft. Decode at 2× for clips under a zoom effect.
 - **Cutouts off the Mac**: mattes use Apple Vision. For open source, add MediaPipe or Robust Video Matting as a second engine.

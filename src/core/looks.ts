@@ -1,27 +1,66 @@
 // Footage looks: the shot redrawn as neon, a pencil sketch, a comic, chalk on a board, pixel art, a riso print,
-// low poly, paper cut, bricks or a terminal. The footage is sampled small (each look on its own grid), read back
-// as pixels and drawn again into the rect. Pure: the same frame at the same t gives the same pixels.
+// low poly, paper cut, bricks, a terminal, a hologram, a cyberpunk grade, isometric cubes, a blueprint, a thermal
+// camera, anime cels, watercolour or clay. The footage is sampled small (each look on its own grid), read back as
+// pixels and drawn again into the rect. Pure: the same frame at the same t gives the same pixels.
 import { motion, clamp } from './motion';
 import type { Ctx, Painter, Rect } from './painter';
 
-export const LOOKS = ['neon', 'sketch', 'comic', 'chalk', 'pixel', 'riso', 'lowpoly', 'papercut', 'bricks', 'terminal'] as const;
+export const LOOKS = [
+  'neon', 'sketch', 'comic', 'chalk', 'pixel', 'riso', 'lowpoly', 'papercut', 'bricks', 'terminal',
+  'hologram', 'cyberpunk', 'isometric', 'blueprint', 'thermal', 'anime', 'watercolor', 'clay',
+] as const;
 export type Look = (typeof LOOKS)[number];
 export const LOOK_NAMES: Record<Look, string> = {
   neon: 'Neon', sketch: 'Pencil sketch', comic: 'Comic', chalk: 'Chalkboard', pixel: 'Pixel art',
   riso: 'Riso print', lowpoly: 'Low poly', papercut: 'Paper cut', bricks: 'Bricks', terminal: 'Terminal',
+  hologram: 'Hologram', cyberpunk: 'Cyberpunk neon', isometric: 'Isometric', blueprint: 'Blueprint',
+  thermal: 'Thermal cam', anime: 'Anime cel', watercolor: 'Watercolour', clay: 'Claymation',
 };
 export const isLook = (v: unknown): v is Look => typeof v === 'string' && (LOOKS as readonly string[]).includes(v);
 
-// Samples across the rect: coarse looks sample on their own grid (one sample per pixel, brick, dot or character).
-const ACROSS: Partial<Record<Look, number>> = { pixel: 72, bricks: 32, terminal: 60, riso: 90, lowpoly: 120, papercut: 270 };
-const CHAR = 1.7; // a terminal character cell is this much taller than wide
+// Samples across the rect: coarse looks sample on their own grid (one sample per pixel, brick, dot, character or
+// cube). Thermal and clay sample softer than the default on purpose: both should read smooth, not detailed.
+const ACROSS: Partial<Record<Look, number>> = {
+  pixel: 72, bricks: 32, terminal: 60, riso: 90, lowpoly: 120, papercut: 270, isometric: 44, thermal: 200, clay: 240,
+};
+// How much taller than wide a sample cell is: terminal characters are tall, isometric cube rows overlap
+// (a row of pointy-top hexagons advances √3/2 of a cube's width).
+const ASPECT: Partial<Record<Look, number>> = { terminal: 1.7, isometric: Math.sqrt(3) / 2 };
 
 /** The sample grid for a look drawn into a rect of rw×rh: [across, down]. Never finer than the rect. */
 export function lookSample(look: Look, rw: number, rh: number): [number, number] {
   const across = Math.max(1, Math.min(Math.round(rw), ACROSS[look] ?? 360));
   const cell = rw / across;
-  const down = Math.max(1, Math.min(Math.round(rh), Math.round(rh / (cell * (look === 'terminal' ? CHAR : 1)))));
+  const down = Math.max(1, Math.min(Math.round(rh), Math.round(rh / (cell * (ASPECT[look] ?? 1)))));
   return [across, down];
+}
+
+/** A colour ramp: `stops` are [position 0..1, colour], in order. Returns the colour at v. */
+export function ramp(stops: [number, [number, number, number]][], v: number): [number, number, number] {
+  const x = clamp(v);
+  for (let i = 1; i < stops.length; i++) {
+    const [p1, c1] = stops[i];
+    if (x <= p1) {
+      const [p0, c0] = stops[i - 1], k = p1 > p0 ? (x - p0) / (p1 - p0) : 1;
+      return [c0[0] + (c1[0] - c0[0]) * k, c0[1] + (c1[1] - c0[1]) * k, c0[2] + (c1[2] - c0[2]) * k];
+    }
+  }
+  return [...stops[stops.length - 1][1]];
+}
+
+/** Heat for the thermal look, 0..1: brightness, pushed up for warm colours (skin, a red top) and down for cool. */
+export function heatOf(r: number, g: number, b: number): number {
+  const l = (0.2126 * r + 0.7152 * g + 0.0722 * b) / 255;
+  return clamp(0.55 * l + 0.45 * clamp((r - b) / 255 + 0.35));
+}
+
+/** The six corners and centre of a pointy-top cube (a hexagon of width w) centred on x, y. */
+export function cube(x: number, y: number, w: number) {
+  const r = w / Math.sqrt(3), hw = w / 2;
+  return {
+    top: [x, y - r], ur: [x + hw, y - r / 2], lr: [x + hw, y + r / 2],
+    bottom: [x, y + r], ll: [x - hw, y + r / 2], ul: [x - hw, y - r / 2], mid: [x, y],
+  } as Record<'top' | 'ur' | 'lr' | 'bottom' | 'll' | 'ul' | 'mid', [number, number]>;
 }
 
 /** Luma, 0..1, per pixel of an RGBA image. */
@@ -138,6 +177,39 @@ const put = (c: Ctx, cv: CanvasImageSource, r: Rect, crisp = false) => {
   c.drawImage(cv, r.x, r.y, r.w, r.h);
   c.imageSmoothingEnabled = was;
 };
+
+/** The red, green and blue planes (0..255) of an image, each box-blurred by `rad` (0 = as is). */
+function planes({ data, width: w, height: h }: Img, rad: number): [Float32Array, Float32Array, Float32Array] {
+  const out = [0, 1, 2].map((ch) => {
+    const a = new Float32Array(w * h);
+    for (let i = 0; i < w * h; i++) a[i] = data[i * 4 + ch];
+    return rad > 0 ? blur(a, w, h, rad) : a;
+  });
+  return out as [Float32Array, Float32Array, Float32Array];
+}
+
+/** A size unit for drawing on top of a look: about one rem on a full frame, smaller on a tile. */
+const unitOf = (r: Rect) => r.w / 34;
+
+/** Darkened corners, `amount` 0..1. */
+function vignette(c: Ctx, r: Rect, amount: number, rgb = '0,0,0') {
+  const cx = r.x + r.w / 2, cy = r.y + r.h / 2, g = c.createRadialGradient(cx, cy, Math.min(r.w, r.h) * 0.35, cx, cy, Math.hypot(r.w, r.h) / 2);
+  g.addColorStop(0, `rgba(${rgb},0)`); g.addColorStop(1, `rgba(${rgb},${amount})`);
+  c.fillStyle = g; c.fillRect(r.x, r.y, r.w, r.h);
+}
+
+/** Thin dark scanlines across the rect, and a soft bright band rolling down it once every 1 / speed seconds. */
+function scanlines(p: Painter, r: Rect, band: string, speed: number) {
+  const c = p.ctx, gap = Math.max(1.5, unitOf(r) / 10);
+  c.fillStyle = 'rgba(0,0,0,0.25)';
+  for (let y = r.y; y < r.y + r.h; y += gap * 2) c.fillRect(r.x, y, r.w, gap);
+  const by = r.y + ((p.t * speed) % 1) * r.h, g = c.createLinearGradient(0, by - r.h * 0.08, 0, by + r.h * 0.08);
+  g.addColorStop(0, `rgba(${band},0)`); g.addColorStop(0.5, `rgba(${band},0.1)`); g.addColorStop(1, `rgba(${band},0)`);
+  c.fillStyle = g; c.fillRect(r.x, by - r.h * 0.08, r.w, r.h * 0.16);
+}
+
+const IRONBOW: [number, RGB][] = [[0, [4, 0, 18]], [0.22, [48, 4, 120]], [0.45, [168, 18, 150]], [0.65, [236, 76, 52]], [0.83, [255, 168, 20]], [1, [255, 250, 200]]];
+const CYBER: [number, RGB][] = [[0, [4, 6, 26]], [0.3, [8, 74, 112]], [0.62, [150, 40, 205]], [0.86, [255, 92, 205]], [1, [255, 228, 246]]];
 
 const LOOK_DRAW: Record<Look, (p: Painter, r: Rect, src: OffscreenCanvas, img: Img) => void> = {
   neon(p, r, src, { data, width: w, height: h }) {
@@ -338,6 +410,247 @@ const LOOK_DRAW: Record<Look, (p: Painter, r: Rect, src: OffscreenCanvas, img: I
     band.addColorStop(0, 'rgba(61,255,122,0)'); band.addColorStop(0.5, 'rgba(61,255,122,0.07)'); band.addColorStop(1, 'rgba(61,255,122,0)');
     c.fillStyle = band; c.fillRect(r.x, by - r.h * 0.08, r.w, r.h * 0.16);
     c.restore();
+  },
+
+  hologram(p, r, _src, { data, width: w, height: h }) {
+    const c = p.ctx, u = unitOf(r), l = stretch(lumaOf(data, w, h)), e = edges(l, w, h);
+    const deep: RGB = [0, 64, 118], cyan: RGB = [150, 246, 255];
+    c.fillStyle = '#01060d'; c.fillRect(r.x, r.y, r.w, r.h);
+    // The projector: a glow rising from the floor.
+    const fx = r.x + r.w / 2, glow = c.createRadialGradient(fx, r.y + r.h, 0, fx, r.y + r.h, r.w * 0.9);
+    glow.addColorStop(0, 'rgba(40,200,255,0.28)'); glow.addColorStop(1, 'rgba(40,200,255,0)');
+    c.fillStyle = glow; c.fillRect(r.x, r.y, r.w, r.h);
+    // See-through light: brighter where the shot is bright, brightest on its edges.
+    const body = pixels(p, w, h, (o) => {
+      for (let i = 0; i < w * h; i++) {
+        const v = l[i], col = mix(deep, cyan, clamp(v * 0.8 + e[i] * 1.2)), k = i * 4;
+        o[k] = col[0]; o[k + 1] = col[1]; o[k + 2] = col[2]; o[k + 3] = 255 * 0.9 * clamp(v * 0.8 + e[i] * 1.8);
+      }
+    });
+    const flicker = 0.86 + 0.14 * Math.sin(p.t * 31) * Math.sin(p.t * 5.7);
+    c.save();
+    c.globalCompositeOperation = 'lighter';
+    c.globalAlpha *= flicker;
+    c.filter = `blur(${(u * 0.5).toFixed(1)}px)`; put(c, body, r);
+    c.filter = 'none';
+    // The sharp layer in strips; now and then a few slip sideways, a dozen times a second (the glitch).
+    const g = p.rng(`holo${Math.floor(p.t * 12)}`), strips = 24, sh = r.h / strips;
+    for (let k = 0; k < strips; k++) {
+      const slip = g() < 0.08 ? (g() - 0.5) * u * 1.4 : 0;
+      c.save();
+      c.beginPath(); c.rect(r.x, r.y + k * sh, r.w, sh + 0.5); c.clip();
+      c.drawImage(body, r.x + slip, r.y, r.w, r.h);
+      c.restore();
+    }
+    c.restore();
+    scanlines(p, r, '120,240,255', 0.35);
+  },
+
+  cyberpunk(p, r, _src, { data, width: w, height: h }) {
+    const c = p.ctx, u = unitOf(r), l = stretch(lumaOf(data, w, h));
+    // Teal shadows, magenta highlights, with the shot's own colours kept (and pushed) underneath.
+    const graded = new Uint8ClampedArray(w * h * 4);
+    for (let i = 0; i < w * h; i++) {
+      const k = i * 4, y = 0.2126 * data[k] + 0.7152 * data[k + 1] + 0.0722 * data[k + 2], grade = ramp(CYBER, l[i]);
+      for (let ch = 0; ch < 3; ch++) graded[k + ch] = (y + (data[k + ch] - y) * 1.5) * 0.4 + grade[ch] * 0.6;
+      graded[k + 3] = 255;
+    }
+    put(c, pixels(p, w, h, (o) => o.set(graded)), r);
+    // Only the bright parts bloom.
+    const bright = pixels(p, w, h, (o) => {
+      o.set(graded);
+      for (let i = 0; i < w * h; i++) o[i * 4 + 3] = 255 * smooth(l[i], 0.55, 0.92);
+    });
+    c.save();
+    c.globalCompositeOperation = 'lighter';
+    c.globalAlpha *= 0.6;
+    c.filter = `blur(${(u * 0.7).toFixed(1)}px)`; put(c, bright, r);
+    c.filter = `blur(${(u * 2).toFixed(1)}px)`; put(c, bright, r);
+    c.restore();
+    // Haze: magenta hanging from the top, teal on the floor.
+    c.save();
+    c.globalCompositeOperation = 'screen';
+    const haze = c.createLinearGradient(0, r.y, 0, r.y + r.h);
+    haze.addColorStop(0, 'rgba(255,40,200,0.2)'); haze.addColorStop(0.45, 'rgba(255,40,200,0)');
+    haze.addColorStop(0.75, 'rgba(0,200,255,0)'); haze.addColorStop(1, 'rgba(0,200,255,0.16)');
+    c.fillStyle = haze; c.fillRect(r.x, r.y, r.w, r.h);
+    c.restore();
+    vignette(c, r, 0.55, '6,0,24');
+  },
+
+  isometric(p, r, _src, { data, width: w, height: h }) {
+    const c = p.ctx, cw = r.w / w, pitch = r.h / h;
+    c.fillStyle = '#f4d8c6'; c.fillRect(r.x, r.y, r.w, r.h);
+    c.save();
+    c.lineJoin = 'round';
+    c.lineWidth = Math.max(0.5, cw * 0.03);
+    const white: RGB = [255, 248, 240], shade: RGB = [40, 24, 40];
+    // A pointy-top cube per sample; odd rows sit half a cube along, so the cubes tile like a honeycomb. One more
+    // row and one more cube on odd rows cover the ragged edges.
+    for (let y = 0; y <= h; y++) for (let x = y % 2 ? -1 : 0; x < w; x++) {
+      const k = (Math.min(h - 1, y) * w + Math.max(0, x)) * 4, lum = 0.2126 * data[k] + 0.7152 * data[k + 1] + 0.0722 * data[k + 2];
+      // Toy plastic: brighter, a little more saturated, a few steps, a touch of white.
+      const col = mix([0, 1, 2].map((i) => posterize(Math.min(255, Math.max(0, (lum + (data[k + i] - lum) * 1.25) * 1.08)), 7)) as RGB, white, 0.12);
+      const q = cube(r.x + (x + (y % 2 ? 1 : 0.5)) * cw, r.y + (y + 0.5) * pitch, cw);
+      const faces: [[number, number][], RGB][] = [
+        [[q.top, q.ur, q.mid, q.ul], mix(col, white, 0.3)],
+        [[q.ul, q.mid, q.bottom, q.ll], col],
+        [[q.mid, q.ur, q.lr, q.bottom], mix(col, shade, 0.28)],
+      ];
+      for (const [pts, fc] of faces) {
+        const s = css(fc);
+        c.fillStyle = s; c.strokeStyle = s;
+        c.beginPath(); c.moveTo(...pts[0]); for (const pt of pts.slice(1)) c.lineTo(...pt); c.closePath(); c.fill(); c.stroke();
+      }
+    }
+    c.restore();
+  },
+
+  blueprint(p, r, _src, { data, width: w, height: h }) {
+    const c = p.ctx, u = unitOf(r), l = stretch(lumaOf(data, w, h)), e = edges(blur(l, w, h, 1), w, h);
+    const bg = c.createRadialGradient(r.x + r.w / 2, r.y + r.h * 0.45, 0, r.x + r.w / 2, r.y + r.h * 0.45, Math.hypot(r.w, r.h) * 0.6);
+    bg.addColorStop(0, '#1a5bc4'); bg.addColorStop(1, '#0a2e72');
+    c.fillStyle = bg; c.fillRect(r.x, r.y, r.w, r.h);
+    // The drafting grid: a fine line every unit, a stronger one every fifth.
+    c.save();
+    const step = r.w / 34;
+    for (let k = 0, x = r.x; x <= r.x + r.w; k++, x += step) {
+      c.fillStyle = k % 5 ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.2)'; c.fillRect(x, r.y, 1, r.h);
+    }
+    for (let k = 0, y = r.y; y <= r.y + r.h; k++, y += step) {
+      c.fillStyle = k % 5 ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.2)'; c.fillRect(r.x, y, r.w, 1);
+    }
+    // A ghost of the shot, then the drawing: white lines on its edges, faintly glowing.
+    const lines = pixels(p, w, h, (o) => {
+      for (let i = 0; i < w * h; i++) {
+        const k = i * 4;
+        o[k] = 235; o[k + 1] = 245; o[k + 2] = 255; o[k + 3] = 255 * Math.max(smooth(e[i], 0.07, 0.28), l[i] * 0.1);
+      }
+    });
+    c.globalCompositeOperation = 'lighter';
+    c.globalAlpha *= 0.5; c.filter = `blur(${(u * 0.25).toFixed(1)}px)`; put(c, lines, r);
+    c.globalAlpha /= 0.5; c.filter = 'none'; put(c, lines, r);
+    c.globalCompositeOperation = 'source-over';
+    // A dimension line up the start side, and the title block in the corner.
+    c.strokeStyle = 'rgba(235,245,255,0.8)'; c.fillStyle = 'rgba(235,245,255,0.85)';
+    c.lineWidth = Math.max(1, u * 0.06);
+    const dx = r.x + u * 1.4, y0 = r.y + r.h * 0.12, y1 = r.y + r.h * 0.9;
+    c.setLineDash([u * 0.4, u * 0.25]);
+    c.beginPath(); c.moveTo(dx, y0); c.lineTo(dx, y1); c.stroke();
+    c.setLineDash([]);
+    c.beginPath(); for (const y of [y0, y1]) { c.moveTo(dx - u * 0.5, y); c.lineTo(dx + u * 0.5, y); } c.stroke();
+    p.font('mono', u * 0.55, 600);
+    c.direction = 'ltr'; c.textAlign = 'left'; c.textBaseline = 'middle';
+    c.save(); c.translate(dx + u * 0.5, (y0 + y1) / 2); c.rotate(-Math.PI / 2); c.textAlign = 'center'; c.fillText('1 720', 0, 0); c.restore();
+    const bw = u * 8, bh = u * 2.2, bx = r.x + r.w - bw - u, by = r.y + r.h - bh - u;
+    c.strokeRect(bx, by, bw, bh);
+    c.beginPath(); c.moveTo(bx, by + bh / 2); c.lineTo(bx + bw, by + bh / 2); c.stroke();
+    c.fillText('DWG 01 · SHOT', bx + u * 0.4, by + bh / 4);
+    c.fillText('SCALE 1:10', bx + u * 0.4, by + (bh * 3) / 4);
+    c.restore();
+  },
+
+  thermal(p, r, _src, img) {
+    const c = p.ctx, u = unitOf(r), { data, width: w, height: h } = img;
+    const raw = new Float32Array(w * h);
+    for (let i = 0; i < w * h; i++) raw[i] = heatOf(data[i * 4], data[i * 4 + 1], data[i * 4 + 2]);
+    const heat = stretch(blur(raw, w, h, 1));
+    const cv = pixels(p, w, h, (o) => {
+      for (let i = 0; i < w * h; i++) {
+        const col = ramp(IRONBOW, heat[i]), k = i * 4;
+        o[k] = col[0]; o[k + 1] = col[1]; o[k + 2] = col[2]; o[k + 3] = 255;
+      }
+    });
+    put(c, cv, r);
+    // The camera's overlay: a crosshair reading the centre, and the scale on the end side.
+    c.save();
+    const cx = r.x + r.w / 2, cy = r.y + r.h / 2, arm = u * 1.1, gap = u * 0.35;
+    c.strokeStyle = 'rgba(255,255,255,0.9)'; c.lineWidth = Math.max(1, u * 0.08);
+    c.beginPath();
+    c.moveTo(cx - arm, cy); c.lineTo(cx - gap, cy); c.moveTo(cx + gap, cy); c.lineTo(cx + arm, cy);
+    c.moveTo(cx, cy - arm); c.lineTo(cx, cy - gap); c.moveTo(cx, cy + gap); c.lineTo(cx, cy + arm);
+    c.stroke();
+    const centre = heat[Math.floor(h / 2) * w + Math.floor(w / 2)], deg = (v: number) => `${(18 + v * 20).toFixed(1)}°C`;
+    p.font('mono', u * 0.7, 700);
+    c.direction = 'ltr'; c.textAlign = 'left'; c.textBaseline = 'middle'; c.fillStyle = '#fff';
+    c.fillText(deg(centre), cx + arm + u * 0.3, cy - arm * 0.6);
+    const bx = r.x + r.w - u * 1.6, bt = r.y + r.h * 0.2, bb = r.y + r.h * 0.8, bar = c.createLinearGradient(0, bb, 0, bt);
+    for (const [at, col] of IRONBOW) bar.addColorStop(at, css(col));
+    c.fillStyle = bar; c.fillRect(bx, bt, u * 0.5, bb - bt);
+    c.strokeRect(bx, bt, u * 0.5, bb - bt);
+    p.font('mono', u * 0.5, 600);
+    c.textAlign = 'right'; c.fillStyle = '#fff';
+    c.fillText(deg(1), bx - u * 0.25, bt); c.fillText(deg(0), bx - u * 0.25, bb);
+    c.fillStyle = 'rgba(255,255,255,0.85)'; c.textAlign = 'left';
+    c.fillText('● REC  IR', r.x + u, r.y + u * 1.2);
+    c.restore();
+  },
+
+  anime(p, r, _src, img) {
+    const { width: w, height: h } = img, [R, G, B] = planes(img, 1);
+    const l = new Float32Array(w * h);
+    for (let i = 0; i < w * h; i++) l[i] = (0.2126 * R[i] + 0.7152 * G[i] + 0.0722 * B[i]) / 255;
+    const e = edges(l, w, h), ink: RGB = [34, 26, 40], air: RGB = [255, 252, 248];
+    const cv = pixels(p, w, h, (o) => {
+      for (let i = 0; i < w * h; i++) {
+        const y = l[i] * 255, v = l[i];
+        // Three flat tones (shadow, base, light) per colour, the hue kept: cel paint.
+        const tone = v < 0.26 ? 0.4 : v < 0.6 ? 0.7 : 0.95, scale = (tone * 255 + 12) / (y + 12);
+        const base = mix([R[i], G[i], B[i]].map((ch) => (y + (ch - y) * 1.35) * scale) as RGB, air, 0.08);
+        const col = mix(base, ink, smooth(e[i], 0.14, 0.28)), k = i * 4;
+        o[k] = col[0]; o[k + 1] = col[1]; o[k + 2] = col[2]; o[k + 3] = 255;
+      }
+    });
+    put(p.ctx, cv, r);
+  },
+
+  watercolor(p, r, _src, img) {
+    const { data, width: w, height: h } = img, [R, G, B] = planes(img, 2);
+    const wash = new Float32Array(w * h);
+    for (let i = 0; i < w * h; i++) wash[i] = (0.2126 * R[i] + 0.7152 * G[i] + 0.0722 * B[i]) / 255;
+    // Pigment pools where the wash changes (the dark rim a drying wash leaves), and a pencil line under it.
+    const far = blur(wash, w, h, 4), e = edges(stretch(lumaOf(data, w, h)), w, h);
+    const grain = p.rng('paper'), paper: RGB = [247, 242, 231], fade = Math.max(2, w * 0.05);
+    const cv = pixels(p, w, h, (o) => {
+      for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+        const i = y * w + x, n = grain(), y0 = 0.2126 * R[i] + 0.7152 * G[i] + 0.0722 * B[i];
+        // The paint stops short of the paper's edge, raggedly.
+        const edge = smooth(Math.min(x, w - 1 - x, y, h - 1 - y) / fade + (n - 0.5) * 0.7, 0.15, 1);
+        // Pigment: the colour a little greyer and lighter than the shot's.
+        const pig = [R[i], G[i], B[i]].map((ch) => { const v = y0 + (ch - y0) * 0.85; return v + (255 - v) * 0.12; });
+        const density = 0.9 * edge * (0.88 + 0.12 * n), rim = 1 - 0.3 * clamp(Math.abs(wash[i] - far[i]) * 4);
+        const line = 1 - 0.4 * smooth(e[i], 0.12, 0.35) * edge, k = i * 4;
+        for (let ch = 0; ch < 3; ch++) o[k + ch] = paper[ch] * (1 - density * (1 - pig[ch] / 255)) * rim * line * (0.97 + 0.03 * n);
+        o[k + 3] = 255;
+      }
+    });
+    put(p.ctx, cv, r);
+  },
+
+  clay(p, r, _src, img) {
+    const c = p.ctx, u = unitOf(r), { width: w, height: h } = img, [R, G, B] = planes(img, 2);
+    const l = new Float32Array(w * h);
+    for (let i = 0; i < w * h; i++) l[i] = (0.2126 * R[i] + 0.7152 * G[i] + 0.0722 * B[i]) / 255;
+    // The shot's brightness as a height map: lit from the top-start corner, with a soft shine on the bumps.
+    const hm = blur(l, w, h, 2), at = (x: number, y: number) => hm[Math.min(h - 1, Math.max(0, y)) * w + Math.min(w - 1, Math.max(0, x))];
+    const lx = -0.45, ly = -0.65, lz = 0.62, hl = Math.hypot(lx, ly, lz + 1), [hx, hy, hz] = [lx / hl, ly / hl, (lz + 1) / hl];
+    const prints = p.rng('thumbprints'), warm: RGB = [255, 228, 200];
+    const cv = pixels(p, w, h, (o) => {
+      for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+        const i = y * w + x, gx = (at(x + 1, y) - at(x - 1, y)) * 7, gy = (at(x, y + 1) - at(x, y - 1)) * 7;
+        const nl = Math.hypot(gx, gy, 1), nx = -gx / nl, ny = -gy / nl, nz = 1 / nl;
+        const diff = Math.max(0, nx * lx + ny * ly + nz * lz), spec = Math.max(0, nx * hx + ny * hy + nz * hz) ** 24;
+        const y0 = l[i] * 255, base = mix([R[i], G[i], B[i]].map((ch) => y0 + (ch - y0) * 1.3) as RGB, warm, 0.1);
+        const k = i * 4, light = 0.6 + 0.55 * diff + (prints() - 0.5) * 0.04;
+        for (let ch = 0; ch < 3; ch++) o[k + ch] = base[ch] * light + 255 * 0.3 * spec;
+        o[k + 3] = 255;
+      }
+    });
+    // Stop motion: twelve poses a second, each nudged a little off the last.
+    const j = p.rng(`clay${Math.floor(p.t * 12)}`), nx = (j() - 0.5) * u * 0.25, ny = (j() - 0.5) * u * 0.25;
+    c.fillStyle = '#2a1d16'; c.fillRect(r.x, r.y, r.w, r.h);
+    put(c, cv, { x: r.x + nx - u * 0.2, y: r.y + ny - u * 0.2, w: r.w + u * 0.4, h: r.h + u * 0.4 });
+    vignette(c, r, 0.35, '40,20,10');
   },
 };
 

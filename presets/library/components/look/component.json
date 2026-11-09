@@ -1,11 +1,11 @@
 {
   "name": "Look",
-  "description": "Your shot redrawn in a look: neon, pencil sketch, comic, chalkboard, pixel art, riso print, low poly, paper cut, bricks or a terminal. Wipes in from the plain shot and back out.",
+  "description": "Your shot redrawn in a look: neon, pencil sketch, comic, chalkboard, pixel art, riso print, low poly, paper cut, bricks, a terminal, a hologram, cyberpunk neon, isometric cubes, a blueprint, a thermal camera, anime cels, watercolour or clay. Wipes in from the plain shot and back out.",
   "duration": 3,
   "scene": true,
   "defaults": { "look": "comic", "wipe": true },
   "schema": {
-    "look": { "type": "select", "label": "Look", "options": ["neon", "sketch", "comic", "chalk", "pixel", "riso", "lowpoly", "papercut", "bricks", "terminal"] },
+    "look": { "type": "select", "label": "Look", "options": ["neon", "sketch", "comic", "chalk", "pixel", "riso", "lowpoly", "papercut", "bricks", "terminal", "hologram", "cyberpunk", "isometric", "blueprint", "thermal", "anime", "watercolor", "clay"] },
     "wipe": { "type": "bool", "label": "Wipe in and out" }
   }
 }
