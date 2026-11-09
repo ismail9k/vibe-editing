@@ -81,6 +81,10 @@ const NINO_BODY = {
 
 const glowCache = new Map<string, OffscreenCanvas>();
 
+/** A line with Latin letters and no right-to-left script: in an RTL frame it is laid out on its own, left to
+ *  right, or the bidi algorithm moves its leading and trailing punctuation to the wrong end ("VIBE#"). */
+const latinOnly = (s: string) => /[A-Za-z\u00C0-\u024F]/.test(s) && !/[\u0590-\u08FF\uFB1D-\uFDFF\uFE70-\uFEFF]/.test(s);
+
 export function createBasePainter(ctx: Ctx, env: Env): Painter {
   const theme = themeOf(env.brand, env.mode);
   const rem = (Math.min(env.W, env.H) / 1080) * 32;
@@ -184,23 +188,35 @@ export function createBasePainter(ctx: Ctx, env: Env): Painter {
       // Reveal: typed, character by character, with the orange caret (the 9k signature).
       const prog = clamp(o.progress ?? 1), align = o.align ?? 'start', rtl = this.dir === 'rtl';
       const total = lines.reduce((n, l) => n + [...l].length, 0);
-      let remaining = Math.round(prog * total), w = 0, caret: { i: number; vw: number } | null = null;
+      const cw = size * 0.08, gap = size * 0.06;
+      let remaining = Math.round(prog * total), w = 0, caret: { i: number; x: number } | null = null;
       lines.forEach((line, i) => {
         const chars = [...line], n = Math.min(chars.length, Math.max(0, remaining));
         remaining -= chars.length;
-        const visible = chars.slice(0, n).join(''), lw = c.measureText(line).width;
-        if (visible) c.fillText(visible, x, y + i * lh);
+        const visible = chars.slice(0, n).join(''), lw = c.measureText(line).width, vw = c.measureText(visible).width;
+        let caretX: number;
+        if (rtl && latinOnly(line)) {
+          // English in an Arabic frame (a #tag, a product name): laid out left to right in the place the whole
+          // line takes, so "#VIBE" keeps its # in front and types from its first letter, caret after the last.
+          const left = align === 'end' ? x : align === 'center' ? x - lw / 2 : x - lw;
+          c.direction = 'ltr'; c.textAlign = 'left';
+          if (visible) c.fillText(visible, left, y + i * lh);
+          c.direction = this.dir; c.textAlign = align;
+          caretX = left + vw + gap;
+        } else {
+          if (visible) c.fillText(visible, x, y + i * lh);
+          // Where the typed text ends, in the reading direction (centred text grows from its middle).
+          const reach = align === 'end' ? 0 : align === 'center' ? vw / 2 : vw;
+          const edge = rtl ? x - reach : x + reach;
+          caretX = rtl ? edge - gap - cw : edge + gap;
+        }
         w = Math.max(w, lw);
-        if (!caret && (n < chars.length || i === lines.length - 1)) caret = { i, vw: c.measureText(visible).width };
+        if (!caret && (n < chars.length || i === lines.length - 1)) caret = { i, x: caretX };
       });
       if (caret && prog < 1 && o.caret !== false) {
-        const { i, vw } = caret as { i: number; vw: number };
-        // Where the typed text ends, in the reading direction (centred text grows from its middle).
-        const reach = align === 'end' ? 0 : align === 'center' ? vw / 2 : vw;
-        const edge = rtl ? x - reach : x + reach;
-        const cw = size * 0.08, gap = size * 0.06;
+        const { i, x: cx } = caret as { i: number; x: number };
         c.fillStyle = this.brand.colors.accent;
-        c.fillRect(rtl ? edge - gap - cw : edge + gap, y + i * lh - size * 0.78, cw, size * 0.92);
+        c.fillRect(cx, y + i * lh - size * 0.78, cw, size * 0.92);
       }
       c.restore();
       return { w, h: lines.length * lh };
