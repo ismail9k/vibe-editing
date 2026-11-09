@@ -2,7 +2,7 @@
 // and changes Claude makes on disk replace what the app shows (disk wins).
 import { create } from 'zustand';
 import { parseProject, serializeProject, duration, type Project, type TrackName, type Mode, type Dir } from '../core/model';
-import { validateProject, type Issue } from '../core/validate';
+import { coercedIssues, validateProject, type Issue } from '../core/validate';
 import type { Library } from '../core/render';
 import type { WorkspaceInfo, WsChange } from '../shared/api';
 import { loadLibrary } from './library';
@@ -19,6 +19,8 @@ interface State {
   projectName: string | null;
   project: Project | null;
   parseError: string | null;
+  /** Fields parseProject had to replace with defaults (shown as problems). */
+  coerced: Issue[];
   issues: Issue[];
   room: Room;
   selection: Selection | null;
@@ -62,7 +64,7 @@ function changedIds(a: Project | null, b: Project): string[] {
 }
 
 export const useStore = create<State>((set, get) => ({
-  info: null, lib: null, libError: null, projectName: null, project: null, parseError: null, issues: [],
+  info: null, lib: null, libError: null, projectName: null, project: null, parseError: null, coerced: [], issues: [],
   room: 'edit', selection: null, playhead: 0, playing: false, diskNote: null, history: [], future: [],
   studio: { style: 'flat9k', mode: 'dark', dir: 'ltr', focus: null, sample: {} },
   exporting: null,
@@ -91,8 +93,8 @@ export const useStore = create<State>((set, get) => ({
 
   async openProject(name) {
     const text = await readDisk(projectRel(name));
-    const { project, error } = parseProject(text ?? '{}');
-    set({ projectName: name, project: project ?? null, parseError: error ?? null, history: [], future: [], selection: null, playhead: 0, playing: false, diskNote: null });
+    const { project, error, coerced } = parseProject(text ?? '{}');
+    set({ coerced: coercedIssues(coerced), projectName: name, project: project ?? null, parseError: error ?? null, history: [], future: [], selection: null, playhead: 0, playing: false, diskNote: null });
     if (project) set({ studio: { ...get().studio, style: project.style, mode: project.mode, dir: project.dir } });
     get().validate();
   },
@@ -104,8 +106,9 @@ export const useStore = create<State>((set, get) => ({
     const text = await readDisk(c.rel);
     if (text === before && get().project && !get().parseError) return; // already showing this version
     if (text === null) { set({ parseError: 'vibe.json was deleted' }); return; }
-    const { project, error } = parseProject(text);
+    const { project, error, coerced } = parseProject(text);
     if (!project) { set({ parseError: error ?? 'invalid vibe.json' }); return; } // keep the last good project
+    set({ coerced: coercedIssues(coerced) });
     const hadPending = saveTimer !== null;
     if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; }
     const prev = get().project, ids = changedIds(prev, project);
@@ -153,12 +156,12 @@ export const useStore = create<State>((set, get) => ({
   async validate() {
     if (validateTimer) clearTimeout(validateTimer);
     validateTimer = setTimeout(async () => {
-      const { project, lib, info, projectName } = get();
-      if (!project || !lib || !info || !projectName) return;
+      const { project, lib, info, projectName, coerced } = get();
+      if (!project || !lib || !info || !projectName) { set({ issues: coerced }); return; }
       const srcs = [...project.tracks.footage, ...project.tracks.audio].map((x) => `projects/${projectName}/${x.src}`);
       const exists = srcs.length ? await window.vibe.exists(srcs) : {};
       const components = Object.fromEntries(Object.entries(lib.components).map(([k, v]) => [k, v.meta]));
-      set({ issues: validateProject(project, { components, styles: info.styles, mediaExists: (s) => !!exists[`projects/${projectName}/${s}`] }) });
+      set({ issues: [...coerced, ...validateProject(project, { components, styles: info.styles, mediaExists: (s) => !!exists[`projects/${projectName}/${s}`] })] });
     }, 150);
   },
 }));

@@ -2,7 +2,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { parseProject } from '../core/model';
-import { validateProject, type ComponentMeta, type Issue } from '../core/validate';
+import { coercedIssues, validateProject, type ComponentMeta, type Issue } from '../core/validate';
 import { listLibrary, resolveInside } from './workspace';
 
 export interface CliArgs { command: string; project?: string; at?: number[]; out?: string }
@@ -39,10 +39,10 @@ export function checkProject(root: string, name: string): Issue[] {
   const dir = resolveInside(root, `projects/${name}`);
   const file = join(dir, 'vibe.json');
   if (!existsSync(file)) return [{ level: 'error', path: `projects/${name}/vibe.json`, message: 'no such project' }];
-  const { project, error } = parseProject(readFileSync(file, 'utf8'));
+  const { project, error, coerced } = parseProject(readFileSync(file, 'utf8'));
   if (!project) return [{ level: 'error', path: `projects/${name}/vibe.json`, message: error ?? 'not valid JSON' }];
 
-  const issues: Issue[] = [];
+  const issues: Issue[] = coercedIssues(coerced);
   const lib = listLibrary(root);
   const components: Record<string, ComponentMeta> = {};
   for (const id of lib.components) {

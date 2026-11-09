@@ -61,3 +61,18 @@ describe('timeline maths', () => {
     expect(duration(parseProject('{}').project!)).toBe(1);
   });
 });
+
+describe('parseProject reports fields it had to replace', () => {
+  it('names each wrong-typed field instead of silently using the default', () => {
+    const { project, coerced } = parseProject(JSON.stringify({ tracks: { footage: {}, graphics: [{ id: 'g1', type: 'stat', at: '3.2', dur: 2, props: {} }], captions: [{ id: 'c1', text: 5, at: 0, dur: 1 }] } }));
+    expect(project).toBeTruthy();
+    expect(coerced).toEqual(expect.arrayContaining([
+      'tracks.footage should be a list',
+      'tracks.graphics[0].at should be a number (got "3.2")',
+      'tracks.captions[0].text should be text (got 5)',
+    ]));
+  });
+  it('reports nothing for a clean file or for fields that are simply missing', () => {
+    expect(parseProject(JSON.stringify({ tracks: { graphics: [{ id: 'g1', type: 'stat', at: 1, dur: 2, props: {} }] } })).coerced).toEqual([]);
+  });
+});

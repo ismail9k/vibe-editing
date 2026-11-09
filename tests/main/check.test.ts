@@ -48,4 +48,10 @@ describe('checkProject', () => {
     write({ style: 'flat9k', tracks: {} });
     expect(checkProject(root, 'p').map((i) => i.path)).toContain('library/components/stat/component.json');
   });
+
+  it('reports fields vibe.json had wrong, which the app would otherwise replace with defaults', () => {
+    write({ style: 'flat9k', tracks: { graphics: [{ id: 'g1', type: 'stat', at: '3.2', dur: 2, props: {} }] } });
+    const issues = checkProject(root, 'p');
+    expect(issues).toContainEqual({ level: 'error', path: 'tracks.graphics[0].at', message: 'tracks.graphics[0].at should be a number (got "3.2")' });
+  });
 });

@@ -64,3 +64,13 @@ describe('a broken vibe.json on disk', () => {
     expect(useStore.getState().diskNote?.text).toMatch(/fix/i);
   });
 });
+
+describe('fields the parser had to replace', () => {
+  it('show up as problems in the app', async () => {
+    vi.useRealTimers();
+    disk.set(REL, JSON.stringify({ name: 'p', style: 'flat9k', tracks: { graphics: [{ id: 'g1', type: 'stat', at: '3.2', dur: 2, props: {} }] } }));
+    await useStore.getState().openProject('p');
+    await new Promise((r) => setTimeout(r, 200));
+    expect(useStore.getState().issues.map((i) => i.message)).toContain('tracks.graphics[0].at should be a number (got "3.2")');
+  });
+});

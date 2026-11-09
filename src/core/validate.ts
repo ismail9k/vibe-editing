@@ -45,3 +45,7 @@ export function validateProject(p: Project, ctx: ValidateContext): Issue[] {
   });
   return issues;
 }
+
+/** parseProject's list of replaced fields, as errors: "<path> should be ..." */
+export const coercedIssues = (coerced: string[] = []): Issue[] =>
+  coerced.map((message) => ({ level: 'error', path: message.split(' ')[0], message }));
