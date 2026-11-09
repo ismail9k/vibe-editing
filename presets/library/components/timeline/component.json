@@ -1,0 +1,24 @@
+{
+  "name": "Timeline",
+  "description": "Steps on a line that draws down the frame: each step lands in turn, the current one carries the accent.",
+  "duration": 4.5,
+  "defaults": {
+    "steps": [
+      "Shoot",
+      "Cut with Claude",
+      "Add effects",
+      "Export"
+    ],
+    "stagger": 0.8
+  },
+  "schema": {
+    "steps": {
+      "type": "list",
+      "label": "Steps"
+    },
+    "stagger": {
+      "type": "number",
+      "label": "Seconds between steps"
+    }
+  }
+}

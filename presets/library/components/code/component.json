@@ -1,0 +1,33 @@
+{
+  "name": "Code",
+  "description": "A code block: lines type in one after another in mono, and one line lights up.",
+  "duration": 4.5,
+  "defaults": {
+    "lang": "js",
+    "lines": [
+      "const film = await vibe.open('demo');",
+      "film.add('orbit', { at: 3.2 });",
+      "await film.render();"
+    ],
+    "highlight": 2,
+    "speed": 30
+  },
+  "schema": {
+    "lang": {
+      "type": "text",
+      "label": "Language tag"
+    },
+    "lines": {
+      "type": "list",
+      "label": "Lines"
+    },
+    "highlight": {
+      "type": "number",
+      "label": "Line to light up (0 = none)"
+    },
+    "speed": {
+      "type": "number",
+      "label": "Characters per second"
+    }
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "name": "Callout",
+  "description": "Points at something in the shot: a dot lands on the spot, a line draws out to a label.",
+  "duration": 3,
+  "defaults": {
+    "text": "The mic I use",
+    "tx": 0.5,
+    "ty": 0.72,
+    "side": "start"
+  },
+  "schema": {
+    "text": {
+      "type": "text",
+      "label": "Label"
+    },
+    "tx": {
+      "type": "number",
+      "label": "Point x (0–1)"
+    },
+    "ty": {
+      "type": "number",
+      "label": "Point y (0–1)"
+    },
+    "side": {
+      "type": "select",
+      "label": "Label side",
+      "options": [
+        "start",
+        "end"
+      ]
+    }
+  }
+}

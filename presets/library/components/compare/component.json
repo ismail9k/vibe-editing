@@ -1,0 +1,29 @@
+{
+  "name": "Compare",
+  "description": "Before and after: two cards, the old way muted, the new way lit, with an arrow between them.",
+  "duration": 4,
+  "defaults": {
+    "before": "Before",
+    "beforeValue": "3 hours",
+    "after": "With Claude",
+    "afterValue": "12 min"
+  },
+  "schema": {
+    "before": {
+      "type": "text",
+      "label": "Before label"
+    },
+    "beforeValue": {
+      "type": "text",
+      "label": "Before"
+    },
+    "after": {
+      "type": "text",
+      "label": "After label"
+    },
+    "afterValue": {
+      "type": "text",
+      "label": "After"
+    }
+  }
+}

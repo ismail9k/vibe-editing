@@ -1,0 +1,19 @@
+{
+  "name": "Lower third",
+  "description": "Who's talking: a name types onto a green bar that slides in, the role sits under it.",
+  "duration": 3.5,
+  "defaults": {
+    "name": "Ismail",
+    "role": "Engineer · 9k"
+  },
+  "schema": {
+    "name": {
+      "type": "text",
+      "label": "Name"
+    },
+    "role": {
+      "type": "text",
+      "label": "Role"
+    }
+  }
+}

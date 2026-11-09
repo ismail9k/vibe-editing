@@ -4,7 +4,7 @@ A small desktop video editor that Claude Code drives. Your components, your bran
 
 - **Studio**: your components in every style, side by side and looping. Tune a style's knobs, edit the brand, try a component's props, then add it to the film.
 - **Edit**: a footage track, graphics, captions and sounds on one timeline, with a live preview and an Export button.
-- **Styles** restyle the same components natively (9k Flat, Chalkboard and Pixel ship as presets). Make your own by duplicating one, or start from nothing.
+- **Styles** restyle the same components natively (9k Flat, Chalkboard, Pixel Art, Editorial, Blueprint, Sticker and Terminal ship as presets). Make your own by duplicating one, or start from nothing.
 - **Effects** from short-form editing: punch-in zooms, zoom-through cuts, a phone mock-up, checklists and growing charts, and effects that cut you out of the shot (a new backdrop, paper cut-out, doodles, a magazine cover, breaking out of the frame, words orbiting you, a dolly zoom, a wall of headlines or screens, frosted-glass type).
 
 ## Setup
@@ -37,7 +37,7 @@ vibe open
 
 ## The workspace
 
-Everything lives in `~/Vibe` (or in `$VIBE_HOME`). On first run the app copies in the presets: the 9k brand, three styles, twenty-one components, two demo films and a `CLAUDE.md` that teaches Claude Code how to work here. It copies only missing files and never overwrites yours.
+Everything lives in `~/Vibe` (or in `$VIBE_HOME`). On first run the app copies in the presets: the 9k brand, seven styles, twenty-seven components, two demo films and a `CLAUDE.md` that teaches Claude Code how to work here. It copies only missing files and never overwrites yours.
 
 ```
 ~/Vibe/

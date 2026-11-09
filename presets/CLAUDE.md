@@ -78,7 +78,11 @@ The renderer draws the footage too. A component flagged `"scene": true` in its c
 
 Flag `"matte": true` on any component that calls `p.subject()`, so the app makes the matte. Without footage (Studio tiles) these draw a stand-in head and shoulders; without a matte yet, `subject()` draws the whole frame. `p.ctx` transforms and clips apply to all three.
 
-Ready-made: `checklist`, `chart-grow`, `digital-zoom`, `phone`, `zoom-cut` (put it across a cut, half on each side), `backdrop`, `paper-cut`, `doodle-boil`, `cover-story`, `frame-break`, `orbit`, `vertigo`, `wall`, `glass-type`. One effect per beat: they're loud.
+Ready-made effects: `checklist`, `chart-grow`, `digital-zoom`, `phone`, `zoom-cut` (put it across a cut, half on each side), `backdrop`, `paper-cut`, `doodle-boil`, `cover-story`, `frame-break`, `orbit`, `vertigo`, `wall`, `glass-type`. One effect per beat: they're loud.
+
+Other ready-made components: `hook`, `stat`, `list`, `card`, `band`, `cta`, `nino`, `lower-third`, `quote`, `code`, `compare`, `timeline`, `callout`. Styles: `flat9k`, `chalkboard`, `pixel`, `editorial` (serif, printed page), `blueprint` (grid, dashed construction lines, mono), `sticker` (thick edges, hard shadows), `terminal` (mono, terminal windows).
+
+A style's `post()` runs on the graphics layer, never on the footage under it: pixel art pixelates the graphics and leaves you sharp.
 
 ## Writing a style
 

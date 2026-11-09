@@ -1,0 +1,20 @@
+{
+  "name": "Terminal",
+  "preset": true,
+  "description": "A shell session: Plex Mono everywhere, cards become terminal windows with a title bar, faint scanlines behind.",
+  "params": {
+    "scanlines": {
+      "type": "number",
+      "label": "Scanlines",
+      "value": 0.5,
+      "min": 0,
+      "max": 1,
+      "step": 0.05
+    },
+    "title": {
+      "type": "text",
+      "label": "Window title",
+      "value": "~/vibe"
+    }
+  }
+}

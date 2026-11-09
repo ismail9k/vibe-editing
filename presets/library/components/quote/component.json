@@ -1,0 +1,19 @@
+{
+  "name": "Quote",
+  "description": "A pull quote: the words type in, large, with the source underneath. The opening mark carries the accent.",
+  "duration": 4.5,
+  "defaults": {
+    "text": "The best editor is the one you can talk to.",
+    "by": "Someone, probably"
+  },
+  "schema": {
+    "text": {
+      "type": "text",
+      "label": "Quote"
+    },
+    "by": {
+      "type": "text",
+      "label": "Source"
+    }
+  }
+}
