@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { parseProject } from '../../src/core/model';
-import { buildFfmpegArgs } from '../../src/main/ffmpeg';
+import { buildFfmpegArgs, fitFilter } from '../../src/main/ffmpeg';
 
 const proj = (o: object) => parseProject(JSON.stringify(o)).project!;
 const count = (args: string[], v: string) => args.filter((a) => a === v).length;
@@ -42,5 +42,27 @@ describe('buildFfmpegArgs', () => {
     expect(graph).toContain('adelay=1500|1500');
     expect(graph).toContain('volume=0.5');
     expect(graph).toContain('amix=inputs=2');
+  });
+
+  it('refuses media paths that leave the project folder', () => {
+    const p = proj({ tracks: { footage: [{ id: 'f1', src: '../../other/secret.mov', in: 0, out: 2 }] } });
+    expect(() => buildFfmpegArgs(p, '/w/projects/x', '/w/projects/x/out/x.mp4', {})).toThrow(/outside/);
+    const q = proj({ tracks: { graphics: [{ id: 'g1', type: 'stat', at: 0, dur: 2, props: {} }], audio: [{ id: 'a1', src: '../x.wav', at: 0, gain: 1 }] } });
+    expect(() => buildFfmpegArgs(q, '/w/projects/x', '/w/projects/x/out/x.mp4', {})).toThrow(/outside/);
+  });
+
+  it('tone-maps HDR clips (HLG or PQ) to SDR and leaves SDR clips alone', () => {
+    const p = proj({ tracks: { footage: [{ id: 'f1', src: 'media/iphone.mov', in: 0, out: 2 }, { id: 'f2', src: 'media/sdr.mp4', in: 0, out: 2 }] } });
+    const args = buildFfmpegArgs(p, '/w/p', '/w/p/out/p.mp4', {}, { 'media/iphone.mov': true });
+    const graph = args[args.indexOf('-filter_complex') + 1];
+    const [v0, v1] = graph.split(';').filter((g) => g.startsWith('[0:v]') || g.startsWith('[1:v]'));
+    expect(v0).toContain('tonemap=tonemap=reinhard');
+    expect(v0).toContain('out_transfer=bt709');
+    expect(v1).not.toContain('tonemap');
+  });
+
+  it('fitFilter fills the frame and only tone-maps when asked', () => {
+    expect(fitFilter(1080, 1920, false)).toBe('scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,setsar=1');
+    expect(fitFilter(1080, 1920, true)).toMatch(/out_transfer=linear.*tonemap=tonemap=reinhard.*crop=1080:1920,setsar=1$/);
   });
 });

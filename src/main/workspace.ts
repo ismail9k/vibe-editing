@@ -60,14 +60,15 @@ export function duplicateDir(root: string, fromRel: string, toRel: string) {
   cpSync(from, to, { recursive: true });
 }
 
-export interface Probe { duration: number; hasVideo: boolean; hasAudio: boolean }
+export interface Probe { duration: number; hasVideo: boolean; hasAudio: boolean; hdr: boolean }
 export function probe(abs: string): Promise<Probe> {
   return new Promise((ok, fail) => {
-    execFile('ffprobe', ['-v', 'error', '-show_entries', 'format=duration:stream=codec_type', '-of', 'json', abs], (err, out) => {
+    execFile('ffprobe', ['-v', 'error', '-show_entries', 'format=duration:stream=codec_type,color_transfer', '-of', 'json', abs], (err, out) => {
       if (err) return fail(new Error(`ffprobe failed on ${basename(abs)}: ${err.message}`));
-      const j = JSON.parse(out) as { format?: { duration?: string }; streams?: { codec_type: string }[] };
+      const j = JSON.parse(out) as { format?: { duration?: string }; streams?: { codec_type: string; color_transfer?: string }[] };
       const types = (j.streams ?? []).map((s) => s.codec_type);
-      ok({ duration: parseFloat(j.format?.duration ?? '0') || 0, hasVideo: types.includes('video'), hasAudio: types.includes('audio') });
+      const hdr = (j.streams ?? []).some((s) => s.codec_type === 'video' && ['arib-std-b67', 'smpte2084'].includes(s.color_transfer ?? ''));
+      ok({ duration: parseFloat(j.format?.duration ?? '0') || 0, hasVideo: types.includes('video'), hasAudio: types.includes('audio'), hdr });
     });
   });
 }

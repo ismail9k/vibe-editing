@@ -6,7 +6,7 @@ import { once } from 'node:events';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { duration, footageAt, parseProject, type Project } from '../core/model';
-import { buildFfmpegArgs } from './ffmpeg';
+import { buildFfmpegArgs, fitFilter } from './ffmpeg';
 import { runHeadless } from './headless';
 import { probe, resolveInside } from './workspace';
 import type { ExportProgress } from '../shared/api';
@@ -22,7 +22,7 @@ export function loadProject(root: string, name: string): { project: Project; dir
 
 function checkMedia(project: Project, dir: string) {
   for (const x of [...project.tracks.footage, ...project.tracks.audio]) {
-    if (!x.src || !existsSync(join(dir, x.src))) throw new Error(`missing media "${x.src}" (${x.id})`);
+    if (!x.src || !existsSync(resolveInside(dir, x.src))) throw new Error(`missing media "${x.src}" (${x.id})`);
   }
 }
 
@@ -30,12 +30,12 @@ export async function runExport(root: string, name: string, onProgress: (p: Expo
   const { project, dir } = loadProject(root, name);
   checkMedia(project, dir);
   const srcs = [...new Set([...project.tracks.footage, ...project.tracks.audio].map((x) => x.src))];
-  const hasAudio: Record<string, boolean> = {};
-  for (const s of srcs) hasAudio[s] = (await probe(join(dir, s))).hasAudio;
+  const hasAudio: Record<string, boolean> = {}, hdr: Record<string, boolean> = {};
+  for (const s of srcs) { const info = await probe(resolveInside(dir, s)); hasAudio[s] = info.hasAudio; hdr[s] = info.hdr; }
   const out = outPath ?? join(dir, 'out', `${name}.mp4`);
   mkdirSync(join(out, '..'), { recursive: true });
 
-  const ff = spawn('ffmpeg', buildFfmpegArgs(project, dir, out, hasAudio), { stdio: ['pipe', 'ignore', 'pipe'] });
+  const ff = spawn('ffmpeg', buildFfmpegArgs(project, dir, out, hasAudio, hdr), { stdio: ['pipe', 'ignore', 'pipe'] });
   let stderr = '', exited = false;
   ff.stderr.on('data', (d) => { stderr = (stderr + d).slice(-4000); });
   ff.stdin.on('error', () => {}); // EPIPE when ffmpeg stops early: reported through the exit code
@@ -71,11 +71,12 @@ export async function runSnapshot(root: string, name: string, times: number[], o
     const dest = outPath && times.length === 1 ? outPath : join(dir, 'out', `snap-${t.toFixed(2)}.png`);
     const png = Buffer.from(result.pngs![i]);
     const hit = footageAt(project, t);
-    if (!hit || !existsSync(join(dir, hit.clip.src))) { writeFileSync(dest, png); files.push(dest); continue; }
+    if (!hit || !existsSync(resolveInside(dir, hit.clip.src))) { writeFileSync(dest, png); files.push(dest); continue; }
+    const { hdr } = await probe(resolveInside(dir, hit.clip.src));
     const tmp = join(tmpdir(), `vibe-overlay-${process.pid}-${i}.png`);
     writeFileSync(tmp, png);
-    await new Promise<void>((ok, fail) => execFile('ffmpeg', ['-y', '-loglevel', 'error', '-ss', String(hit.srcTime), '-i', join(dir, hit.clip.src), '-i', tmp,
-      '-filter_complex', `[0:v]scale=${W}:${H}:force_original_aspect_ratio=increase,crop=${W}:${H},setsar=1[b];[b][1:v]overlay`, '-frames:v', '1', dest],
+    await new Promise<void>((ok, fail) => execFile('ffmpeg', ['-y', '-loglevel', 'error', '-ss', String(hit.srcTime), "-i", resolveInside(dir, hit.clip.src), '-i', tmp,
+      '-filter_complex', `[0:v]${fitFilter(W, H, hdr)}[b];[b][1:v]overlay`, '-frames:v', '1', dest],
       (err, _o, se) => (err ? fail(new Error(`ffmpeg: ${se || err.message}`)) : ok())));
     rmSync(tmp, { force: true });
     files.push(dest);

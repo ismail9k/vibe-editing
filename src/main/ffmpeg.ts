@@ -1,12 +1,23 @@
 // The ffmpeg command for an export: footage trimmed and concatenated, the overlay (raw RGBA on stdin)
 // composited on top, footage audio plus the sounds track mixed, H.264 + AAC out.
-import { join } from 'node:path';
+import { resolveInside } from './workspace';
 import { duration, type Project } from '../core/model';
 
 const n = (v: number) => String(+v.toFixed(3));
 
-/** hasAudio: src → whether that media file has an audio stream. */
-export function buildFfmpegArgs(p: Project, projectDir: string, out: string, hasAudio: Record<string, boolean>): string[] {
+/** Scale and crop a clip to fill W×H. HDR (iPhone HLG, PQ) is tone-mapped to SDR bt709 so the export
+ *  matches what the preview shows; reinhard was the closest match to Chromium's own tone mapping. */
+export function fitFilter(W: number, H: number, hdr: boolean): string {
+  const fill = `${W}:${H}:force_original_aspect_ratio=increase`;
+  const fit = hdr
+    ? `scale=w=${W}:h=${H}:force_original_aspect_ratio=increase:out_transfer=linear:out_primaries=bt709,format=gbrpf32le,`
+      + `tonemap=tonemap=reinhard:desat=0,scale=out_transfer=bt709:out_primaries=bt709:out_color_matrix=bt709:out_range=tv,format=yuv420p`
+    : `scale=${fill}`;
+  return `${fit},crop=${W}:${H},setsar=1`;
+}
+
+/** hasAudio: src → whether that media file has an audio stream; hdr: src → whether its video is HLG/PQ. */
+export function buildFfmpegArgs(p: Project, projectDir: string, out: string, hasAudio: Record<string, boolean>, hdr: Record<string, boolean> = {}): string[] {
   const { w: W, h: H, fps: F } = p.format;
   const D = duration(p);
   const args = ['-y', '-hide_banner', '-loglevel', 'error'];
@@ -14,14 +25,14 @@ export function buildFfmpegArgs(p: Project, projectDir: string, out: string, has
   let input = 0;
 
   const clips = p.tracks.footage;
-  clips.forEach((c) => { args.push('-ss', n(c.in), '-t', n(c.out - c.in), '-i', join(projectDir, c.src)); input++; });
+  clips.forEach((c) => { args.push('-ss', n(c.in), '-t', n(c.out - c.in), '-i', resolveInside(projectDir, c.src)); input++; });
   const overlayIn = input++;
   args.push('-f', 'rawvideo', '-pix_fmt', 'rgba', '-s', `${W}x${H}`, '-r', String(F), '-i', 'pipe:0');
-  const sounds = p.tracks.audio.map((a) => { args.push('-i', join(projectDir, a.src)); return { a, index: input++ }; });
+  const sounds = p.tracks.audio.map((a) => { args.push('-i', resolveInside(projectDir, a.src)); return { a, index: input++ }; });
 
   if (clips.length) {
     clips.forEach((c, i) => {
-      graph.push(`[${i}:v]scale=${W}:${H}:force_original_aspect_ratio=increase,crop=${W}:${H},setsar=1,fps=${F},format=yuv420p[v${i}]`);
+      graph.push(`[${i}:v]${fitFilter(W, H, !!hdr[c.src])},fps=${F},format=yuv420p[v${i}]`);
       graph.push(hasAudio[c.src]
         ? `[${i}:a]aresample=48000,aformat=channel_layouts=stereo[a${i}]`
         : `anullsrc=r=48000:cl=stereo,atrim=duration=${n(c.out - c.in)}[a${i}]`);
