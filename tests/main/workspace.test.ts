@@ -1,8 +1,8 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
-import { resolveInside, seedWorkspace, listLibrary, listProjects, uniqueName, importable, writeChecked } from '../../src/main/workspace';
+import { isAbsolute, join } from 'node:path';
+import { resolveInside, workspaceRoot, seedWorkspace, listLibrary, listProjects, uniqueName, importable, writeChecked } from '../../src/main/workspace';
 
 let root: string, presets: string;
 beforeEach(() => {
@@ -83,5 +83,18 @@ describe('writeChecked', () => {
   it('writes unconditionally without a base', () => {
     expect(writeChecked(root, 'a.json', '1', undefined)).toEqual({ ok: true });
     expect(writeChecked(root, 'a.json', '2', undefined)).toEqual({ ok: true });
+  });
+});
+
+describe('workspaceRoot', () => {
+  it('makes a relative VIBE_HOME absolute, so paths the watcher reports match the ones the app wrote', () => {
+    const was = process.env.VIBE_HOME;
+    try {
+      process.env.VIBE_HOME = 'scratch/ws';
+      expect(isAbsolute(workspaceRoot())).toBe(true);
+      expect(workspaceRoot()).toBe(join(process.cwd(), 'scratch/ws'));
+    } finally {
+      if (was === undefined) delete process.env.VIBE_HOME; else process.env.VIBE_HOME = was;
+    }
   });
 });

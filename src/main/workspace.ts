@@ -4,7 +4,8 @@ import { execFile } from 'node:child_process';
 import { homedir } from 'node:os';
 import { basename, dirname, extname, isAbsolute, join, relative, resolve } from 'node:path';
 
-export const workspaceRoot = () => process.env.VIBE_HOME || join(homedir(), 'Vibe');
+// Absolute even when VIBE_HOME is relative: the self-write guard compares the paths it wrote with the watcher's.
+export const workspaceRoot = () => resolve(process.env.VIBE_HOME || join(homedir(), 'Vibe'));
 
 /** Absolute path of a workspace-relative path. Throws if it would leave the workspace. */
 export function resolveInside(root: string, rel: string): string {
