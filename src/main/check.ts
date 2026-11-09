@@ -14,6 +14,7 @@ export const USAGE = `vibe — Vibe Editing from the terminal
   vibe check <project>                check vibe.json against the library; exit 1 on errors
   vibe snapshot <project> --at 1,4,8  render PNGs at those seconds (projects/<p>/out/snap-*.png)
   vibe render <project> [-o out.mp4]  export the MP4 (projects/<p>/out/<p>.mp4)
+  vibe matte <project>                cut the speaker out of every clip (macOS; media/.matte/)
 
 Workspace: $VIBE_HOME or ~/Vibe`;
 
@@ -30,7 +31,7 @@ export function parseCliArgs(argv: string[]): CliArgs {
     else if (!a.startsWith('-') && !args.project) args.project = a;
     else throw new Error(`unknown option "${a}"`);
   }
-  if (['check', 'snapshot', 'render'].includes(command) && !args.project) throw new Error(`vibe ${command} needs a project name`);
+  if (['check', 'snapshot', 'render', 'matte'].includes(command) && !args.project) throw new Error(`vibe ${command} needs a project name`);
   return args;
 }
 

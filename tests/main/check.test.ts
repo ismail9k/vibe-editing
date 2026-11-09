@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { parseCliArgs, checkProject } from '../../src/main/check';
+import { USAGE, parseCliArgs, checkProject } from '../../src/main/check';
 
 describe('parseCliArgs', () => {
   it('reads the command, the project, times and the output', () => {
@@ -13,6 +13,10 @@ describe('parseCliArgs', () => {
   });
   it('needs a project for check, snapshot and render', () => {
     expect(() => parseCliArgs(['render'])).toThrow(/project/);
+    expect(() => parseCliArgs(['matte'])).toThrow(/project/);
+  });
+  it('documents vibe matte', () => {
+    expect(USAGE).toContain('vibe matte <project>');
   });
 });
 

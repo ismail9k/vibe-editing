@@ -3,7 +3,9 @@ export interface WorkspaceInfo { root: string; projects: string[]; styles: strin
 export interface ImportedMedia { src: string; duration: number; kind: 'video' | 'audio' }
 export interface WsChange { kind: 'project' | 'style' | 'component' | 'brand'; id: string; rel: string }
 export type WriteResult = { ok: true } | { ok: false; current: string | null };
-export interface ExportProgress { stage: 'frames' | 'encoding' | 'done' | 'error'; done: number; total: number; message?: string; out?: string }
+export interface ExportProgress { stage: 'mattes' | 'frames' | 'encoding' | 'done' | 'error'; done: number; total: number; message?: string; out?: string }
+
+export interface MatteProgressEvent { project: string; src: string; done: number; total: number }
 
 export interface VibeApi {
   info(): Promise<WorkspaceInfo>;
@@ -19,6 +21,9 @@ export interface VibeApi {
   exportProject(project: string): Promise<string>;
   onExportProgress(cb: (p: ExportProgress) => void): () => void;
   onChange(cb: (c: WsChange) => void): () => void;
+  /** Makes any missing cutout mattes for a project (macOS); progress arrives through onMatteProgress. */
+  ensureMattes(project: string): Promise<{ error?: string }>;
+  onMatteProgress(cb: (p: MatteProgressEvent) => void): () => void;
   initialProject(): Promise<string | null>;
   // export window only
   frameReady(rgba: ArrayBuffer): Promise<void>;

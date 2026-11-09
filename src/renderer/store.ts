@@ -31,6 +31,8 @@ interface State {
   future: Project[];
   studio: { style: string; mode: Mode; dir: Dir; focus: StudioFocus | null; sample: Record<string, Record<string, unknown>> };
   exporting: { done: number; total: number; stage: string; message?: string; out?: string } | null;
+  /** Cutout mattes for the open project, when it uses a cutout effect. `version` bumps when new ones land. */
+  mattes: { state: 'working' | 'ready' | 'error'; src?: string; done?: number; total?: number; message?: string; version: number } | null;
 
   boot(): Promise<void>;
   refreshInfo(): Promise<void>;
@@ -67,7 +69,7 @@ export const useStore = create<State>((set, get) => ({
   info: null, lib: null, libError: null, projectName: null, project: null, parseError: null, coerced: [], issues: [],
   room: 'edit', selection: null, playhead: 0, playing: false, diskNote: null, history: [], future: [],
   studio: { style: 'flat9k', mode: 'dark', dir: 'ltr', focus: null, sample: {} },
-  exporting: null,
+  exporting: null, mattes: null,
 
   async boot() {
     await get().refreshInfo();
@@ -94,7 +96,7 @@ export const useStore = create<State>((set, get) => ({
   async openProject(name) {
     const text = await readDisk(projectRel(name));
     const { project, error, coerced } = parseProject(text ?? '{}');
-    set({ coerced: coercedIssues(coerced), projectName: name, project: project ?? null, parseError: error ?? null, history: [], future: [], selection: null, playhead: 0, playing: false, diskNote: null });
+    set({ coerced: coercedIssues(coerced), projectName: name, project: project ?? null, parseError: error ?? null, history: [], future: [], selection: null, playhead: 0, playing: false, diskNote: null, mattes: null });
     if (project) set({ studio: { ...get().studio, style: project.style, mode: project.mode, dir: project.dir } });
     get().validate();
   },
@@ -162,9 +164,31 @@ export const useStore = create<State>((set, get) => ({
       const exists = srcs.length ? await window.vibe.exists(srcs) : {};
       const components = Object.fromEntries(Object.entries(lib.components).map(([k, v]) => [k, v.meta]));
       set({ issues: [...coerced, ...validateProject(project, { components, styles: info.styles, mediaExists: (s) => !!exists[`projects/${projectName}/${s}`] })] });
+      const usable = project.tracks.footage.filter((c) => exists[`projects/${projectName}/${c.src}`]);
+      if (usable.length && project.tracks.graphics.some((g) => lib.components[g.type]?.meta.matte)) ensureMattes(projectName, usable.map((c) => c.src));
     }, 150);
   },
 }));
+
+// One background matte run at a time; a run for footage that changed meanwhile starts when it ends.
+let matteRunning = false, matteDone = '', matteFailed = '', matteWanted: { name: string; key: string } | null = null;
+async function ensureMattes(name: string, srcs: string[]) {
+  const key = `${name}:${[...new Set(srcs)].sort().join('|')}`;
+  if (key === matteDone || key === matteFailed) return; // a failed run retries when the footage changes
+  matteWanted = { name, key };
+  if (matteRunning) return;
+  matteRunning = true;
+  while (matteWanted) {
+    const run = matteWanted; matteWanted = null;
+    const version = useStore.getState().mattes?.version ?? 0;
+    const r = await window.vibe.ensureMattes(run.name);
+    if (useStore.getState().projectName !== run.name) continue;
+    if (r.error) matteFailed = run.key;
+    if (r.error) useStore.setState({ mattes: { state: 'error', message: r.error, version } });
+    else { matteDone = run.key; useStore.setState({ mattes: { state: 'ready', version: version + 1 } }); }
+  }
+  matteRunning = false;
+}
 
 function scheduleSave() {
   if (saveTimer) clearTimeout(saveTimer);

@@ -7,6 +7,8 @@ import { join } from 'node:path';
 import { duration, footageAt, matteSrc, parseProject, type Project } from '../core/model';
 import { buildDecodeArgs, buildEncodeArgs, buildStillArgs, clipOverruns } from './ffmpeg';
 import { FrameReader } from './frames';
+import { componentMetas, ensureMattes, usesMatte } from './matte';
+import { appDir } from './paths';
 import { runHeadless, type MediaSource } from './headless';
 import { probe, resolveInside } from './workspace';
 import type { ExportProgress } from '../shared/api';
@@ -71,6 +73,11 @@ export async function runExport(root: string, name: string, onProgress: (p: Expo
   const out = outPath ?? join(dir, 'out', `${name}.mp4`);
   mkdirSync(join(out, '..'), { recursive: true });
   const { w: W, h: H, fps } = project.format;
+  if (usesMatte(project, componentMetas(root, project.tracks.graphics.map((g) => g.type)))) {
+    try {
+      await ensureMattes(root, appDir, project, dir, (m) => onProgress({ stage: 'mattes', done: m.done, total: m.total, message: m.src }));
+    } catch (e) { throw new Error(`can't export: this film cuts you out of the footage, and ${(e as Error).message}`); }
+  }
 
   // Footage (and its cutout mattes) decoded to raw frames; the render window draws every frame over them; the encoder
   // takes the finished frames plus the sound. Encode next to the target and rename at the end: a failed export
@@ -152,6 +159,14 @@ export async function runSnapshot(root: string, name: string, times: number[], o
 }
 
 export function registerExport(root: string) {
+  // The app asks for mattes when the film uses a cutout effect; they're made in the background, one file at a time.
+  ipcMain.handle('matte:ensure', async (e, name: string) => {
+    try {
+      const { project, dir } = loadProject(root, name);
+      await ensureMattes(root, appDir, project, dir, (m) => { if (!e.sender.isDestroyed()) e.sender.send('matte:progress', { project: name, ...m }); });
+      return {};
+    } catch (err) { return { error: (err as Error).message }; }
+  });
   ipcMain.handle('export:start', async (e, name: string) => {
     const send = (p: ExportProgress) => { if (!e.sender.isDestroyed()) e.sender.send('export:progress', p); };
     try { return (await runExport(root, name, send)).out; }

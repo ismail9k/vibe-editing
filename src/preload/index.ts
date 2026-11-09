@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer, webUtils } from 'electron';
-import type { VibeApi, WsChange, ExportProgress } from '../shared/api';
+import type { VibeApi, WsChange, ExportProgress, MatteProgressEvent } from '../shared/api';
 
 const on = <T>(channel: string, cb: (v: T) => void) => {
   const h = (_: unknown, v: T) => cb(v);
@@ -20,6 +20,8 @@ const api: VibeApi = {
   exportProject: (project) => ipcRenderer.invoke('export:start', project),
   onExportProgress: (cb) => on<ExportProgress>('export:progress', cb),
   onChange: (cb) => on<WsChange>('ws:change', cb),
+  ensureMattes: (project) => ipcRenderer.invoke('matte:ensure', project),
+  onMatteProgress: (cb) => on<MatteProgressEvent>('matte:progress', cb),
   initialProject: () => ipcRenderer.invoke('app:initialProject'),
   frameReady: (rgba) => ipcRenderer.invoke('headless:frame', rgba),
   headlessJob: () => ipcRenderer.invoke('headless:job'),

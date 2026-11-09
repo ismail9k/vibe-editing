@@ -4,7 +4,7 @@ import { useStore } from '../store';
 const ago = (at: number) => { const s = Math.round((Date.now() - at) / 1000); return s < 5 ? 'just now' : s < 60 ? `${s}s ago` : `${Math.round(s / 60)}m ago`; };
 
 export function TopBar() {
-  const { info, projectName, room, setRoom, openProject, diskNote, parseError, libError, issues, exporting, project } = useStore();
+  const { info, projectName, room, setRoom, openProject, diskNote, parseError, libError, issues, exporting, project, mattes } = useStore();
   const [, tick] = useState(0);
   useEffect(() => { const i = setInterval(() => tick((n) => n + 1), 5000); return () => clearInterval(i); }, []);
   const errors = issues.filter((i) => i.level === 'error');
@@ -35,6 +35,12 @@ export function TopBar() {
         {!parseError && !libError && !errors.length && diskNote && <span className="ok">● {diskNote.text} · {ago(diskNote.at)}</span>}
         {!parseError && !libError && !errors.length && !diskNote && <span className="muted">● watching ~/Vibe for Claude Code</span>}
       </div>
+      {mattes?.state === 'working' && (
+        <span className="chip" title={`Apple Vision is cutting you out of ${mattes.src}. Cutout effects show the whole frame until it's done.`}>
+          Cutting you out · {Math.round((100 * (mattes.done ?? 0)) / Math.max(1, mattes.total ?? 1))}%
+        </span>
+      )}
+      {mattes?.state === 'error' && <span className="chip bad" title={mattes.message}>No cutouts: {mattes.message}</span>}
       {exporting && (
         <span className="chip export-chip" title={exporting.message}>
           {exporting.stage === 'done' ? `Exported · ${exporting.out?.split('/').slice(-2).join('/')}` : exporting.stage === 'error' ? `Export failed: ${exporting.message}` : `Exporting ${Math.round((100 * exporting.done) / Math.max(1, exporting.total))}%`}
