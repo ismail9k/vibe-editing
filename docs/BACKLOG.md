@@ -44,11 +44,4 @@ Ideas and known gaps, roughly in the order they'd pay off.
 
 ## Deferred from the v1 review
 - The preview shows an empty stage, not "missing media", for a missing clip.
-- The app's Export says "Exported" even when frames had render errors.
-- No timeout on the hidden render window.
-- Dropping a file outside the Edit room navigates the window.
 - An English tag inside an Arabic frame shows as "VIBE#" (wrap in LRI/PDI).
-- An edit made under 300 ms before switching projects is lost.
-- A relative `VIBE_HOME` breaks the self-write guard.
-- `Range: bytes=-N` is parsed as `0-N`.
-- `bin/vibe.mjs` builds only when `out/` is missing, so the CLI can run a stale build.

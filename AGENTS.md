@@ -25,13 +25,14 @@ npm run dev          # app with hot reload (electron-vite)
 npm run build        # build to out/
 npm test             # vitest run (tests/**/*.test.ts)
 npm run typecheck    # tsc --noEmit
+npm run dist         # dist/mac-arm64/Vibe Editing.app (electron-builder.yml; unsigned)
 npx vitest run tests/core/ops.test.ts          # one file
 npx vitest run tests/core/ops.test.ts -t "split"   # one test by name
 ```
 
 If Electron fails with "Electron failed to install correctly": `node node_modules/electron/install.js`.
 
-The `vibe` CLI (`bin/vibe.mjs`, put on `PATH` with `npm link`) spawns `electron . --cli <command>`. It builds `out/` only when `out/main/index.js` is missing, so **after changing `src/`, run `npm run build` before using the CLI**, or it runs stale code.
+The `vibe` CLI (`bin/vibe.mjs`, put on `PATH` with `npm link`) spawns `electron . --cli <command>`. It runs `npm run build` first when `out/` is missing or anything in `src/` is newer than it (`bin/stale.mjs`), so the first command after an edit takes a few extra seconds.
 
 ```bash
 vibe check <project>                  # validate vibe.json against the library (exit 1 on errors)
@@ -45,6 +46,13 @@ vibe open [project]
 Use `VIBE_HOME=<scratch dir>` to run the app or CLI against a throwaway workspace instead of the user's `~/Vibe`.
 
 Some tests skip themselves: `tests/main/decode-sync.test.ts` without ffmpeg, the matte helper tests off macOS.
+
+#### The packaged app
+
+`npm run dist` packs `out/`, `presets/`, `native/` and `build/icon.png` into `app.asar` (the list is `files` in `electron-builder.yml`; a new runtime folder must be added there). The renderer's packages are dev dependencies because Vite bundles them, so nothing from `node_modules` ships. Two things differ from running the repo:
+
+- `app.getAppPath()` is the `app.asar` archive. Node's `fs` reads inside it, but other programs can't, so anything handed to a child process must be unpacked (`asarUnpack`) and addressed through `unpacked()` in `src/main/paths.ts`, as the Swift source for `swiftc` is.
+- Opened from Finder, the app gets a bare `PATH`; `src/main/tool-path.ts` adds the Homebrew folders at startup so `ffmpeg`, `ffprobe` and `whisper-cli` are found.
 
 ### Conventions
 
