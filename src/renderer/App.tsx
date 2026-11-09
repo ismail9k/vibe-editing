@@ -35,7 +35,22 @@ export function App() {
     // leaves before the page goes away).
     const onUnload = () => { flushSave(); flushWriteLater(); };
     window.addEventListener('beforeunload', onUnload);
-    return () => { offChange(); offExport(); offMatte(); offSession(); window.removeEventListener('beforeunload', onUnload); };
+    // A file dropped anywhere the Edit room doesn't take it would make the window navigate to the file and lose the
+    // app. Refuse it there (no copy cursor), and never navigate.
+    const noDrop = (e: DragEvent) => {
+      if (e.defaultPrevented) return; // the Edit room took it
+      if (!e.dataTransfer?.types.includes('Files')) return; // text dragged into a field still works
+      e.preventDefault();
+      if (e.dataTransfer) e.dataTransfer.dropEffect = 'none';
+    };
+    window.addEventListener('dragover', noDrop);
+    window.addEventListener('drop', noDrop);
+    return () => {
+      offChange(); offExport(); offMatte(); offSession();
+      window.removeEventListener('beforeunload', onUnload);
+      window.removeEventListener('dragover', noDrop);
+      window.removeEventListener('drop', noDrop);
+    };
   }, []);
 
   return (
