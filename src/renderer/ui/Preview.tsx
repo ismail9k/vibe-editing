@@ -48,9 +48,7 @@ export function Preview() {
       const key = `${t.toFixed(4)}`;
       if (st.playing || dirty || key !== drawn || p !== lastP || lib !== lastLib) {
         if (canvas.width !== p.format.w || canvas.height !== p.format.h) { canvas.width = p.format.w; canvas.height = p.format.h; }
-        const shown = (v: HTMLVideoElement) => v.dataset.ready === '1' && v.readyState >= 2;
-        const media: FrameMedia = { frame: shown(video) ? video : null, matte: wantsMatte && shown(matte) ? matte : null };
-        renderFrame(canvas.getContext('2d')!, p, lib, t, media);
+        renderFrame(canvas.getContext('2d')!, p, lib, t, frameMedia(video, matte, wantsMatte ? p : null, name, t));
         drawn = key; lastP = p; lastLib = lib; dirty = false;
       }
     };
@@ -65,9 +63,8 @@ export function Preview() {
   const media = (): FrameMedia | null => {
     const st = useStore.getState(), lib = st.lib, p = st.project, video = videoRef.current, matte = matteRef.current;
     if (!p || !lib || !video || !matte) return null;
-    const shown = (v: HTMLVideoElement) => v.dataset.ready === '1' && v.readyState >= 2;
     const wantsMatte = p.tracks.graphics.some((g) => lib.components[g.type]?.meta.matte || lib.components[g.type]?.meta.aims);
-    return { frame: shown(video) ? video : null, matte: wantsMatte && shown(matte) ? matte : null };
+    return frameMedia(video, matte, wantsMatte ? p : null, st.projectName ?? '', st.playhead);
   };
 
   const aspect = project ? `${project.format.w} / ${project.format.h}` : '9 / 16';
@@ -88,6 +85,23 @@ export function Preview() {
     </div>
   );
 }
+
+const shown = (v: HTMLVideoElement) => v.dataset.ready === '1' && v.readyState >= 2;
+
+/** What the renderer draws from: the footage video, and its matte only when the matte shows the same moment of
+ *  the same clip. Right after a cut the matte is still on the last clip or still seeking; using it then would cut
+ *  you out of the wrong frame, so the frame draws as if it had no matte (as the export does for a missing one). */
+export function frameMedia(video: HTMLVideoElement, matte: HTMLVideoElement, p: Project | null, name: string, t: number): FrameMedia {
+  const frame = shown(video) ? video : null;
+  const hit = p && footageAt(p, t);
+  const inStep = !!hit && shown(matte) && !matte.seeking
+    && (matte.dataset.src ?? '').startsWith(`${mediaUrl(name, matteSrc(hit.clip.src))}?`)
+    && Math.abs(matte.currentTime - video.currentTime) <= MATTE_SLACK;
+  return { frame, matte: frame && inStep ? matte : null };
+}
+
+/** How far the matte may drift from the picture while playing before it is re-seeked (and not used). */
+const MATTE_SLACK = 0.25;
 
 const mediaUrl = (name: string, src: string) => `vibe://ws/projects/${encodeURIComponent(name)}/${src.split('/').map(encodeURIComponent).join('/')}`;
 
@@ -118,7 +132,7 @@ function syncMatte(matte: HTMLVideoElement, video: HTMLVideoElement, p: Project 
   const drift = target - matte.currentTime;
   if (playing) {
     if (matte.paused) matte.play().catch(() => {});
-    if (Math.abs(drift) > 0.25) matte.currentTime = target;
+    if (Math.abs(drift) > MATTE_SLACK) matte.currentTime = target;
     else matte.playbackRate = 1 + Math.max(-0.2, Math.min(0.2, drift * 2));
   } else {
     if (!matte.paused) matte.pause();
