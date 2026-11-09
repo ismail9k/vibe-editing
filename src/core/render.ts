@@ -42,43 +42,67 @@ export function makePainter(ctx: Ctx, project: Project, lib: Library, t: number)
 export function renderFrame(ctx: Ctx, project: Project, lib: Library, t: number): string[] {
   const errors: string[] = [];
   const { w: W, h: H } = project.format;
+  // Start every frame from a clean context, whatever the last one left behind.
+  (ctx as { reset?: () => void }).reset?.();
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.globalAlpha = 1;
+  ctx.setLineDash?.([]);
   ctx.clearRect(0, 0, W, H);
   const { p, error } = makePainter(ctx, project, lib, t);
   if (error) errors.push(error);
 
-  if (!footageAt(project, t)) guard(errors, 'background', () => p.background(t));
+  if (!footageAt(project, t)) {
+    const bg = sandboxed(ctx, () => p.background(t));
+    if (bg) errors.push(`background: ${bg}`);
+  }
 
   const active = project.tracks.graphics.filter((g) => t >= g.at && t < g.at + g.dur).sort((a, b) => a.at - b.at);
   for (const g of active) {
     const comp = lib.components[g.type];
     const local = t - g.at;
     const args: DrawArgs = { t: local, dur: g.dur, props: { ...(comp?.meta.defaults ?? {}), ...g.props }, graphic: g, place: (def) => place(p, g, def) };
-    ctx.save();
-    ctx.globalAlpha = clamp((g.dur - local) / EXIT);
-    try {
+    const msg = sandboxed(ctx, () => {
+      ctx.globalAlpha = clamp((g.dur - local) / EXIT);
       if (!comp) throw new Error(`unknown component "${g.type}"`);
       if (!comp.mod) throw new Error(comp.error ?? `${g.type} has no draw code`);
       comp.mod.draw(p, args);
-    } catch (e) {
-      const msg = `${g.id} (${g.type}): ${(e as Error).message}`;
-      errors.push(msg);
-      ctx.restore(); ctx.save();
-      errorBox(p, msg, args.place({ y: 0.4, w: 0.8 }));
+    });
+    if (msg) {
+      errors.push(`${g.id} (${g.type}): ${msg}`);
+      sandboxed(ctx, () => errorBox(p, `${g.id} (${g.type}): ${msg}`, args.place({ y: 0.4, w: 0.8 })));
     }
-    ctx.restore();
   }
 
   for (const cap of project.tracks.captions) {
-    if (t >= cap.at && t < cap.at + cap.dur) guard(errors, `caption ${cap.id}`, () => drawCaption(p, cap, t));
+    if (!(t >= cap.at && t < cap.at + cap.dur)) continue;
+    const msg = sandboxed(ctx, () => drawCaption(p, cap, t));
+    if (msg) {
+      errors.push(`caption ${cap.id}: ${msg}`);
+      sandboxed(ctx, () => errorBox(p, `caption ${cap.id}: ${msg}`, place(p, { at: 0, dur: 1 } as Graphic, { y: 0.74, w: 0.8 })));
+    }
   }
-  guard(errors, 'post', () => p.post());
+  const postMsg = sandboxed(ctx, () => p.post());
+  if (postMsg) errors.push(`post: ${postMsg}`);
   return errors;
 }
 
-function guard(errors: string[], what: string, fn: () => void) {
-  try { fn(); } catch (e) { errors.push(`${what}: ${(e as Error).message}`); }
+/** Run user drawing code (components, styles) so nothing it does to the context outlives it: every save it
+ *  made is unwound, even when it throws, and it can't restore past its own start. Returns the error message. */
+function sandboxed(ctx: Ctx, fn: () => void): string | null {
+  const own = ctx as unknown as { save: () => void; restore: () => void };
+  const save = own.save, restore = own.restore;
+  let depth = 0;
+  own.save = function () { depth++; save.call(ctx); };
+  own.restore = function () { if (depth > 0) { depth--; restore.call(ctx); } };
+  save.call(ctx);
+  try { fn(); return null; }
+  catch (e) { return (e as Error)?.message ?? String(e); }
+  finally {
+    while (depth-- > 0) restore.call(ctx);
+    delete (own as { save?: unknown }).save; delete (own as { restore?: unknown }).restore;
+    if (own.save !== save) { own.save = save; own.restore = restore; } // contexts with own-property methods
+    restore.call(ctx);
+  }
 }
 
 function place(p: Painter, g: Graphic, def: { x?: number; y: number; w: number }): Place {

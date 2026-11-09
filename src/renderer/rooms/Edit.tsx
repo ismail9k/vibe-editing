@@ -14,6 +14,7 @@ export function Edit() {
   const project = useStore((s) => s.project);
   const name = useStore((s) => s.projectName);
   const playing = useStore((s) => s.playing);
+  const exporting = useStore((s) => s.exporting);
   const playhead = useStore((s) => s.playhead);
   const [dropping, setDropping] = useState(false);
 
@@ -55,7 +56,7 @@ export function Edit() {
           <span className="spacer" />
           <button className="ghost" onClick={() => useStore.getState().undo()} title="Undo (⌘Z)">↶</button>
           <button className="ghost" onClick={() => useStore.getState().redo()} title="Redo (⇧⌘Z)">↷</button>
-          <button className="primary" onClick={() => startExport(name)}>Export</button>
+          <button className="primary" disabled={exportBusy(exporting)} onClick={() => startExport(name)}>{exportBusy(exporting) ? 'Exporting…' : 'Export'}</button>
         </div>
       </main>
       <aside className="panel right"><Inspector /></aside>
@@ -71,7 +72,10 @@ function togglePlay() {
   st.setPlaying(!st.playing);
 }
 
+const exportBusy = (x: { stage: string } | null) => !!x && (x.stage === 'frames' || x.stage === 'encoding');
+
 async function startExport(name: string) {
+  if (exportBusy(useStore.getState().exporting)) return; // one export at a time
   useStore.setState({ exporting: { done: 0, total: 1, stage: 'frames' } });
   try { await window.vibe.exportProject(name); }
   catch (e) { useStore.setState({ exporting: { done: 0, total: 1, stage: 'error', message: (e as Error).message } }); }

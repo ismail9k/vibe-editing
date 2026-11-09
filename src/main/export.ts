@@ -1,7 +1,7 @@
 // Export (MP4) and snapshots (PNG), shared by the app's Export button and the vibe CLI.
 import { ipcMain } from 'electron';
 import { spawn, execFile } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync, rmSync } from 'node:fs';
 import { once } from 'node:events';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -37,27 +37,43 @@ export async function runExport(root: string, name: string, onProgress: (p: Expo
   const out = outPath ?? join(dir, 'out', `${name}.mp4`);
   mkdirSync(join(out, '..'), { recursive: true });
 
-  const ff = spawn('ffmpeg', buildFfmpegArgs(project, dir, out, hasAudio, hdr), { stdio: ['pipe', 'ignore', 'pipe'] });
-  let stderr = '', exited = false;
+  // Encode next to the target and rename at the end: a failed export never replaces the last good file.
+  const partial = out.replace(/\.mp4$/i, '') + '.partial.mp4';
+  const ff = spawn('ffmpeg', buildFfmpegArgs(project, dir, partial, hasAudio, hdr), { stdio: ['pipe', 'ignore', 'pipe'] });
+  let stderr = '', exited = false, ok = false;
   ff.stderr.on('data', (d) => { stderr = (stderr + d).slice(-4000); });
   ff.stdin.on('error', () => {}); // EPIPE when ffmpeg stops early: reported through the exit code
-  const exit = new Promise<number>((r) => ff.on('close', (code) => { exited = true; r(code ?? 1); }));
-
-  const total = Math.ceil(duration(project) * project.format.fps);
-  let done = 0;
-  onProgress({ stage: 'frames', done, total });
-  const result = await runHeadless({ kind: 'frames', project: name, from: 0, count: total }, async (buf) => {
-    if (exited) throw new Error(`ffmpeg stopped: ${stderr.trim().split('\n').pop()}`);
-    if (!ff.stdin.write(buf)) await once(ff.stdin, 'drain');
-    if (++done % 15 === 0) onProgress({ stage: 'frames', done, total });
+  const exit = new Promise<number>((r) => {
+    ff.on('error', (e) => { stderr += `\n${e.message}`; exited = true; r(1); }); // e.g. ffmpeg not installed
+    ff.on('close', (code) => { exited = true; r(code ?? 1); });
   });
-  if (result.fatal) { ff.kill(); throw new Error(result.fatal); }
-  ff.stdin.end();
-  onProgress({ stage: 'encoding', done: total, total });
-  const code = await exit;
-  if (code !== 0) throw new Error(`ffmpeg failed: ${stderr.trim().split('\n').slice(-3).join(' ')}`);
-  onProgress({ stage: 'done', done: total, total, out });
-  return { out, errors: result.errors };
+
+  try {
+    const total = Math.ceil(duration(project) * project.format.fps);
+    let done = 0;
+    onProgress({ stage: 'frames', done, total });
+    const result = await runHeadless({ kind: 'frames', project: name, from: 0, count: total }, async (buf) => {
+      if (exited) throw new Error(`ffmpeg stopped: ${stderr.trim().split('\n').pop()}`);
+      if (!ff.stdin.write(buf)) await Promise.race([once(ff.stdin, 'drain'), exit]);
+      if (++done % 15 === 0) onProgress({ stage: 'frames', done, total });
+    });
+    if (result.fatal) throw new Error(result.fatal);
+    if (done < total) throw new Error(`the render window stopped after ${done} of ${total} frames`);
+    ff.stdin.end();
+    onProgress({ stage: 'encoding', done: total, total });
+    const code = await exit;
+    if (code !== 0) throw new Error(`ffmpeg failed: ${stderr.trim().split('\n').slice(-3).join(' ')}`);
+    renameSync(partial, out);
+    ok = true;
+    onProgress({ stage: 'done', done: total, total, out });
+    return { out, errors: result.errors };
+  } finally {
+    if (!ok) {
+      if (!exited) ff.kill('SIGKILL');
+      await exit;
+      rmSync(partial, { force: true });
+    }
+  }
 }
 
 /** PNGs at the given times: the overlay over the footage frame under it. */
