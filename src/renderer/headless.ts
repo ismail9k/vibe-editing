@@ -1,5 +1,5 @@
 // The hidden render window: draws frames for the export and snapshots with the same renderer as the preview.
-import { parseProject } from '../core/model';
+import { parseProject, projectDir } from '../core/model';
 import { renderFrame } from '../core/render';
 import { loadLibrary } from './library';
 import type { FrameMedia } from '../core/media';
@@ -30,7 +30,7 @@ export async function runHeadless() {
     const lib = await loadLibrary(await window.vibe.info());
     for (const s of Object.values(lib.styles)) if (s.error) errors.add(s.error);
     for (const c of Object.values(lib.components)) if (c.error) errors.add(c.error);
-    const { project, error } = parseProject((await window.vibe.read(`projects/${job.project}/vibe.json`)) ?? '');
+    const { project, error } = parseProject((await window.vibe.read(`${projectDir(job.project)}/vibe.json`)) ?? '');
     if (!project) throw new Error(error);
     const { w: W, h: H, fps } = project.format;
     const canvas = document.createElement('canvas');

@@ -26,6 +26,8 @@ export interface VibeApi {
   ensureMattes(project: string): Promise<{ error?: string }>;
   onMatteProgress(cb: (p: MatteProgressEvent) => void): () => void;
   initialProject(): Promise<string | null>;
+  /** A project opened from Finder (double-clicking its .vibe) while the app is running. */
+  onOpenProject(cb: (name: string) => void): () => void;
   // export window only
   frameReady(rgba: ArrayBuffer): Promise<void>;
   headlessJob(): Promise<HeadlessJob | null>;

@@ -14,6 +14,11 @@ export function App() {
     const st = useStore.getState();
     st.boot();
     const offChange = window.vibe.onChange((c) => { cancelWriteLater(c.rel); useStore.getState().onDiskChange(c); });
+    const offOpen = window.vibe.onOpenProject(async (name) => {
+      if (name === useStore.getState().projectName) return;
+      await useStore.getState().refreshInfo(); // a project made since the app started isn't in the list yet
+      await useStore.getState().openProject(name);
+    });
     const offExport = window.vibe.onExportProgress((p) => useStore.setState({ exporting: p }));
     const offMatte = window.vibe.onMatteProgress((p) => {
       if (p.project !== useStore.getState().projectName) return;
@@ -24,7 +29,7 @@ export function App() {
     const offSession = useStore.subscribe((s) => {
       if (!s.projectName || !s.project) return;
       const session = { room: s.room, selection: s.selection, playhead: +s.playhead.toFixed(2), style: s.project.style, studio: { style: s.studio.style, mode: s.studio.mode, dir: s.studio.dir, focus: s.studio.focus } };
-      const json = JSON.stringify(session);
+      const json = s.projectName + JSON.stringify(session); // a switched-to project gets its own session.json
       if (json === lastJson || s.playing) return;
       lastJson = json;
       if (timer) clearTimeout(timer);
@@ -46,7 +51,7 @@ export function App() {
     window.addEventListener('dragover', noDrop);
     window.addEventListener('drop', noDrop);
     return () => {
-      offChange(); offExport(); offMatte(); offSession();
+      offChange(); offOpen(); offExport(); offMatte(); offSession();
       window.removeEventListener('beforeunload', onUnload);
       window.removeEventListener('dragover', noDrop);
       window.removeEventListener('drop', noDrop);

@@ -3,7 +3,7 @@ import type { VibeApi } from '../../src/shared/api';
 
 // An in-memory workspace with the same compare-and-swap rule as the main process.
 const disk = new Map<string, string>();
-const REL = 'projects/p/vibe.json';
+const REL = 'projects/p.vibe/vibe.json';
 const film = (value: string) => JSON.stringify({ name: 'p', style: 'flat9k', tracks: { graphics: [{ id: 'g1', type: 'stat', at: 0, dur: 2, props: { value } }] } });
 
 (globalThis as unknown as { window: { vibe: Partial<VibeApi> } }).window = {
@@ -77,7 +77,7 @@ describe('fields the parser had to replace', () => {
 
 describe('switching projects', () => {
   it('saves an edit made just before the switch to the project it was made in', async () => {
-    const OTHER = 'projects/q/vibe.json';
+    const OTHER = 'projects/q.vibe/vibe.json';
     disk.set(OTHER, film('q'));
     useStore.getState().apply((p) => ops.updateItem(p, 'graphics', 'g1', { props: { value: 'app' } }));
     await useStore.getState().openProject('q'); // well inside the 300 ms save delay

@@ -4,7 +4,7 @@ import { spawn } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync, rmSync } from 'node:fs';
 import { once } from 'node:events';
 import { join } from 'node:path';
-import { duration, footageAt, matteSrc, parseProject, type Project } from '../core/model';
+import { duration, footageAt, matteSrc, parseProject, projectDir, type Project } from '../core/model';
 import { buildDecodeArgs, buildEncodeArgs, buildMeasureArgs, buildMixArgs, buildStillArgs, clipOverruns, masterGain, parseLoudness } from './ffmpeg';
 import { FrameReader } from './frames';
 import { componentMetas, ensureMattes, matteReady, usesMatte, wantsMatte } from './matte';
@@ -14,7 +14,7 @@ import { probe, resolveInside } from './workspace';
 import type { ExportProgress } from '../shared/api';
 
 export function loadProject(root: string, name: string): { project: Project; dir: string } {
-  const dir = resolveInside(root, `projects/${name}`);
+  const dir = resolveInside(root, projectDir(name));
   const file = join(dir, 'vibe.json');
   if (!existsSync(file)) throw new Error(`no project "${name}" (${file})`);
   const { project, error } = parseProject(readFileSync(file, 'utf8'));

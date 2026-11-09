@@ -14,6 +14,13 @@ export interface Project { name: string; format: Format; style: string; mode: Mo
 export type TrackName = keyof Tracks;
 export type TimedTrack = 'graphics' | 'captions' | 'audio';
 
+/** A project is a folder named <name>.vibe under projects/, which macOS shows as one document. */
+export const PROJECT_EXT = '.vibe';
+/** Workspace-relative folder of a project. */
+export const projectDir = (name: string) => `projects/${name}${PROJECT_EXT}`;
+/** A project name from what someone typed: "demo", "demo.vibe", "projects/demo.vibe/" or a full path all give "demo". */
+export const projectName = (arg: string) => (arg.replace(/[\\/]+$/, '').split(/[\\/]/).pop() ?? '').replace(/\.vibe$/i, '');
+
 const MODES: Mode[] = ['dark', 'light', 'green'];
 const show = (v: unknown) => { const j = JSON.stringify(v); return j && j.length > 40 ? j.slice(0, 37) + '...' : String(j); };
 

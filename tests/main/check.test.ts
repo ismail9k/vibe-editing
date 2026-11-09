@@ -42,9 +42,9 @@ describe('checkProject', () => {
     mkdirSync(join(root, 'library/styles/flat9k'), { recursive: true });
     mkdirSync(join(root, 'library/components/stat'), { recursive: true });
     writeFileSync(join(root, 'library/components/stat/component.json'), JSON.stringify({ name: 'Stat', description: '', duration: 3, defaults: {}, schema: { value: { type: 'text', label: 'Value' } } }));
-    mkdirSync(join(root, 'projects/p'), { recursive: true });
+    mkdirSync(join(root, 'projects/p.vibe'), { recursive: true });
   });
-  const write = (o: object) => writeFileSync(join(root, 'projects/p/vibe.json'), JSON.stringify(o));
+  const write = (o: object) => writeFileSync(join(root, 'projects/p.vibe/vibe.json'), JSON.stringify(o));
 
   it('reports no issues for a clean project', () => {
     write({ style: 'flat9k', tracks: { graphics: [{ id: 'g1', type: 'stat', at: 0, dur: 2, props: { value: '3x' } }] } });
@@ -57,7 +57,7 @@ describe('checkProject', () => {
     expect(msgs).toMatch(/value should be text/);
   });
   it('reports half-written JSON as one error instead of throwing', () => {
-    writeFileSync(join(root, 'projects/p/vibe.json'), '{"style": "flat9k", "tracks": {');
+    writeFileSync(join(root, 'projects/p.vibe/vibe.json'), '{"style": "flat9k", "tracks": {');
     const issues = checkProject(root, 'p');
     expect(issues).toHaveLength(1);
     expect(issues[0].level).toBe('error');
@@ -77,14 +77,14 @@ describe('checkProject', () => {
   it('warns when a cutout effect has no matte yet, and says how to make one', () => {
     mkdirSync(join(root, 'library/components/orbit'), { recursive: true });
     writeFileSync(join(root, 'library/components/orbit/component.json'), JSON.stringify({ name: 'Orbit', description: '', duration: 3, scene: true, matte: true, defaults: {}, schema: {} }));
-    mkdirSync(join(root, 'projects/p/media'), { recursive: true });
-    writeFileSync(join(root, 'projects/p/media/a.mov'), '');
+    mkdirSync(join(root, 'projects/p.vibe/media'), { recursive: true });
+    writeFileSync(join(root, 'projects/p.vibe/media/a.mov'), '');
     write({ style: 'flat9k', tracks: { footage: [{ id: 'f1', src: 'media/a.mov', in: 0, out: 2 }], graphics: [{ id: 'g1', type: 'orbit', at: 0, dur: 2, props: {} }] } });
     expect(checkProject(root, 'p')).toContainEqual({ level: 'warn', path: 'media/a.mov', message: 'no cutout yet (orbit needs one): run `vibe matte p`, or open the film in the app' });
-    mkdirSync(join(root, 'projects/p/media/.matte'), { recursive: true });
-    writeFileSync(join(root, 'projects/p/media/.matte/a.mov.matte.mp4'), '');
+    mkdirSync(join(root, 'projects/p.vibe/media/.matte'), { recursive: true });
+    writeFileSync(join(root, 'projects/p.vibe/media/.matte/a.mov.matte.mp4'), '');
     expect(checkProject(root, 'p')).toHaveLength(1); // not stamped: a run that died, or older footage
-    stampMatte(join(root, 'projects/p'), 'media/a.mov');
+    stampMatte(join(root, 'projects/p.vibe'), 'media/a.mov');
     expect(checkProject(root, 'p')).toEqual([]);
   });
 });

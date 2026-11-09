@@ -55,12 +55,14 @@ Everything lives in `~/Vibe` (or in `$VIBE_HOME`). On first run the app copies i
   library/brand.json                      colours, modes (dark, light, green), fonts, design-language rules
   library/styles/<id>/style.{json,js}     a style: its params, and the painter overrides that restyle everything
   library/components/<id>/component.{json,js}   a component: props schema, defaults, and its draw function
-  projects/<name>/vibe.json               a film: format, style, mode, direction, tracks
-  projects/<name>/media/                  footage and sounds (imported copies)
-  projects/<name>/media/.matte/           cutout mattes, one per footage file (made on a Mac)
-  projects/<name>/.vibe/session.json      written by the app: room, selection, playhead (Claude reads it)
-  projects/<name>/out/                    renders and snapshots
+  projects/<name>.vibe/vibe.json          a film: format, style, mode, direction, tracks
+  projects/<name>.vibe/media/             footage and sounds (imported copies)
+  projects/<name>.vibe/media/.matte/      cutout mattes, one per footage file (made on a Mac)
+  projects/<name>.vibe/.vibe/session.json written by the app: room, selection, playhead (Claude reads it)
+  projects/<name>.vibe/out/               renders and snapshots
 ```
+
+Each project is a `.vibe` folder that Finder shows as a single document; double-clicking it opens it in the app (right-click → Show Package Contents to see inside). Projects made before this were plain `projects/<name>/` folders; the app renames them the next time it starts.
 
 To work with Claude, open a Claude Code session in `~/Vibe` next to the app. Claude edits `vibe.json`, styles and components, and the app reloads them within a second. If Claude writes a broken file, the app keeps showing the last good version and puts the error in the top bar. A component or style that throws draws a red box with the error instead of crashing.
 
@@ -69,10 +71,10 @@ To work with Claude, open a Claude Code session in `~/Vibe` next to the app. Cla
 ```bash
 vibe list                              # projects in the workspace
 vibe check <project>                   # check vibe.json against the library; exits 1 on errors
-vibe snapshot <project> --at 1,4.5,8   # PNGs at those seconds -> projects/<p>/out/snap-*.png
-vibe render <project> [-o out.mp4]     # export the MP4 -> projects/<p>/out/<p>.mp4
+vibe snapshot <project> --at 1,4.5,8   # PNGs at those seconds -> projects/<p>.vibe/out/snap-*.png
+vibe render <project> [-o out.mp4]     # export the MP4 -> projects/<p>.vibe/out/<p>.mp4
 vibe matte <project>                   # cut you out of every clip -> media/.matte/ (macOS)
-vibe transcribe <project>              # what you say, word by word, on the timeline -> projects/<p>/transcript.json
+vibe transcribe <project>              # what you say, word by word, on the timeline -> projects/<p>.vibe/transcript.json
 vibe open [project]                    # open the app
 ```
 
@@ -84,7 +86,7 @@ Effects that put something behind you need a matte: a grey video per footage fil
 
 ## Transcripts
 
-`vibe transcribe <project>` gives Claude what you say and when, so it can cut on your words and time captions and graphics to them. It runs whisper.cpp (`whisper-cli`) once per footage file and keeps the words, in source seconds, at `media/.transcript/<file>.json`; they're redone only when the file, the model or the language changes (or with `--force`). Whisper's word times run into the pauses around them, so each word is snapped to the speech using the pauses ffmpeg measures in the same audio. The words the cut keeps go onto the output timeline in `projects/<p>/transcript.json`, and the command prints them as short timed lines.
+`vibe transcribe <project>` gives Claude what you say and when, so it can cut on your words and time captions and graphics to them. It runs whisper.cpp (`whisper-cli`) once per footage file and keeps the words, in source seconds, at `media/.transcript/<file>.json`; they're redone only when the file, the model or the language changes (or with `--force`). Whisper's word times run into the pauses around them, so each word is snapped to the speech using the pauses ffmpeg measures in the same audio. The words the cut keeps go onto the output timeline in `projects/<p>.vibe/transcript.json`, and the command prints them as short timed lines.
 
 The model is the best multilingual whisper.cpp model already on the machine (the app's data folder, `~/.cache/whisper.cpp`, `~/.cache/whisper`, HyperFrames' cache, Homebrew's share folder), or `large-v3-turbo` downloaded once (about 1.6 GB) into the app's data folder. `--model small` picks a model by name (downloaded if missing), `--model <path>.bin` uses that file, and `--lang ar` skips language detection.
 

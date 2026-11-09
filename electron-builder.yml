@@ -18,5 +18,22 @@ mac:
   icon: build/icon.icns
   # Unsigned: it runs on the Mac that built it. Sharing it needs a Developer ID and notarisation.
   identity: null
+  # A project folder (projects/<name>.vibe) is a document package: Finder shows it as one file with the app's icon,
+  # and double-clicking it opens the app (main/index.ts handles the open-file event).
+  extendInfo:
+    UTExportedTypeDeclarations:
+      - UTTypeIdentifier: com.ismail9k.vibe-editing.project
+        UTTypeDescription: Vibe Project
+        UTTypeConformsTo: [com.apple.package, public.composite-content]
+        UTTypeIconFile: icon.icns
+        UTTypeTagSpecification:
+          public.filename-extension: [vibe]
+    CFBundleDocumentTypes:
+      - CFBundleTypeName: Vibe Project
+        CFBundleTypeRole: Editor
+        LSHandlerRank: Owner
+        LSTypeIsPackage: true
+        LSItemContentTypes: [com.ismail9k.vibe-editing.project]
+        CFBundleTypeIconFile: icon.icns
 dmg:
   artifactName: Vibe-Editing-${version}-${arch}.dmg

@@ -2,6 +2,7 @@
 import { watch, readFileSync, type FSWatcher } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { join, sep } from 'node:path';
+import { PROJECT_EXT } from '../core/model';
 
 export type ChangeKind = 'project' | 'style' | 'component' | 'brand';
 export interface Change { kind: ChangeKind; id: string; rel: string }
@@ -30,7 +31,9 @@ export function classify(rel: string): { kind: ChangeKind; id: string } | null {
     if (parts[1] === 'components' && parts[2] && parts.length >= 4) return { kind: 'component', id: parts[2] };
     return null;
   }
-  if (parts[0] === 'projects' && parts[1] && parts[2] === 'vibe.json' && parts.length === 3) return { kind: 'project', id: parts[1] };
+  if (parts[0] === 'projects' && parts[1]?.endsWith(PROJECT_EXT) && parts[2] === 'vibe.json' && parts.length === 3) {
+    return { kind: 'project', id: parts[1].slice(0, -PROJECT_EXT.length) };
+  }
   return null;
 }
 

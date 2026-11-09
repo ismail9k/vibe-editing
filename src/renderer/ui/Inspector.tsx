@@ -8,6 +8,7 @@ const FORMATS: Record<string, { w: number; h: number }> = { '9:16': { w: 1080, h
 
 export function Inspector() {
   const project = useStore((s) => s.project);
+  const projectName = useStore((s) => s.projectName);
   const lib = useStore((s) => s.lib);
   const selection = useStore((s) => s.selection);
   const issues = useStore((s) => s.issues);
@@ -61,7 +62,7 @@ export function Inspector() {
             <ul className="issues">{issues.map((i, n) => <li key={n} className={i.level}><code>{i.path}</code> {i.message}</li>)}</ul>
           </>
         )}
-        <p className="hint">Select something on the timeline to edit it. Claude edits <code>projects/{project.name}/vibe.json</code>; you'll see its changes here.</p>
+        <p className="hint">Select something on the timeline to edit it. Claude edits <code>projects/{projectName}.vibe/vibe.json</code>; you'll see its changes here.</p>
       </div>
     );
   }

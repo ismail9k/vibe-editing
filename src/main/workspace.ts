@@ -4,6 +4,7 @@ import { execFile } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { homedir } from 'node:os';
 import { basename, dirname, extname, isAbsolute, join, relative, resolve } from 'node:path';
+import { PROJECT_EXT, projectDir } from '../core/model';
 
 // Absolute even when VIBE_HOME is relative: the self-write guard compares the paths it wrote with the watcher's.
 export const workspaceRoot = () => resolve(process.env.VIBE_HOME || join(homedir(), 'Vibe'));
@@ -109,7 +110,44 @@ export function takePresets(root: string, presetsDir: string, rels: string[]): {
 const dirs = (p: string) => (existsSync(p) ? readdirSync(p).filter((n) => !n.startsWith('.') && statSync(join(p, n)).isDirectory()).sort() : []);
 
 export const listLibrary = (root: string) => ({ styles: dirs(join(root, 'library/styles')), components: dirs(join(root, 'library/components')) });
-export const listProjects = (root: string) => dirs(join(root, 'projects')).filter((n) => existsSync(join(root, 'projects', n, 'vibe.json')));
+export const listProjects = (root: string) => dirs(join(root, 'projects'))
+  .filter((n) => n.endsWith(PROJECT_EXT) && existsSync(join(root, 'projects', n, 'vibe.json')))
+  .map((n) => n.slice(0, -PROJECT_EXT.length));
+
+/** The project a path Finder hands the app belongs to: <root>/projects/<name>.vibe or anything inside it.
+ *  Null for a .vibe anywhere else (a copy on the Desktop, another workspace): the app only opens its own. */
+export function projectAtPath(root: string, abs: string): string | null {
+  const back = relative(root, resolve(abs));
+  if (!back || back.startsWith('..') || isAbsolute(back)) return null;
+  const parts = back.split(/[\\/]/);
+  if (parts[0] !== 'projects' || !parts[1]?.endsWith(PROJECT_EXT)) return null;
+  const name = parts[1].slice(0, -PROJECT_EXT.length);
+  return name && existsSync(join(root, projectDir(name), 'vibe.json')) ? name : null;
+}
+
+/** Projects used to be plain folders (projects/<name>/). Give each one the .vibe ending so Finder shows it as a
+ *  document that opens in the app. A folder whose .vibe name is taken is left alone. Runs before seeding, so the
+ *  seeded demos land in the renamed folders instead of beside them. */
+export function migrateProjects(root: string): string[] {
+  const moved: string[] = [];
+  for (const n of dirs(join(root, 'projects'))) {
+    if (n.endsWith(PROJECT_EXT) || !existsSync(join(root, 'projects', n, 'vibe.json'))) continue;
+    const to = join(root, projectDir(n));
+    if (existsSync(to)) continue;
+    renameSync(join(root, 'projects', n), to);
+    moved.push(n);
+  }
+  if (moved.length) {
+    // Keep the preset record pointing at the same files.
+    const manifest = readManifest(root), next: Record<string, string> = {};
+    for (const [rel, hash] of Object.entries(manifest)) {
+      const n = moved.find((m) => rel.startsWith(`projects/${m}/`));
+      next[n ? projectDir(n) + rel.slice(`projects/${n}`.length) : rel] = hash;
+    }
+    writeManifest(root, next);
+  }
+  return moved;
+}
 
 export function readText(root: string, rel: string): string | null {
   const abs = resolveInside(root, rel);
@@ -173,9 +211,9 @@ export function importable(abs: string): boolean {
   try { return statSync(abs).isFile(); } catch { return false; }
 }
 
-/** Copy files into projects/<name>/media and describe them. */
+/** Copy files into projects/<name>.vibe/media and describe them. */
 export async function importMedia(root: string, project: string, paths: string[]) {
-  const mediaDir = resolveInside(root, `projects/${project}/media`);
+  const mediaDir = resolveInside(root, `${projectDir(project)}/media`);
   mkdirSync(mediaDir, { recursive: true });
   const out: { src: string; duration: number; kind: 'video' | 'audio' }[] = [];
   for (const p of paths) {

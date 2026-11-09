@@ -7,7 +7,7 @@ const p = parseProject(JSON.stringify({ tracks: { footage: [
   { id: 'f1', src: 'media/take.mp4', in: 0, out: 2 },
   { id: 'f2', src: 'media/take.mp4', in: 10, out: 12 },
 ] } })).project!;
-const matteUrl = 'vibe://ws/projects/demo/media/.matte/take.mp4.matte.mp4?v=1';
+const matteUrl = 'vibe://ws/projects/demo.vibe/media/.matte/take.mp4.matte.mp4?v=1';
 const video = (currentTime: number, extra: Record<string, unknown> = {}) =>
   ({ dataset: { ready: '1' }, readyState: 4, seeking: false, currentTime, ...extra }) as unknown as HTMLVideoElement;
 const matte = (currentTime: number, extra: Record<string, unknown> = {}) => video(currentTime, { dataset: { ready: '1', src: matteUrl }, ...extra });
@@ -27,7 +27,7 @@ describe('the preview matte', () => {
   });
 
   it('is left out when it belongs to another file, and when the film wants none', () => {
-    const other = matte(1, { dataset: { ready: '1', src: 'vibe://ws/projects/demo/media/.matte/b.mp4.matte.mp4?v=1' } });
+    const other = matte(1, { dataset: { ready: '1', src: 'vibe://ws/projects/demo.vibe/media/.matte/b.mp4.matte.mp4?v=1' } });
     expect(frameMedia(video(1), other, p, 'demo', 1).matte).toBeNull();
     expect(frameMedia(video(1), matte(1), null, 'demo', 1).matte).toBeNull();
   });

@@ -148,7 +148,7 @@ export type TranscribeProgress =
   | { stage: 'download'; model: string; done: number; total: number }
   | { stage: 'transcribe'; src: string; pct: number };
 
-/** Transcribe every footage file of a project and write projects/<p>/transcript.json: the words the cut keeps,
+/** Transcribe every footage file of a project and write projects/<p>.vibe/transcript.json: the words the cut keeps,
  *  on the output timeline, and the same words as short timed lines. */
 export async function transcribeProject(projectDir: string, project: Project, o: TranscribeOptions,
   progress: (p: TranscribeProgress) => void): Promise<{ words: TimelineWord[]; file: string }> {

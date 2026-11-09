@@ -23,6 +23,7 @@ const api: VibeApi = {
   ensureMattes: (project) => ipcRenderer.invoke('matte:ensure', project),
   onMatteProgress: (cb) => on<MatteProgressEvent>('matte:progress', cb),
   initialProject: () => ipcRenderer.invoke('app:initialProject'),
+  onOpenProject: (cb) => on<string>('app:openProject', cb),
   frameReady: (rgba) => ipcRenderer.invoke('headless:frame', rgba),
   headlessJob: () => ipcRenderer.invoke('headless:job'),
   headlessDone: (r) => ipcRenderer.invoke('headless:done', r),

@@ -36,10 +36,10 @@ The `vibe` CLI (`bin/vibe.mjs`, put on `PATH` with `npm link`) spawns `electron 
 
 ```bash
 vibe check <project>                  # validate vibe.json against the library (exit 1 on errors)
-vibe snapshot <project> --at 1,4.5    # PNGs -> projects/<p>/out/snap-*.png
+vibe snapshot <project> --at 1,4.5    # PNGs -> projects/<p>.vibe/out/snap-*.png
 vibe render <project> [-o out.mp4]    # MP4 export
 vibe matte <project>                  # cutout mattes (macOS)
-vibe transcribe <project>             # word timings on the timeline -> projects/<p>/transcript.json
+vibe transcribe <project>             # word timings on the timeline -> projects/<p>.vibe/transcript.json
 vibe open [project]
 ```
 
@@ -92,8 +92,12 @@ The project file on disk is the source of truth, since Claude edits it while the
 
 - `parseProject` never throws: invalid JSON returns `error` so the app keeps the last good project; wrong-typed fields fall back to defaults and are reported in `coerced`.
 - App writes are conditional (`writeChecked`): the renderer sends the text it last read (`src/renderer/disk.ts`) and main writes only if the file still holds it. A refused write reloads from disk. Writes are atomic (temp file + rename).
-- `SelfWriteGuard` (`src/main/watch.ts`) remembers the app's own writes so the watcher doesn't report them back as outside changes. The watcher only reacts to `library/brand.json`, `library/styles/*`, `library/components/*` and `projects/*/vibe.json`.
+- `SelfWriteGuard` (`src/main/watch.ts`) remembers the app's own writes so the watcher doesn't report them back as outside changes. The watcher only reacts to `library/brand.json`, `library/styles/*`, `library/components/*` and `projects/*.vibe/vibe.json`.
 - All workspace paths go through `resolveInside()`, which rejects anything outside the workspace.
+
+#### Projects are `.vibe` packages
+
+A project lives in `projects/<name>.vibe/`; its name everywhere else (picker, CLI, export file) is `<name>`. Build paths with `projectDir()` from `src/core/model.ts`, never by hand. The packaged app declares `.vibe` a document package (`mac.extendInfo` in `electron-builder.yml`), so Finder shows one icon and double-clicking sends `open-file` to `src/main/index.ts`, which opens only projects inside the workspace (`projectAtPath`). `migrateProjects` renames old `projects/<name>/` folders at startup, before seeding. The Finder side only works in the built app, not `npm run dev`.
 
 #### Timeline model
 

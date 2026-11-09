@@ -3,7 +3,7 @@
 // draws decoded frames. One animation-frame loop owns the clock; the videos and sounds follow it.
 import { useEffect, useRef, useState } from 'react';
 import { useStore } from '../store';
-import { duration, footageAt, matteSrc, type Project } from '../../core/model';
+import { duration, footageAt, matteSrc, PROJECT_EXT, type Project } from '../../core/model';
 import type { FrameMedia } from '../../core/media';
 import { renderFrame } from '../../core/render';
 import { CanvasEditor } from './CanvasEditor';
@@ -103,7 +103,7 @@ export function frameMedia(video: HTMLVideoElement, matte: HTMLVideoElement, p: 
 /** How far the matte may drift from the picture while playing before it is re-seeked (and not used). */
 const MATTE_SLACK = 0.25;
 
-const mediaUrl = (name: string, src: string) => `vibe://ws/projects/${encodeURIComponent(name)}/${src.split('/').map(encodeURIComponent).join('/')}`;
+const mediaUrl = (name: string, src: string) => `vibe://ws/projects/${encodeURIComponent(name + PROJECT_EXT)}/${src.split('/').map(encodeURIComponent).join('/')}`;
 
 /** How long a file that failed to load waits before it is tried again (it may have been copied in meanwhile). */
 const RETRY_MS = 2000;

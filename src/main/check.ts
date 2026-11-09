@@ -1,7 +1,7 @@
 // The parts of the vibe CLI that need no Electron: argument parsing and `vibe check`.
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { parseProject } from '../core/model';
+import { parseProject, projectDir, projectName } from '../core/model';
 import { coercedIssues, validateProject, type ComponentMeta, type Issue } from '../core/validate';
 import { listLibrary, resolveInside } from './workspace';
 import { matteReady, missingMattes } from './matte';
@@ -13,10 +13,10 @@ export const USAGE = `vibe — Vibe Editing from the terminal
   vibe open [project]                 open the app (on a project)
   vibe list                           list the projects
   vibe check <project>                check vibe.json against the library; exit 1 on errors
-  vibe snapshot <project> --at 1,4,8  render PNGs at those seconds (projects/<p>/out/snap-*.png)
-  vibe render <project> [-o out.mp4]  export the MP4 (projects/<p>/out/<p>.mp4)
+  vibe snapshot <project> --at 1,4,8  render PNGs at those seconds (projects/<p>.vibe/out/snap-*.png)
+  vibe render <project> [-o out.mp4]  export the MP4 (projects/<p>.vibe/out/<p>.mp4)
   vibe matte <project>                cut the speaker out of every clip (macOS; media/.matte/)
-  vibe transcribe <project>           word timings of the speech, on the timeline (projects/<p>/transcript.json)
+  vibe transcribe <project>           word timings of the speech, on the timeline (projects/<p>.vibe/transcript.json)
       [--lang ar|en|auto] [--model <name|path.bin>] [--force]
   vibe presets                        list library files that differ from the app's version
   vibe presets --take <file>…         replace them with the app's version (old copies kept in .vibe/replaced/)
@@ -44,7 +44,7 @@ export function parseCliArgs(argv: string[]): CliArgs {
       if (!v || v.startsWith('-')) throw new Error(`${a} wants a value`);
       args[a === '--lang' ? 'lang' : 'model'] = v;
     } else if (a === '--force') args.force = true;
-    else if (!a.startsWith('-') && !args.project) args.project = a;
+    else if (!a.startsWith('-') && !args.project) args.project = projectName(a); // tab completion gives demo.vibe/
     else throw new Error(`unknown option "${a}"`);
   }
   if (['check', 'snapshot', 'render', 'matte', 'transcribe'].includes(command) && !args.project) throw new Error(`vibe ${command} needs a project name`);
@@ -53,11 +53,11 @@ export function parseCliArgs(argv: string[]): CliArgs {
 
 /** The same checks the app's top bar shows, plus library files that don't parse. */
 export function checkProject(root: string, name: string): Issue[] {
-  const dir = resolveInside(root, `projects/${name}`);
+  const dir = resolveInside(root, projectDir(name)), rel = `${projectDir(name)}/vibe.json`;
   const file = join(dir, 'vibe.json');
-  if (!existsSync(file)) return [{ level: 'error', path: `projects/${name}/vibe.json`, message: 'no such project' }];
+  if (!existsSync(file)) return [{ level: 'error', path: rel, message: 'no such project' }];
   const { project, error, coerced } = parseProject(readFileSync(file, 'utf8'));
-  if (!project) return [{ level: 'error', path: `projects/${name}/vibe.json`, message: error ?? 'not valid JSON' }];
+  if (!project) return [{ level: 'error', path: rel, message: error ?? 'not valid JSON' }];
 
   const issues: Issue[] = coercedIssues(coerced);
   const lib = listLibrary(root);

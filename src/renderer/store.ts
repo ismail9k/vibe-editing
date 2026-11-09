@@ -1,7 +1,7 @@
 // App state. The project on disk is the source of truth: app edits are saved back to vibe.json,
 // and changes Claude makes on disk replace what the app shows (disk wins).
 import { create } from 'zustand';
-import { parseProject, serializeProject, duration, type Project, type TrackName, type Mode, type Dir } from '../core/model';
+import { parseProject, projectDir, serializeProject, duration, type Project, type TrackName, type Mode, type Dir } from '../core/model';
 import { coercedIssues, validateProject, type Issue } from '../core/validate';
 import type { Library } from '../core/render';
 import type { WorkspaceInfo, WsChange } from '../shared/api';
@@ -52,7 +52,7 @@ interface State {
 
 let saveTimer: ReturnType<typeof setTimeout> | null = null;
 let validateTimer: ReturnType<typeof setTimeout> | null = null;
-const projectRel = (name: string) => `projects/${name}/vibe.json`;
+const projectRel = (name: string) => `${projectDir(name)}/vibe.json`;
 
 /** "g3, c2" — the ids whose content differs between two projects. */
 function changedIds(a: Project | null, b: Project): string[] {
@@ -162,11 +162,11 @@ export const useStore = create<State>((set, get) => ({
     validateTimer = setTimeout(async () => {
       const { project, lib, info, projectName, coerced } = get();
       if (!project || !lib || !info || !projectName) { set({ issues: coerced }); return; }
-      const srcs = [...project.tracks.footage, ...project.tracks.audio].map((x) => `projects/${projectName}/${x.src}`);
+      const srcs = [...project.tracks.footage, ...project.tracks.audio].map((x) => `${projectDir(projectName)}/${x.src}`);
       const exists = srcs.length ? await window.vibe.exists(srcs) : {};
       const components = Object.fromEntries(Object.entries(lib.components).map(([k, v]) => [k, v.meta]));
-      set({ issues: [...coerced, ...validateProject(project, { components, styles: info.styles, mediaExists: (s) => !!exists[`projects/${projectName}/${s}`] })] });
-      const usable = project.tracks.footage.filter((c) => exists[`projects/${projectName}/${c.src}`]);
+      set({ issues: [...coerced, ...validateProject(project, { components, styles: info.styles, mediaExists: (s) => !!exists[`${projectDir(projectName)}/${s}`] })] });
+      const usable = project.tracks.footage.filter((c) => exists[`${projectDir(projectName)}/${c.src}`]);
       if (usable.length && project.tracks.graphics.some((g) => lib.components[g.type]?.meta.matte || lib.components[g.type]?.meta.aims)) ensureMattes(projectName, usable.map((c) => c.src));
     }, 150);
   },
