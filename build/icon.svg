@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <!-- Vibe Editing app icon: a play button cut into timeline tracks, with the playhead running through it.
+       Drawn on the macOS icon grid (824px body on a 1024px canvas). Source for icon.png and icon.icns. -->
+  <defs>
+    <linearGradient id="body" gradientUnits="userSpaceOnUse" x1="0" y1="100" x2="0" y2="924">
+      <stop offset="0" stop-color="#202020"/>
+      <stop offset="1" stop-color="#0b0b0b"/>
+    </linearGradient>
+    <linearGradient id="tracks" gradientUnits="userSpaceOnUse" x1="340" y1="270" x2="810" y2="754">
+      <stop offset="0" stop-color="#4fe08c"/>
+      <stop offset="1" stop-color="#1c9a4f"/>
+    </linearGradient>
+    <linearGradient id="head" gradientUnits="userSpaceOnUse" x1="0" y1="214" x2="0" y2="790">
+      <stop offset="0" stop-color="#ff7a24"/>
+      <stop offset="1" stop-color="#e85a02"/>
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="125%">
+      <feDropShadow dx="0" dy="12" stdDeviation="14" flood-color="#000" flood-opacity="0.35"/>
+    </filter>
+    <mask id="play" maskUnits="userSpaceOnUse" x="0" y="0" width="1024" height="1024">
+      <polygon points="372,302 372,722 778,512" fill="#fff" stroke="#fff" stroke-width="64" stroke-linejoin="round"/>
+    </mask>
+  </defs>
+
+  <rect x="100" y="100" width="824" height="824" rx="185" fill="#000" filter="url(#shadow)"/>
+  <rect x="100" y="100" width="824" height="824" rx="185" fill="url(#body)"/>
+  <rect x="101.5" y="101.5" width="821" height="821" rx="183.5" fill="none" stroke="#fff" stroke-opacity="0.08" stroke-width="3"/>
+
+  <!-- five tracks, masked into a play triangle -->
+  <g mask="url(#play)" fill="url(#tracks)">
+    <rect x="300" y="270" width="540" height="80"/>
+    <rect x="300" y="371" width="540" height="80"/>
+    <rect x="300" y="472" width="540" height="80"/>
+    <rect x="300" y="573" width="540" height="80"/>
+    <rect x="300" y="674" width="540" height="80"/>
+  </g>
+
+  <!-- playhead, outlined in the body colour so it cuts cleanly across the tracks -->
+  <g>
+    <line x1="508" y1="250" x2="508" y2="790" stroke="#161616" stroke-width="40" stroke-linecap="round"/>
+    <path d="M462,214 h92 a14,14 0 0 1 14,14 v34 a14,14 0 0 1 -5,10.7 l-46,38 a14,14 0 0 1 -18,0 l-46,-38 a14,14 0 0 1 -5,-10.7 v-34 a14,14 0 0 1 14,-14 z" fill="#161616" transform="translate(508 262) scale(1.28) translate(-508 -262)"/>
+    <line x1="508" y1="250" x2="508" y2="790" stroke="url(#head)" stroke-width="18" stroke-linecap="round"/>
+    <path d="M462,214 h92 a14,14 0 0 1 14,14 v34 a14,14 0 0 1 -5,10.7 l-46,38 a14,14 0 0 1 -18,0 l-46,-38 a14,14 0 0 1 -5,-10.7 v-34 a14,14 0 0 1 14,-14 z" fill="url(#head)"/>
+  </g>
+</svg>

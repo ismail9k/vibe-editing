@@ -35,8 +35,11 @@ app.whenReady().then(async () => {
     return;
   }
 
+  // Unpackaged, macOS shows Electron's own icon in the dock, so set ours by hand.
+  const icon = join(app.getAppPath(), 'build', 'icon.png');
+  app.dock?.setIcon(icon);
   const win = new BrowserWindow({
-    width: 1480, height: 920, minWidth: 1100, minHeight: 680,
+    width: 1480, height: 920, minWidth: 1100, minHeight: 680, icon,
     backgroundColor: '#0F0F0F', titleBarStyle: 'hiddenInset', title: 'Vibe Editing',
     webPreferences: { preload: preloadPath, sandbox: false, contextIsolation: true },
   });
