@@ -1,0 +1,22 @@
+# Packs the built app (out/) into "Vibe Editing.app". `npm run dist` makes the .app, `npm run dist:dmg` a disk image.
+appId: com.ismail9k.vibe-editing
+productName: Vibe Editing
+directories:
+  output: dist
+  buildResources: build
+files:
+  - out/**
+  - presets/**
+  - native/**
+  - build/icon.png
+  - package.json
+# swiftc compiles the cutout helper from a real file path, so the Swift source stays outside the asar archive.
+asarUnpack:
+  - native/**
+mac:
+  category: public.app-category.video
+  icon: build/icon.icns
+  # Unsigned: it runs on the Mac that built it. Sharing it needs a Developer ID and notarisation.
+  identity: null
+dmg:
+  artifactName: Vibe-Editing-${version}-${arch}.dmg

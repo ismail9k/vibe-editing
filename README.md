@@ -35,6 +35,16 @@ vibe open
 
 `vibe open demo` opens straight on a project. For development, `npm run dev` runs the app with hot reload. `npm test` runs the tests, and `npm run typecheck` checks the types.
 
+## Install as a Mac app
+
+```bash
+npm run dist
+```
+
+This builds `dist/mac-arm64/Vibe Editing.app`. Drag it into `/Applications` and open it from the Dock or Spotlight like any other app. `npm run dist:dmg` makes a disk image instead. Rebuild after pulling changes; the installed app doesn't follow the repo.
+
+The app is unsigned, so it is meant for the Mac that built it. ffmpeg and whisper-cli still come from Homebrew: opened from Finder, the app looks in `/opt/homebrew/bin` and `/usr/local/bin` as well as the usual `PATH`. The `vibe` command keeps running the repo's own build, not the installed app.
+
 ## The workspace
 
 Everything lives in `~/Vibe` (or in `$VIBE_HOME`). On first run the app copies in the presets: the 9k brand, seven styles, twenty-seven components, two demo films and a `CLAUDE.md` that teaches Claude Code how to work here. It copies only missing files and never overwrites yours.
