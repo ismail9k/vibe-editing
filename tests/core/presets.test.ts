@@ -52,7 +52,7 @@ describe('wall headlines', () => {
       ctx, W, H, rem, dir, t: 2,
       sx: (x: number) => (dir === 'rtl' ? W - x : x),
       theme: { bg: '#000', border: '#333', muted: '#666' }, brand: { colors: { accent: '#f60' } },
-      enter: () => 1, footage: () => {}, subject: () => {},
+      enter: () => 1, footage: () => {}, subject: () => {}, measure: (str: string) => str.length * 40,
       subjectBox: () => ({ x: 0, y: 0, w: W, h: H, head: { x: W / 2, y: H * 0.4, r: 100 } }),
       text(str: string, x: number, _y: number, o: { align?: string } = {}) {
         const w = str.length * 40, align = o.align ?? 'start';

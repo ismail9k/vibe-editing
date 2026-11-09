@@ -16,11 +16,19 @@ export default {
       }
     } else {
       const str = `${String(props.text ?? '')} · `.repeat(6), size = p.rem * 4.4, lh = size * 1.12, { head } = p.subjectBox();
-      const accentRow = Math.floor(head.y / lh);
+      const accentRow = Math.floor(head.y / lh), font = { role: 'display', size, weight: 700 }, rowW = p.measure(str, font);
+      // The rows type in behind a sweep across the frame, a row a beat after the one above. The sweep runs the way
+      // the text reads: from the right for Arabic in an RTL film, from the left otherwise.
+      const fromRight = p.dir === 'rtl' && /[\u0590-\u08FF]/.test(str);
       for (let r = 0; r * lh < p.H + lh; r++) {
         const dirn = r % 2 ? 1 : -1, shift = (((t * p.rem * 4 * dirn) % (p.W * 2)) - p.W) + (r % 3) * p.rem * 5;
         // shift is where the row starts in the reading direction: from the left in LTR, from the right in RTL.
-        p.text(str, p.sx(shift), r * lh + size * 0.85, { role: 'display', size, weight: 700, color: r === accentRow ? p.brand.colors.accent : r % 2 ? p.theme.border : p.theme.muted });
+        const left = p.dir === 'rtl' ? p.W - shift - rowW : shift;
+        const swept = Math.min(1, Math.max(0, (t - r * 0.04) / 0.7)) * p.W;
+        const typed = fromRight ? (left + rowW - (p.W - swept)) / rowW : (swept - left) / rowW;
+        if (typed <= 0) continue;
+        p.text(str, p.sx(shift), r * lh + size * 0.85, { ...font, color: r === accentRow ? p.brand.colors.accent : r % 2 ? p.theme.border : p.theme.muted,
+          progress: Math.min(1, typed), caret: r === accentRow });
       }
     }
     c.restore();

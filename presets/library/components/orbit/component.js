@@ -12,11 +12,15 @@ export default {
       for (let i = 0; i <= 40; i++) { const a = (front ? 0 : Math.PI) + (i / 40) * Math.PI; pts.push([cx + Math.cos(a) * rx, cy + Math.sin(a) * ry]); }
       p.line(pts, { color: front ? p.brand.colors.accent : p.theme.muted, width: p.rem * 0.12, progress: k });
     };
+    // Each word types into its badge as the ring opens, one after another (the badge grows with it).
+    const cps = 20;
     const word = (it) => {
+      const chars = [...it.w], n = Math.round(Math.min(1, Math.max(0, ((t - 0.25 - it.i * 0.12) * cps) / chars.length)) * chars.length);
+      if (n === 0) return;
       const c = p.ctx, s = 0.8 + 0.25 * it.front;
-      c.save(); c.globalAlpha *= Math.min(1, k * 1.4) * (0.75 + 0.25 * it.front);
+      c.save(); c.globalAlpha *= 0.75 + 0.25 * it.front; // the far side of the ring is dimmer
       c.translate(it.x, it.y); c.scale(s, s);
-      p.badge(it.w, 0, -p.rem * 0.7, { variant: 'solid', size: p.rem * 0.75, align: 'center' });
+      p.badge(chars.slice(0, n).join(''), 0, -p.rem * 0.7, { variant: 'solid', size: p.rem * 0.75, align: 'center' });
       c.restore();
     };
     p.footage();
