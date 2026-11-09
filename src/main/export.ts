@@ -92,13 +92,10 @@ export async function runExport(root: string, name: string, onProgress: (p: Expo
   // takes the finished frames plus the sound. Encode next to the target and rename at the end: a failed export
   // never replaces the last good file.
   const partial = out.replace(/\.mp4$/i, '') + '.partial.mp4';
-  const enc = ffmpeg(buildEncodeArgs(project, dir, partial, hasAudio), true);
-  const videoArgs = buildDecodeArgs(project, dir, 'video', hdr);
-  const matteArgs = ready.size ? buildDecodeArgs(project, dir, 'matte', hdr, (src) => ready.has(src)) : null;
-  const dec = videoArgs ? ffmpeg(videoArgs, false) : null;
-  const mdec = matteArgs ? ffmpeg(matteArgs, false) : null;
-  const frames = dec && new FrameReader(dec.proc.stdout!, W * H * 4);
-  const mattes = mdec && new FrameReader(mdec.proc.stdout!, Math.round(W / 2) * Math.round(H / 2));
+  // Every process is started inside the try, so whatever fails, the finally stops all of them and removes the
+  // partial file.
+  let enc: ReturnType<typeof ffmpeg> | null = null, dec: ReturnType<typeof ffmpeg> | null = null, mdec: ReturnType<typeof ffmpeg> | null = null;
+  let frames: FrameReader | null = null, mattes: FrameReader | null = null;
   let ok = false;
 
   // Frames are asked for in order; past the end of a decoder (a rounding frame short) the last one holds.
@@ -117,27 +114,34 @@ export async function runExport(root: string, name: string, onProgress: (p: Expo
   };
 
   try {
+    const videoArgs = buildDecodeArgs(project, dir, 'video', hdr);
+    const matteArgs = ready.size ? buildDecodeArgs(project, dir, 'matte', hdr, (src) => ready.has(src)) : null;
+    const encoder = enc = ffmpeg(buildEncodeArgs(project, dir, partial, hasAudio), true);
+    dec = videoArgs ? ffmpeg(videoArgs, false) : null;
+    mdec = matteArgs ? ffmpeg(matteArgs, false) : null;
+    frames = dec && new FrameReader(dec.proc.stdout!, W * H * 4);
+    mattes = mdec && new FrameReader(mdec.proc.stdout!, Math.round(W / 2) * Math.round(H / 2));
     const total = Math.ceil(duration(project) * fps);
     let done = 0;
     onProgress({ stage: 'frames', done, total });
     const result = await runHeadless({ kind: 'frames', project: name, from: 0, count: total }, async (buf) => {
-      if (enc.state.exited) throw new Error(`ffmpeg stopped: ${enc.lastError()}`);
-      if (!enc.proc.stdin!.write(buf)) await Promise.race([once(enc.proc.stdin!, 'drain'), enc.exit]);
+      if (encoder.state.exited) throw new Error(`ffmpeg stopped: ${encoder.lastError()}`);
+      if (!encoder.proc.stdin!.write(buf)) await Promise.race([once(encoder.proc.stdin!, 'drain'), encoder.exit]);
       if (++done % 15 === 0) onProgress({ stage: 'frames', done, total });
     }, media);
     if (result.fatal) throw new Error(result.fatal);
     if (done < total) throw new Error(`the render window stopped after ${done} of ${total} frames`);
-    enc.proc.stdin!.end();
+    encoder.proc.stdin!.end();
     onProgress({ stage: 'encoding', done: total, total });
-    const code = await enc.exit;
-    if (code !== 0) throw new Error(`ffmpeg failed: ${enc.lastError()}`);
+    const code = await encoder.exit;
+    if (code !== 0) throw new Error(`ffmpeg failed: ${encoder.lastError()}`);
     renameSync(partial, out);
     ok = true;
     onProgress({ stage: 'done', done: total, total, out, errors: result.errors });
     return { out, errors: result.errors, mattes: !!mattes };
   } finally {
     await Promise.all([dec?.stop(), mdec?.stop()]);
-    if (!ok) { await enc.stop(); rmSync(partial, { force: true }); }
+    if (!ok) { await enc?.stop(); rmSync(partial, { force: true }); }
   }
 }
 
