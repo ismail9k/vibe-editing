@@ -10,9 +10,6 @@ Ideas and known gaps, roughly in the order they'd pay off.
 
 ## Looks from the reference reel (instagram.com/reel/DfgtLums66K) not built yet
 - **Graphics styles to match the looks**: neon, comic, riso, paper and bricks restyle only the footage; panels and text keep the project's style. Chalkboard, pixel and terminal already exist as styles.
-- **Comic burst**: the jagged "BOOM!" sticker over the comic look, typed in the brand's display font.
-- **Pixel-art HUD**: a score counter and hearts over the pixel look, game-style.
-- **Chalk notes**: handwritten labels and arrows on the chalkboard look, pointing at you.
 - **Live preview cost**: every frame of a look is sampled and redrawn on the CPU; terminal (≈4,000 characters) and bricks are the heaviest. Not measured in the Edit room yet; if it stutters, cache the look per video frame or move it to WebGL.
 
 ## Looks from the second reel (instagram.com/reel/DffdKwWES9B) not built yet

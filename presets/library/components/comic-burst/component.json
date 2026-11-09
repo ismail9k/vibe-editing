@@ -1,0 +1,10 @@
+{
+  "name": "Comic burst",
+  "description": "A jagged comic-book burst that slams in with a word on it (BOOM!, POW!, NEW!). Orange with black letters: it's the shot's one accent. Made for the comic look.",
+  "duration": 1.5,
+  "defaults": { "text": "BOOM!", "spikes": 14 },
+  "schema": {
+    "text": { "type": "text", "label": "Word" },
+    "spikes": { "type": "number", "label": "Spikes" }
+  }
+}

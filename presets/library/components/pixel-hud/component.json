@@ -1,0 +1,14 @@
+{
+  "name": "Pixel HUD",
+  "description": "A game's heads-up display across the top: a score that counts up, a level, and pixel hearts, one of which can be lost with a blink. Made for the pixel look.",
+  "duration": 4,
+  "defaults": { "label": "SCORE", "score": 12800, "level": "LEVEL 1", "hearts": 3, "lose": 1, "at": 2 },
+  "schema": {
+    "label": { "type": "text", "label": "Score label" },
+    "score": { "type": "number", "label": "Score" },
+    "level": { "type": "text", "label": "Level" },
+    "hearts": { "type": "number", "label": "Hearts" },
+    "lose": { "type": "number", "label": "Hearts lost" },
+    "at": { "type": "number", "label": "Lose them at (s)" }
+  }
+}

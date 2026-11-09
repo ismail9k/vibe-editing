@@ -1,0 +1,12 @@
+{
+  "name": "Note and arrow",
+  "description": "A hand-drawn note beside you with an arrow that draws itself onto your head or your body. On the chalkboard style it's chalk; on any other it takes that style's lines and type.",
+  "duration": 3,
+  "aims": true,
+  "defaults": { "text": "that's me", "side": "end", "at": "head" },
+  "schema": {
+    "text": { "type": "text", "label": "Note" },
+    "side": { "type": "select", "label": "Side", "options": ["start", "end"] },
+    "at": { "type": "select", "label": "Point at", "options": ["head", "body"] }
+  }
+}
