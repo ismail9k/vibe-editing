@@ -43,6 +43,9 @@ h4 { margin: 16px 0 6px; font-size: 10.5px; font-weight: 600; letter-spacing: .0
 .rooms button { border: 0; background: none; padding: 3px 14px; border-radius: 99px; color: var(--muted); cursor: pointer; }
 .rooms button.on { background: var(--green); color: #fff; }
 .chip { padding: 2px 9px; border-radius: 99px; background: var(--panel-2); color: #bbb; font-size: 12px; white-space: nowrap; }
+.chip.bad { color: var(--bad); } /* .chip comes after .bad, so say it again */
+.chip-button { border: none; font: inherit; font-size: 12px; cursor: pointer; max-width: 40vw; overflow: hidden; text-overflow: ellipsis; }
+.chip-button:hover { filter: brightness(1.25); }
 .status { margin-inline-start: auto; font: 11.5px 'IBM Plex Mono', monospace; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 .export-chip { color: var(--green-text); }
 

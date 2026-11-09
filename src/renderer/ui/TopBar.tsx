@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useStore } from '../store';
+import { retryMattes, useStore } from '../store';
 
 const ago = (at: number) => { const s = Math.round((Date.now() - at) / 1000); return s < 5 ? 'just now' : s < 60 ? `${s}s ago` : `${Math.round(s / 60)}m ago`; };
 
@@ -40,7 +40,9 @@ export function TopBar() {
           Cutting you out · {Math.round((100 * (mattes.done ?? 0)) / Math.max(1, mattes.total ?? 1))}%
         </span>
       )}
-      {mattes?.state === 'error' && <span className="chip bad" title={mattes.message}>No cutouts: {mattes.message}</span>}
+      {mattes?.state === 'error' && (
+        <button className="chip bad chip-button" title={`${mattes.message}\n\nClick to try again`} onClick={retryMattes}>No cutouts: {mattes.message} · Retry</button>
+      )}
       {exporting && (
         <ExportChip exporting={exporting} />
       )}

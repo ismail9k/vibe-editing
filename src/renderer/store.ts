@@ -95,6 +95,7 @@ export const useStore = create<State>((set, get) => ({
 
   async openProject(name) {
     await flushSave(); // an edit still waiting to be saved belongs to the project being left
+    matteFailed = ''; // opening a project tries its cutouts again
     const text = await readDisk(projectRel(name));
     const { project, error, coerced } = parseProject(text ?? '{}');
     set({ coerced: coercedIssues(coerced), projectName: name, project: project ?? null, parseError: error ?? null, history: [], future: [], selection: null, playhead: 0, playing: false, diskNote: null, mattes: null });
@@ -175,7 +176,7 @@ export const useStore = create<State>((set, get) => ({
 let matteRunning = false, matteDone = '', matteFailed = '', matteWanted: { name: string; key: string } | null = null;
 async function ensureMattes(name: string, srcs: string[]) {
   const key = `${name}:${[...new Set(srcs)].sort().join('|')}`;
-  if (key === matteDone || key === matteFailed) return; // a failed run retries when the footage changes
+  if (key === matteDone || key === matteFailed) return; // a failed run retries when the footage changes, on reopening, or on asking
   matteWanted = { name, key };
   if (matteRunning) return;
   matteRunning = true;
@@ -189,6 +190,13 @@ async function ensureMattes(name: string, srcs: string[]) {
     else { matteDone = run.key; useStore.setState({ mattes: { state: 'ready', version: version + 1 } }); }
   }
   matteRunning = false;
+}
+
+/** Try the cutouts again after a failed run (Xcode tools installed since, a file fixed). */
+export function retryMattes() {
+  matteFailed = '';
+  useStore.setState({ mattes: null });
+  useStore.getState().validate();
 }
 
 function scheduleSave() {
