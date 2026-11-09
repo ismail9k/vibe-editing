@@ -29,14 +29,14 @@ export function styleParams(meta?: StyleMeta): Record<string, unknown> {
   return Object.fromEntries(Object.entries(meta?.params ?? {}).map(([k, v]) => [k, v.value]));
 }
 
-export function makePainter(ctx: Ctx, project: Project, lib: Library, t: number, media?: FrameMedia | null): { p: Painter; error?: string } {
+export function makePainter(ctx: Ctx, project: Project, lib: Library, t: number, media?: FrameMedia | null): { p: Painter; error?: string; posts?: boolean } {
   const style = lib.styles[project.style] ?? lib.styles.flat9k;
   const base = createBasePainter(ctx, {
     W: project.format.w, H: project.format.h, dir: project.dir, mode: project.mode,
     brand: lib.brand, params: styleParams(style?.meta), t, media, clip: !!footageAt(project, t),
   });
-  const { painter, error } = applyStyle(base, style?.mod);
-  return { p: painter, error: style?.error ?? error };
+  const { painter, error, posts } = applyStyle(base, style?.mod);
+  return { p: painter, error: style?.error ?? error, posts };
 }
 
 /** Draws the frame and returns the problems it hit (a broken component draws a red box instead of stopping the frame).
@@ -50,42 +50,49 @@ export function renderFrame(ctx: Ctx, project: Project, lib: Library, t: number,
   ctx.globalAlpha = 1;
   ctx.setLineDash?.([]);
   ctx.clearRect(0, 0, W, H);
-  const { p, error } = makePainter(ctx, project, lib, t, media);
+  const { p, error, posts } = makePainter(ctx, project, lib, t, media);
   if (error) errors.push(error);
 
   const active = project.tracks.graphics.filter((g) => t >= g.at && t < g.at + g.dur).sort((a, b) => a.at - b.at);
   // The footage layer (or the brand background), unless a scene component is drawing the footage itself. In a
   // scene's last EXIT seconds it fades out, so the footage goes back under it.
-  if (!active.some((g) => lib.components[g.type]?.meta.scene && t - g.at < g.dur - EXIT)) {
+  const sceneOwns = active.some((g) => lib.components[g.type]?.meta.scene && t - g.at < g.dur - EXIT);
+  if (!sceneOwns) {
     const base = sandboxed(ctx, () => (footageAt(project, t) ? p.footage() : p.background(t)));
     if (base) errors.push(`${footageAt(project, t) ? 'footage' : 'background'}: ${base}`);
   }
+  // A style's whole-frame pass (post: pixel art) works on the graphics only: over footage they get their own layer,
+  // composited at the end, so the footage stays sharp. A scene component's footage is part of its graphic.
+  let layer: OffscreenCanvas | null = null;
+  if (posts && !sceneOwns && footageAt(project, t)) { layer = new OffscreenCanvas(W, H); p.ctx = layer.getContext('2d')!; }
+  const dc = p.ctx;
   for (const g of active) {
     const comp = lib.components[g.type];
     const local = t - g.at;
     const args: DrawArgs = { t: local, dur: g.dur, props: { ...(comp?.meta.defaults ?? {}), ...g.props }, graphic: g, place: (def) => place(p, g, def) };
-    const msg = sandboxed(ctx, () => {
-      ctx.globalAlpha = clamp((g.dur - local) / EXIT);
+    const msg = sandboxed(dc, () => {
+      dc.globalAlpha = clamp((g.dur - local) / EXIT);
       if (!comp) throw new Error(`unknown component "${g.type}"`);
       if (!comp.mod) throw new Error(comp.error ?? `${g.type} has no draw code`);
       comp.mod.draw(p, args);
     });
     if (msg) {
       errors.push(`${g.id} (${g.type}): ${msg}`);
-      sandboxed(ctx, () => errorBox(p, `${g.id} (${g.type}): ${msg}`, args.place({ y: 0.4, w: 0.8 })));
+      sandboxed(dc, () => errorBox(p, `${g.id} (${g.type}): ${msg}`, args.place({ y: 0.4, w: 0.8 })));
     }
   }
 
   for (const cap of project.tracks.captions) {
     if (!(t >= cap.at && t < cap.at + cap.dur)) continue;
-    const msg = sandboxed(ctx, () => drawCaption(p, cap, t));
+    const msg = sandboxed(dc, () => drawCaption(p, cap, t));
     if (msg) {
       errors.push(`caption ${cap.id}: ${msg}`);
-      sandboxed(ctx, () => errorBox(p, `caption ${cap.id}: ${msg}`, place(p, { at: 0, dur: 1 } as Graphic, { y: 0.74, w: 0.8 })));
+      sandboxed(dc, () => errorBox(p, `caption ${cap.id}: ${msg}`, place(p, { at: 0, dur: 1 } as Graphic, { y: 0.74, w: 0.8 })));
     }
   }
-  const postMsg = sandboxed(ctx, () => p.post());
+  const postMsg = sandboxed(dc, () => p.post());
   if (postMsg) errors.push(`post: ${postMsg}`);
+  if (layer) { const msg = sandboxed(ctx, () => ctx.drawImage(layer!, 0, 0)); if (msg) errors.push(`layer: ${msg}`); }
   return errors;
 }
 

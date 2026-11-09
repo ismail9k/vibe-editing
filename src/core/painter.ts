@@ -313,11 +313,11 @@ function alignLeft(p: Painter, x: number, w: number, align: Align = 'start') {
 }
 
 /** Apply a style module over the base painter. A style that throws falls back to the base. */
-export function applyStyle(base: Painter, style?: StyleModule): { painter: Painter; error?: string } {
+export function applyStyle(base: Painter, style?: StyleModule): { painter: Painter; error?: string; posts?: boolean } {
   if (!style) return { painter: base };
   try {
     const over = style(base) ?? {};
-    return { painter: Object.assign(Object.create(null), base, over) as Painter };
+    return { painter: Object.assign(Object.create(null), base, over) as Painter, posts: typeof (over as Partial<Painter>).post === 'function' };
   } catch (e) {
     return { painter: base, error: `style failed: ${(e as Error).message}` };
   }

@@ -117,6 +117,25 @@ describe('the renderer draws the footage', () => {
     near(draws[0].args, [656.25, 0, 607.5, 1080, 0, 0, 1080, 1920]);
   });
 
+  it("keeps a style's whole-frame pass (pixel art) off the footage: it runs on the graphics layer only", () => {
+    const { ctx, log } = fakeCtx();
+    const layers: unknown[] = [];
+    const g = globalThis as { OffscreenCanvas?: unknown };
+    const had = g.OffscreenCanvas;
+    g.OffscreenCanvas = class { width: number; height: number; c = fakeCtx().ctx; constructor(w: number, h: number) { this.width = w; this.height = h; layers.push(this); } getContext() { return this.c; } };
+    try {
+      const seen: unknown[] = [];
+      const lib = { brand, styles: { px: { id: 'px', meta: { name: 'px', description: '', params: {} }, mod: () => ({ post(this: { ctx: unknown }) { seen.push(this.ctx); } }) } },
+        components: { probe: { id: 'probe', meta, mod: { draw: (p: { ctx: unknown }) => seen.push(p.ctx) } } } } as unknown as Library;
+      const project = { ...film([{ id: 'g1', type: 'probe', at: 0, dur: 5, props: {} }]), style: 'px' };
+      renderFrame(ctx, project, lib, 1, { frame: landscape as unknown as CanvasImageSource, matte: null });
+      expect(seen).toHaveLength(2);
+      expect(seen[0]).not.toBe(ctx);              // the component drew on the layer…
+      expect(seen[1]).toBe(seen[0]);              // …and post() ran on that layer, not on the footage
+      expect(log.draws.map((d) => d.img)).toEqual([landscape, layers[0]]); // footage first, then the layer over it
+    } finally { g.OffscreenCanvas = had; }
+  });
+
   it('gives scene components a stand-in subject when there is no footage at all (Studio)', () => {
     const { ctx } = fakeCtx();
     let box: { x: number; y: number; w: number; h: number; head: { x: number; y: number; r: number } } | null = null;
