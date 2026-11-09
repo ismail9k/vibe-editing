@@ -29,6 +29,14 @@ projects/<name>.vibe/out/              renders and snapshots
 - Cutout effects need a matte per clip (`media/.matte/`). The app makes them in the background; from the terminal run `vibe matte <project>` (macOS only, about 1.5× the clip's length). `vibe check` warns when one is missing.
 - No `Math.random`: use `p.rng(seed)` so every frame is the same in preview and export.
 
+## Directing
+
+- **Hook in the first 3 seconds.** The first cut, graphic or effect lands before 3 s. No slow logo or title card first.
+- **Every visible action has a sound**: a graphic landing, a number counting up, text typing in, a jump cut. A silent graphic feels pasted on.
+- **Leave room.** Before the most important line, give a beat with no new graphic and no sound effect, so it lands. Not every sentence needs a graphic.
+- **Vary the pace.** One fast stretch (cuts and graphics close together) and one breath (a shot held 1.5–2 s with nothing new). A film at one even speed feels long.
+- **Pace for the viewer, not the clock.** A graphic stays up long enough to read: about 15 letters a second, which `vibe check` warns about. To go faster, use fewer words on screen, not shorter holds.
+
 ## vibe.json
 
 ```json
