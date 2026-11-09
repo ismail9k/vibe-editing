@@ -30,11 +30,20 @@ export function buildDecodeArgs(p: Project, projectDir: string, kind: 'video' | 
     const src = kind === 'video' ? c.src : matteSrc(c.src);
     args.push('-ss', n(c.in), '-t', n(c.out - c.in), '-i', resolveInside(projectDir, src));
     const fit = kind === 'video' ? fitFilter(W, H, !!hdr[c.src]) : fitFilter(W, H, false);
-    graph.push(`[${i}:v]${fit},fps=${F},format=${kind === 'video' ? 'rgba' : 'gray'}[v${i}]`);
+    graph.push(`[${i}:v]${fit},setpts=PTS-STARTPTS,format=${kind === 'video' ? 'rgba' : 'gray'}[v${i}]`);
   });
-  graph.push(`${clips.map((_, i) => `[v${i}]`).join('')}concat=n=${clips.length}:v=1:a=0[out]`);
+  // fps after the join: frame i is the timeline at i/F, the same instant the renderer draws.
+  graph.push(`${clips.map((_, i) => `[v${i}]`).join('')}concat=n=${clips.length}:v=1:a=0,fps=${F}[out]`);
   args.push('-filter_complex', graph.join(';'), '-map', '[out]', '-f', 'rawvideo', '-pix_fmt', kind === 'video' ? 'rgba' : 'gray', 'pipe:1');
   return args;
+}
+
+/** One frame of a file at a source time (snapshots): RGBA at W×H, or a grey matte at W/2×H/2, on stdout. */
+export function buildStillArgs(file: string, at: number, W: number, H: number, kind: 'video' | 'matte', hdr: boolean): string[] {
+  const [w, h] = kind === 'video' ? [W, H] : [Math.round(W / 2), Math.round(H / 2)];
+  const pix = kind === 'video' ? 'rgba' : 'gray';
+  return ['-hide_banner', '-loglevel', 'error', '-ss', n(at), '-i', file,
+    '-vf', `${fitFilter(w, h, kind === 'video' && hdr)},format=${pix}`, '-frames:v', '1', '-f', 'rawvideo', '-pix_fmt', pix, 'pipe:1'];
 }
 
 /** Encoder: the finished frames (raw RGBA on stdin) plus the clips' sound joined in order and the sounds track mixed

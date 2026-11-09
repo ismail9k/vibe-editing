@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { parseProject, matteSrc } from '../../src/core/model';
-import { buildDecodeArgs, buildEncodeArgs, fitFilter, clipOverruns } from '../../src/main/ffmpeg';
+import { buildDecodeArgs, buildEncodeArgs, buildStillArgs, fitFilter, clipOverruns } from '../../src/main/ffmpeg';
 
 const proj = (o: object) => parseProject(JSON.stringify(o)).project!;
 const count = (args: string[], v: string) => args.filter((a) => a === v).length;
@@ -24,6 +24,12 @@ describe('buildDecodeArgs', () => {
     expect(g).toContain('fps=30');
     expect(g).toContain('concat=n=2:v=1:a=0');
     expect(args.slice(-5)).toEqual(['-f', 'rawvideo', '-pix_fmt', 'rgba', 'pipe:1']);
+  });
+
+  it('samples the joined timeline, so frame i is the footage at i/fps however the clips are cut', () => {
+    const g = graphOf(buildDecodeArgs(twoClips(), '/w/p', 'video', {})!);
+    expect(g).toMatch(/concat=n=2:v=1:a=0,fps=30\[out\]$/);
+    expect(g).toContain('setpts=PTS-STARTPTS');
   });
 
   it('tone-maps only the HDR clips', () => {
@@ -91,5 +97,19 @@ describe('clipOverruns', () => {
   it('names clips that end after their media does (probed lengths)', () => {
     const p = proj({ tracks: { footage: [{ id: 'f1', src: 'media/a.mov', in: 0, out: 5 }, { id: 'f2', src: 'media/a.mov', in: 10, out: 22 }] } });
     expect(clipOverruns(p, { 'media/a.mov': 20.17 })).toEqual(['f2 ends at 22 s but media/a.mov is only 20.17 s long']);
+  });
+});
+
+describe('buildStillArgs', () => {
+  it('decodes one fitted RGBA frame at a source time', () => {
+    const a = buildStillArgs('/p/media/a.mov', 3.5, 1080, 1920, 'video', true);
+    expect(a.slice(a.indexOf('-ss'), a.indexOf('-ss') + 4)).toEqual(['-ss', '3.5', '-i', '/p/media/a.mov']);
+    expect(a.join(' ')).toContain('tonemap=tonemap=reinhard');
+    expect(a.slice(-7)).toEqual(['-frames:v', '1', '-f', 'rawvideo', '-pix_fmt', 'rgba', 'pipe:1']);
+  });
+  it('decodes a grey matte at half size', () => {
+    const a = buildStillArgs('/p/media/.matte/a.mov.matte.mp4', 1, 1080, 1920, 'matte', false).join(' ');
+    expect(a).toContain('scale=540:960:force_original_aspect_ratio=increase,crop=540:960');
+    expect(a).toContain('-pix_fmt gray pipe:1');
   });
 });

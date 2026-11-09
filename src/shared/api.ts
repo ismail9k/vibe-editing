@@ -24,7 +24,11 @@ export interface VibeApi {
   frameReady(rgba: ArrayBuffer): Promise<void>;
   headlessJob(): Promise<HeadlessJob | null>;
   headlessDone(result: HeadlessResult): Promise<void>;
+  /** The footage under frame i of a frames job (or time i of a png job): RGBA at W×H and the grey cutout matte at W/2×H/2. */
+  headlessMedia(i: number): Promise<HeadlessMedia>;
 }
+
+export interface HeadlessMedia { frame: Uint8Array | null; matte: Uint8Array | null }
 
 export interface HeadlessResult { errors: string[]; pngs?: ArrayBuffer[]; fatal?: string }
 

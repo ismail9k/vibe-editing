@@ -24,6 +24,7 @@ const api: VibeApi = {
   frameReady: (rgba) => ipcRenderer.invoke('headless:frame', rgba),
   headlessJob: () => ipcRenderer.invoke('headless:job'),
   headlessDone: (r) => ipcRenderer.invoke('headless:done', r),
+  headlessMedia: (i) => ipcRenderer.invoke('headless:media', i),
 };
 
 contextBridge.exposeInMainWorld('vibe', api);
