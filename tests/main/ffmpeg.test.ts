@@ -26,10 +26,20 @@ describe('buildDecodeArgs', () => {
     expect(args.slice(-5)).toEqual(['-f', 'rawvideo', '-pix_fmt', 'rgba', 'pipe:1']);
   });
 
-  it('samples the joined timeline, so frame i is the footage at i/fps however the clips are cut', () => {
+  it('gives each clip exactly the frames its stretch of the timeline holds', () => {
     const g = graphOf(buildDecodeArgs(twoClips(), '/w/p', 'video', {})!);
-    expect(g).toMatch(/concat=n=2:v=1:a=0,fps=30\[out\]$/);
-    expect(g).toContain('setpts=PTS-STARTPTS');
+    const [a, b] = g.split(';');
+    expect(a).toContain('trim=end_frame=90');
+    expect(b).toContain('trim=end_frame=120');
+    expect(g).toMatch(/concat=n=2:v=1:a=0\[out\]$/);
+  });
+
+  it('starts a clip that begins between frames at its first frame instant', () => {
+    const p = proj({ tracks: { footage: [{ id: 'f1', src: 'media/a.mov', in: 0, out: 0.05 }, { id: 'f2', src: 'media/b.mov', in: 10, out: 11 }] } });
+    const args = buildDecodeArgs(p, '/w/p', 'video', {})!;
+    const ss = args.flatMap((a, i) => (a === '-ss' ? [args[i + 1]] : []));
+    // Clip two starts at 0.05 s; the first frame it owns is at 2/30 s, 0.0167 s into it.
+    expect(ss).toEqual(['0', '10.017']);
   });
 
   it('tone-maps only the HDR clips', () => {

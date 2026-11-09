@@ -26,14 +26,27 @@ export function buildDecodeArgs(p: Project, projectDir: string, kind: 'video' | 
   const [W, H] = kind === 'video' ? [w, h] : [Math.round(w / 2), Math.round(h / 2)];
   const args = ['-hide_banner', '-loglevel', 'error'];
   const graph: string[] = [];
-  clips.forEach((c, i) => {
-    const src = kind === 'video' ? c.src : matteSrc(c.src);
-    args.push('-ss', n(c.in), '-t', n(c.out - c.in), '-i', resolveInside(projectDir, src));
+  // Frame i is the timeline at i/F, the instant the renderer draws. Each clip gets exactly the frames whose
+  // instants fall inside it, starting from its first such instant: a clip trimmed with -t alone runs up to a
+  // source frame long, and over many cuts the picture drifts away from the sound (which is cut exactly).
+  let start = 0;
+  const parts: string[] = [];
+  for (const c of clips) {
+    const end = start + (c.out - c.in);
+    const first = Math.ceil(start * F - 1e-6), frames = Math.ceil(end * F - 1e-6) - first;
+    const at = c.in + (first / F - start);
+    start = end;
+    if (frames <= 0) continue;
+    const i = parts.length, src = kind === 'video' ? c.src : matteSrc(c.src);
+    args.push('-ss', n(at), '-t', n(frames / F + 2 / F), '-i', resolveInside(projectDir, src));
     const fit = kind === 'video' ? fitFilter(W, H, !!hdr[c.src]) : fitFilter(W, H, false);
-    graph.push(`[${i}:v]${fit},setpts=PTS-STARTPTS,format=${kind === 'video' ? 'rgba' : 'gray'}[v${i}]`);
-  });
-  // fps after the join: frame i is the timeline at i/F, the same instant the renderer draws.
-  graph.push(`${clips.map((_, i) => `[v${i}]`).join('')}concat=n=${clips.length}:v=1:a=0,fps=${F}[out]`);
+    // A clip that runs past its file's end holds the last frame for the rest of its count.
+    graph.push(`[${i}:v]${fit},setpts=PTS-STARTPTS,fps=${F}:start_time=0:round=up,tpad=stop_mode=clone:stop=${frames},`
+      + `trim=end_frame=${frames},setpts=N/${F}/TB,format=${kind === 'video' ? 'rgba' : 'gray'}[v${i}]`);
+    parts.push(`[v${i}]`);
+  }
+  if (!parts.length) return null;
+  graph.push(`${parts.join('')}concat=n=${parts.length}:v=1:a=0[out]`);
   args.push('-filter_complex', graph.join(';'), '-map', '[out]', '-f', 'rawvideo', '-pix_fmt', kind === 'video' ? 'rgba' : 'gray', 'pipe:1');
   return args;
 }
