@@ -1,0 +1,9 @@
+{
+  "name": "Woodblock",
+  "preset": true,
+  "description": "An ukiyo-e print: wood grain in every block, key lines cut a little unevenly, colour printed a hair off its line, a sky that fades in printed steps.",
+  "params": {
+    "grain": { "type": "number", "label": "Wood grain", "value": 0.5, "min": 0, "max": 1, "step": 0.05 },
+    "sky": { "type": "bool", "label": "Stepped sky", "value": true }
+  }
+}

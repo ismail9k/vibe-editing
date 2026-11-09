@@ -1,0 +1,10 @@
+{
+  "name": "Synthwave",
+  "preset": true,
+  "description": "An 80s sunset: a striped sun on the horizon in the glow's colours, a grid floor rolling towards you, cards with a lit outline, headlines leaning forward on a hard shadow.",
+  "params": {
+    "sun": { "type": "bool", "label": "Striped sun", "value": true },
+    "grid": { "type": "bool", "label": "Grid floor", "value": true },
+    "speed": { "type": "number", "label": "Floor speed", "value": 0.5, "min": 0, "max": 2, "step": 0.1 }
+  }
+}

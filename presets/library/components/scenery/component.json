@@ -1,0 +1,10 @@
+{
+  "name": "Scenery",
+  "description": "A drawn scene for a film with no footage, in the brand's colours and gently moving: a night sky over a house on the hills, the sea floor with fish and light shafts, or a museum room with a bust and a framed picture. Put graphics over it.",
+  "duration": 4,
+  "scene": true,
+  "defaults": { "scene": "night" },
+  "schema": {
+    "scene": { "type": "select", "label": "Scene", "options": ["night", "sea", "museum"] }
+  }
+}

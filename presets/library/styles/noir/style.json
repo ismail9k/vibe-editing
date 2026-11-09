@@ -1,0 +1,8 @@
+{
+  "name": "Noir comic",
+  "preset": true,
+  "description": "A black-and-white crime comic: halftone dots over the dark, square panels with thick ink borders and halftone shadows, capital-letter headlines. Only the accent is in colour.",
+  "params": {
+    "dots": { "type": "number", "label": "Halftone", "value": 0.5, "min": 0, "max": 1, "step": 0.05 }
+  }
+}

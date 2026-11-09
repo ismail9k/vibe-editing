@@ -1,0 +1,90 @@
+{
+  "name": "Pixel dissolve",
+  "description": "The shot breaks into big pixels, the pixels flip one by one into the next look, and the new look sharpens back. Put it between two looks, or across a cut: half on each side.",
+  "duration": 1.4,
+  "scene": true,
+  "aims": true,
+  "defaults": {
+    "from": "none",
+    "to": "comic",
+    "size": 36
+  },
+  "schema": {
+    "from": {
+      "type": "select",
+      "label": "From",
+      "options": [
+        "none",
+        "neon",
+        "sketch",
+        "comic",
+        "chalk",
+        "pixel",
+        "riso",
+        "lowpoly",
+        "papercut",
+        "bricks",
+        "terminal",
+        "hologram",
+        "cyberpunk",
+        "isometric",
+        "blueprint",
+        "thermal",
+        "anime",
+        "watercolor",
+        "clay",
+        "woodblock",
+        "noir",
+        "oldcartoon",
+        "crt",
+        "sumi",
+        "knit",
+        "ps2",
+        "synthwave",
+        "marble",
+        "underwater",
+        "collage"
+      ]
+    },
+    "to": {
+      "type": "select",
+      "label": "To",
+      "options": [
+        "none",
+        "neon",
+        "sketch",
+        "comic",
+        "chalk",
+        "pixel",
+        "riso",
+        "lowpoly",
+        "papercut",
+        "bricks",
+        "terminal",
+        "hologram",
+        "cyberpunk",
+        "isometric",
+        "blueprint",
+        "thermal",
+        "anime",
+        "watercolor",
+        "clay",
+        "woodblock",
+        "noir",
+        "oldcartoon",
+        "crt",
+        "sumi",
+        "knit",
+        "ps2",
+        "synthwave",
+        "marble",
+        "underwater",
+        "collage"
+      ]
+    },
+    "size": {
+      "type": "number",
+      "label": "Pixel size (at 1080 wide)"
+    }
+  }
+}
