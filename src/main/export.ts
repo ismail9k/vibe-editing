@@ -5,7 +5,7 @@ import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync, rmSync 
 import { once } from 'node:events';
 import { join } from 'node:path';
 import { duration, footageAt, matteSrc, parseProject, type Project } from '../core/model';
-import { buildDecodeArgs, buildEncodeArgs, buildStillArgs, clipOverruns } from './ffmpeg';
+import { buildDecodeArgs, buildEncodeArgs, buildMeasureArgs, buildMixArgs, buildStillArgs, clipOverruns, masterGain, parseLoudness } from './ffmpeg';
 import { FrameReader } from './frames';
 import { componentMetas, ensureMattes, matteReady, usesMatte, wantsMatte } from './matte';
 import { matteTools } from './paths';
@@ -59,6 +59,11 @@ function ffmpeg(args: string[], stdin: boolean) {
   return { proc, exit, state, lastError, stop };
 }
 
+/** Waits for an ffmpeg run that has no output to stream, and throws with its error if it fails. */
+async function finish(f: ReturnType<typeof ffmpeg>, what: string) {
+  if (await f.exit !== 0) throw new Error(`ffmpeg couldn't ${what}: ${f.lastError()}`);
+}
+
 /** One frame of `file` at a source time, decoded by ffmpeg (snapshots). */
 async function still(args: string[], size: number): Promise<Buffer> {
   const f = ffmpeg(args, false);
@@ -92,11 +97,13 @@ export async function runExport(root: string, name: string, onProgress: (p: Expo
   // takes the finished frames plus the sound. Encode next to the target and rename at the end: a failed export
   // never replaces the last good file.
   const partial = out.replace(/\.mp4$/i, '') + '.partial.mp4';
+  const mix = out.replace(/\.mp4$/i, '') + '.partial.wav';
   // Every process is started inside the try, so whatever fails, the finally stops all of them and removes the
   // partial file.
   let enc: ReturnType<typeof ffmpeg> | null = null, dec: ReturnType<typeof ffmpeg> | null = null, mdec: ReturnType<typeof ffmpeg> | null = null;
   let frames: FrameReader | null = null, mattes: FrameReader | null = null;
   let ok = false;
+  let loudness: { from: number; gain: number } | null = null;
 
   // Frames are asked for in order; past the end of a decoder (a rounding frame short) the last one holds.
   let next = 0, lastFrame: Buffer | null = null, lastMatte: Buffer | null = null;
@@ -116,7 +123,14 @@ export async function runExport(root: string, name: string, onProgress: (p: Expo
   try {
     const videoArgs = buildDecodeArgs(project, dir, 'video', hdr);
     const matteArgs = ready.size ? buildDecodeArgs(project, dir, 'matte', hdr, (src) => ready.has(src)) : null;
-    const encoder = enc = ffmpeg(buildEncodeArgs(project, dir, partial, hasAudio), true);
+    // The sound is mixed and measured first, so the encoder can bring it to a standard loudness in one go.
+    await finish(ffmpeg(buildMixArgs(project, dir, mix, hasAudio), false), 'mix the sound');
+    const meter = ffmpeg(buildMeasureArgs(mix), false);
+    await finish(meter, 'measure the sound');
+    const measured = parseLoudness(meter.state.stderr);
+    const gain = masterGain(measured);
+    if (measured && gain) loudness = { from: measured.i, gain };
+    const encoder = enc = ffmpeg(buildEncodeArgs(project, partial, mix, gain), true);
     dec = videoArgs ? ffmpeg(videoArgs, false) : null;
     mdec = matteArgs ? ffmpeg(matteArgs, false) : null;
     frames = dec && new FrameReader(dec.proc.stdout!, W * H * 4);
@@ -138,9 +152,10 @@ export async function runExport(root: string, name: string, onProgress: (p: Expo
     renameSync(partial, out);
     ok = true;
     onProgress({ stage: 'done', done: total, total, out, errors: result.errors });
-    return { out, errors: result.errors, mattes: !!mattes };
+    return { out, errors: result.errors, mattes: !!mattes, loudness };
   } finally {
     await Promise.all([dec?.stop(), mdec?.stop()]);
+    rmSync(mix, { force: true });
     if (!ok) { await enc?.stop(); rmSync(partial, { force: true }); }
   }
 }

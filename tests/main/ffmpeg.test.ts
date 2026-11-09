@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { parseProject, matteSrc } from '../../src/core/model';
-import { buildDecodeArgs, buildEncodeArgs, buildStillArgs, fitFilter, clipOverruns } from '../../src/main/ffmpeg';
+import { buildDecodeArgs, buildEncodeArgs, buildMixArgs, buildStillArgs, fitFilter, clipOverruns, parseLoudness, masterGain, masterFilter, LOUDNESS } from '../../src/main/ffmpeg';
 
 const proj = (o: object) => parseProject(JSON.stringify(o)).project!;
 const count = (args: string[], v: string) => args.filter((a) => a === v).length;
@@ -74,33 +74,65 @@ describe('buildDecodeArgs', () => {
   });
 });
 
-describe('buildEncodeArgs', () => {
-  it('takes the finished frames as raw RGBA on stdin', () => {
-    const args = buildEncodeArgs(proj({ tracks: {} }), '/w/p', '/w/p/out/p.mp4', {});
-    expect(args.join(' ')).toContain('-f rawvideo -pix_fmt rgba -s 1080x1920 -r 30 -i pipe:0');
-    expect(args[args.length - 1]).toBe('/w/p/out/p.mp4');
-  });
-
-  it('joins the clips\' sound, with silence for clips that have none', () => {
-    const args = buildEncodeArgs(twoClips(), '/w/p', '/w/p/out/p.mp4', { 'media/a.mov': true, 'media/b.mov': false });
+describe('buildMixArgs', () => {
+  it('joins the clips\' sound, with silence for clips that have none, into a float WAV as long as the film', () => {
+    const args = buildMixArgs(twoClips(), '/w/p', '/w/p/out/p.partial.wav', { 'media/a.mov': true, 'media/b.mov': false });
     const g = graphOf(args);
     expect(g).toContain('concat=n=2:v=0:a=1');
     expect(g).toContain('anullsrc');
     expect(args[args.lastIndexOf('-t') + 1]).toBe('7');
-    expect(args.join(' ')).toContain('-c:v libx264 -pix_fmt yuv420p');
+    expect(args.slice(-5)).toEqual(['-c:a', 'pcm_f32le', '-f', 'wav', '/w/p/out/p.partial.wav']);
   });
 
   it('delays and mixes sounds at their times', () => {
     const p = proj({ tracks: { graphics: [{ id: 'g1', type: 'stat', at: 0, dur: 4, props: {} }], audio: [{ id: 'a1', src: 'media/whoosh.wav', at: 1.5, gain: 0.5 }] } });
-    const g = graphOf(buildEncodeArgs(p, '/w/p', '/w/p/out/p.mp4', { 'media/whoosh.wav': true }));
+    const g = graphOf(buildMixArgs(p, '/w/p', '/w/p/out/p.partial.wav', { 'media/whoosh.wav': true }));
     expect(g).toContain('adelay=1500|1500');
     expect(g).toContain('volume=0.5');
-    expect(g).toContain('amix=inputs=2');
+    expect(g).toContain('amix=inputs=2:normalize=0');
   });
 
   it('refuses sound paths that leave the project folder', () => {
     const p = proj({ tracks: { graphics: [{ id: 'g1', type: 'stat', at: 0, dur: 2, props: {} }], audio: [{ id: 'a1', src: '../x.wav', at: 0, gain: 1 }] } });
-    expect(() => buildEncodeArgs(p, '/w/projects/x', '/w/projects/x/out/x.mp4', {})).toThrow(/outside/);
+    expect(() => buildMixArgs(p, '/w/projects/x', '/w/projects/x/out/x.wav', {})).toThrow(/outside/);
+  });
+});
+
+describe('loudness', () => {
+  const meter = (i: string, tp: string) => `[Parsed_loudnorm_0 @ 0x1]\n{\n\t"input_i" : "${i}",\n\t"input_tp" : "${tp}",\n\t"input_lra" : "3.10"\n}\n`;
+
+  it('reads the measurement ffmpeg prints', () => {
+    expect(parseLoudness(`size=N/A\n${meter('-23.41', '-6.02')}`)).toEqual({ i: -23.41, tp: -6.02 });
+    expect(parseLoudness('no meter here')).toBeNull();
+    expect(parseLoudness(meter('-inf', '-inf'))!.i).toBe(-Infinity);
+  });
+
+  it('brings the mix to the target with one constant gain', () => {
+    expect(masterGain({ i: -23, tp: -6 })).toBe(LOUDNESS.target + 23);
+    expect(masterGain({ i: -8, tp: 0.5 })).toBe(-6);
+  });
+
+  it('leaves silence and room tone alone, and caps the boost for a very quiet mix', () => {
+    expect(masterGain(null)).toBe(0);
+    expect(masterGain({ i: -Infinity, tp: -Infinity })).toBe(0);
+    expect(masterGain({ i: -60, tp: -40 })).toBe(0);
+    expect(masterGain({ i: -45, tp: -20 })).toBe(LOUDNESS.maxBoost);
+  });
+
+  it('limits the peaks, oversampled and without delaying the sound', () => {
+    const f = masterFilter(8.5);
+    expect(f).toMatch(/^volume=8.5dB,aresample=192000,alimiter=limit=0.841:.*latency=1,aresample=48000$/);
+  });
+});
+
+describe('buildEncodeArgs', () => {
+  it('takes the finished frames as raw RGBA on stdin and the mastered mix as the sound', () => {
+    const args = buildEncodeArgs(twoClips(), '/w/p/out/p.mp4', '/w/p/out/p.partial.wav', -3);
+    expect(args.join(' ')).toContain('-f rawvideo -pix_fmt rgba -s 1080x1920 -r 30 -i pipe:0 -i /w/p/out/p.partial.wav');
+    expect(graphOf(args)).toContain('[1:a]volume=-3dB,');
+    expect(args[args.lastIndexOf('-t') + 1]).toBe('7');
+    expect(args.join(' ')).toContain('-c:v libx264 -pix_fmt yuv420p');
+    expect(args[args.length - 1]).toBe('/w/p/out/p.mp4');
   });
 });
 

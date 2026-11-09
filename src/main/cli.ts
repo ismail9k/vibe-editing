@@ -50,12 +50,13 @@ export async function runCli(root: string, argv: string[], cwd = process.cwd()):
       }
       case 'render': {
         let last = 0;
-        const { out: file, errors } = await runExport(root, args.project!, (p) => {
+        const { out: file, errors, loudness } = await runExport(root, args.project!, (p) => {
           const pct = Math.floor((p.done / p.total) * 100);
           if (p.stage === 'frames' && pct >= last + 10) { last = pct - (pct % 10); err(`frames ${pct}%`); }
           if (p.stage === 'mattes' && p.done === 0) err(`cutting out ${p.message}…`);
           if (p.stage === 'encoding') err('encoding…');
         }, args.out && resolve(cwd, args.out));
+        if (loudness) err(`sound levelled from ${loudness.from.toFixed(1)} to ${(loudness.from + loudness.gain).toFixed(1)} LUFS`);
         errors.forEach((e) => err(`render error: ${e}`));
         out(show(file));
         return errors.length ? 1 : 0;

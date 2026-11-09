@@ -49,6 +49,7 @@ projects/<name>/out/                   renders and snapshots
 - Times are seconds on the output timeline. Footage clips have no `at`: they play back to back in order (`in`/`out` are source seconds).
 - A graphic's `x`, `y`, `w` (fractions of the frame: centre x, top y, width) override the component's default placement. The user can also drag a graphic on the preview and pull its side handles to change the width, which writes these three fields. Only a component that lays itself out with `place()` can be dragged, so use it for anything that has a position.
 - Props not given fall back to the component's `defaults`.
+- An audio `gain` sets a sound's level against the footage's own sound (1 = as recorded). Don't turn the whole film up or down: `vibe render` levels the finished mix to -14 LUFS, the level Instagram, TikTok and YouTube play at, and keeps its peaks under -1.5 dB.
 
 ## Writing a component
 

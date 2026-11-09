@@ -76,7 +76,7 @@ vibe transcribe <project>              # what you say, word by word, on the time
 vibe open [project]                    # open the app
 ```
 
-`snapshot` and `render` run the app's own renderer in a hidden window, so they match the preview frame for frame: ffmpeg decodes the footage to raw frames, the window draws each whole frame (footage, effects, graphics, captions), and ffmpeg encodes the result with the sound. Export is H.264 + AAC. Footage is scaled and cropped to fill the frame, and HDR footage (iPhone HLG or PQ) is tone-mapped to SDR.
+`snapshot` and `render` run the app's own renderer in a hidden window, so they match the preview frame for frame: ffmpeg decodes the footage to raw frames, the window draws each whole frame (footage, effects, graphics, captions), and ffmpeg encodes the result with the sound. Export is H.264 + AAC, with the sound levelled to -14 LUFS (the level Instagram, TikTok and YouTube play at) and its peaks kept under -1.5 dB. Footage is scaled and cropped to fill the frame, and HDR footage (iPhone HLG or PQ) is tone-mapped to SDR.
 
 ## Cutouts
 
