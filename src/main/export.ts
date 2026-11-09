@@ -6,7 +6,7 @@ import { once } from 'node:events';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { duration, footageAt, parseProject, type Project } from '../core/model';
-import { buildFfmpegArgs, fitFilter } from './ffmpeg';
+import { buildFfmpegArgs, clipOverruns, fitFilter } from './ffmpeg';
 import { runHeadless } from './headless';
 import { probe, resolveInside } from './workspace';
 import type { ExportProgress } from '../shared/api';
@@ -30,8 +30,10 @@ export async function runExport(root: string, name: string, onProgress: (p: Expo
   const { project, dir } = loadProject(root, name);
   checkMedia(project, dir);
   const srcs = [...new Set([...project.tracks.footage, ...project.tracks.audio].map((x) => x.src))];
-  const hasAudio: Record<string, boolean> = {}, hdr: Record<string, boolean> = {};
-  for (const s of srcs) { const info = await probe(resolveInside(dir, s)); hasAudio[s] = info.hasAudio; hdr[s] = info.hdr; }
+  const hasAudio: Record<string, boolean> = {}, hdr: Record<string, boolean> = {}, lengths: Record<string, number> = {};
+  for (const s of srcs) { const info = await probe(resolveInside(dir, s)); hasAudio[s] = info.hasAudio; hdr[s] = info.hdr; lengths[s] = info.duration; }
+  const overruns = clipOverruns(project, lengths);
+  if (overruns.length) throw new Error(`can't export: ${overruns.join('; ')}`);
   const out = outPath ?? join(dir, 'out', `${name}.mp4`);
   mkdirSync(join(out, '..'), { recursive: true });
 

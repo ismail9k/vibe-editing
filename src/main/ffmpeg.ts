@@ -58,3 +58,11 @@ export function buildFfmpegArgs(p: Project, projectDir: string, out: string, has
     '-c:a', 'aac', '-b:a', '192k', '-t', n(D), '-movflags', '+faststart', out);
   return args;
 }
+
+/** Clips whose out point is past the end of their media (durations from ffprobe). Such a clip would come out
+ *  short and pull every later clip, caption and sound out of sync, so export refuses it. */
+export function clipOverruns(p: Project, durations: Record<string, number>): string[] {
+  return p.tracks.footage
+    .filter((c) => durations[c.src] !== undefined && c.out > durations[c.src] + 0.05)
+    .map((c) => `${c.id} ends at ${n(c.out)} s but ${c.src} is only ${n(durations[c.src])} s long`);
+}

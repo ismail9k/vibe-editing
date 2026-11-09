@@ -4,7 +4,8 @@
 export type Mode = 'dark' | 'light' | 'green';
 export type Dir = 'ltr' | 'rtl';
 export interface Format { w: number; h: number; fps: number }
-export interface Clip { id: string; src: string; in: number; out: number }
+/** in/out are source seconds; srcDur is the media's length (recorded at import) so trims can't run past it. */
+export interface Clip { id: string; src: string; in: number; out: number; srcDur?: number }
 export interface Graphic { id: string; type: string; at: number; dur: number; props: Record<string, unknown>; x?: number; y?: number; w?: number }
 export interface Caption { id: string; text: string; at: number; dur: number; keyword?: string }
 export interface AudioItem { id: string; src: string; at: number; gain: number }
@@ -58,7 +59,9 @@ export function parseProject(text: string): { project?: Project; error?: string;
     tracks: {
       footage: arr(t.footage, 'tracks.footage').map((c, i) => {
         const at = `tracks.footage[${i}]`;
-        return { id: str(c.id, `f${i + 1}`, `${at}.id`), src: str(c.src, '', `${at}.src`), in: num(c.in, 0, `${at}.in`), out: num(c.out, 0, `${at}.out`) };
+        const clip: Clip = { id: str(c.id, `f${i + 1}`, `${at}.id`), src: str(c.src, '', `${at}.src`), in: num(c.in, 0, `${at}.in`), out: num(c.out, 0, `${at}.out`) };
+        if (c.srcDur !== undefined) { const d = num(c.srcDur, 0, `${at}.srcDur`); if (d > 0) clip.srcDur = d; }
+        return clip;
       }),
       graphics: arr(t.graphics, 'tracks.graphics').map((g, i) => {
         const at = `tracks.graphics[${i}]`;

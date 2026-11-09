@@ -111,7 +111,7 @@ export function Inspector() {
         <p className="muted">{c.src}</p>
         <div className="field-row two">
           <label className="field">In (source s)<NumberInput value={c.in} onChange={(v) => patch({ in: Math.max(0, Math.min(v, c.out - 0.1)) })} /></label>
-          <label className="field">Out (source s)<NumberInput value={c.out} onChange={(v) => patch({ out: Math.max(v, c.in + 0.1) })} /></label>
+          <label className="field">Out (source s)<NumberInput value={c.out} onChange={(v) => patch({ out: Math.min(Math.max(v, c.in + 0.1), c.srcDur ?? Infinity) })} /></label>
         </div>
         <p className="hint">S splits the clip at the playhead. Drag a clip to reorder it; drag its edges to trim.</p>
       </>

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { parseProject } from '../../src/core/model';
-import { buildFfmpegArgs, fitFilter } from '../../src/main/ffmpeg';
+import { buildFfmpegArgs, fitFilter, clipOverruns } from '../../src/main/ffmpeg';
 
 const proj = (o: object) => parseProject(JSON.stringify(o)).project!;
 const count = (args: string[], v: string) => args.filter((a) => a === v).length;
@@ -64,5 +64,12 @@ describe('buildFfmpegArgs', () => {
   it('fitFilter fills the frame and only tone-maps when asked', () => {
     expect(fitFilter(1080, 1920, false)).toBe('scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,setsar=1');
     expect(fitFilter(1080, 1920, true)).toMatch(/out_transfer=linear.*tonemap=tonemap=reinhard.*crop=1080:1920,setsar=1$/);
+  });
+});
+
+describe('clipOverruns', () => {
+  it('names clips that end after their media does (probed lengths)', () => {
+    const p = proj({ tracks: { footage: [{ id: 'f1', src: 'media/a.mov', in: 0, out: 5 }, { id: 'f2', src: 'media/a.mov', in: 10, out: 22 }] } });
+    expect(clipOverruns(p, { 'media/a.mov': 20.17 })).toEqual(['f2 ends at 22 s but media/a.mov is only 20.17 s long']);
   });
 });

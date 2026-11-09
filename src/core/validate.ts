@@ -26,6 +26,7 @@ export function validateProject(p: Project, ctx: ValidateContext): Issue[] {
     const at = `tracks.footage[${i}]`;
     if (!c.src || !ctx.mediaExists(c.src)) err(`${at}.src`, `missing media "${c.src}"`);
     if (!(c.out > c.in)) err(`${at}.out`, `out (${c.out}) must be after in (${c.in})`);
+    else if (c.srcDur !== undefined && c.out > c.srcDur + 0.05) err(`${at}.out`, `out (${c.out}) is past the end of ${c.src} (${c.srcDur} s)`);
   });
 
   p.tracks.graphics.forEach((g, i) => {

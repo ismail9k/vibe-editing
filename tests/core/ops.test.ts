@@ -67,3 +67,20 @@ describe('item ops', () => {
     expect(ops.deleteItem(p1, 'footage', 'f1').tracks.footage).toHaveLength(1);
   });
 });
+
+describe('clips know how long their media is', () => {
+  const start = () => ops.addClip(parseProject('{}').project!, 'media/a.mov', 20);
+  it('addClip records the media length', () => {
+    expect(start().tracks.footage[0]).toMatchObject({ in: 0, out: 20, srcDur: 20 });
+  });
+  it('trimming the end stops at the end of the media', () => {
+    const p = start();
+    const id = p.tracks.footage[0].id;
+    const shorter = ops.trimClip(p, id, 'end', -5);
+    expect(ops.trimClip(shorter, id, 'end', 9).tracks.footage[0].out).toBe(20);
+  });
+  it('both halves of a split keep the media length', () => {
+    const halves = ops.splitFootage(start(), 8).tracks.footage;
+    expect(halves.map((c) => c.srcDur)).toEqual([20, 20]);
+  });
+});

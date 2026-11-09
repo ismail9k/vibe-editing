@@ -76,7 +76,7 @@ export function trimClip(p: Project, id: string, edge: 'start' | 'end', delta: n
   const c = p.tracks.footage.find((x) => x.id === id);
   if (!c) return p;
   if (edge === 'start') return updateItem(p, 'footage', id, { in: Math.min(Math.max(0, c.in + delta), c.out - MIN) });
-  return updateItem(p, 'footage', id, { out: Math.max(c.out + delta, c.in + MIN) });
+  return updateItem(p, 'footage', id, { out: Math.min(Math.max(c.out + delta, c.in + MIN), c.srcDur ?? Infinity) });
 }
 
 export function moveClip(p: Project, id: string, toIndex: number): Project {
@@ -90,6 +90,6 @@ export function moveClip(p: Project, id: string, toIndex: number): Project {
 
 export function addClip(p: Project, src: string, sourceDuration: number): Project {
   const project = clone(p);
-  project.tracks.footage.push({ id: newId(p, 'f'), src, in: 0, out: sourceDuration });
+  project.tracks.footage.push({ id: newId(p, 'f'), src, in: 0, out: sourceDuration, srcDur: sourceDuration });
   return project;
 }

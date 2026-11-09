@@ -44,3 +44,10 @@ describe('validateProject', () => {
     expect(issues[0]).toMatchObject({ level: 'error', path: 'tracks.footage[0].out' });
   });
 });
+
+describe('clips past the end of their media', () => {
+  it('is an error when out passes the recorded media length', () => {
+    const issues = validateProject(proj({ tracks: { footage: [{ id: 'f1', src: 'media/a.mov', in: 0, out: 22, srcDur: 20 }] } }), ctx());
+    expect(issues).toContainEqual({ level: 'error', path: 'tracks.footage[0].out', message: 'out (22) is past the end of media/a.mov (20 s)' });
+  });
+});
