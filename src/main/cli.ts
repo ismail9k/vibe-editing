@@ -3,7 +3,9 @@ import { relative, resolve } from 'node:path';
 import { checkProject, parseCliArgs, USAGE } from './check';
 import { loadProject, runExport, runSnapshot } from './export';
 import { ensureMattes } from './matte';
-import { matteTools } from './paths';
+import { matteTools, userDataDir } from './paths';
+import { transcribeProject } from './transcribe';
+import { transcriptLines } from '../core/transcript';
 import { listProjects } from './workspace';
 
 const out = (s: string) => process.stdout.write(s + '\n');
@@ -51,6 +53,19 @@ export async function runCli(root: string, argv: string[], cwd = process.cwd()):
           if (pct >= was + 10) { last[p.src] = pct - (pct % 10); err(`${p.src} ${pct}%`); }
         });
         out('mattes ready');
+        return 0;
+      }
+      case 'transcribe': {
+        const { project, dir } = loadProject(root, args.project!);
+        let last = -10, lastMb = -100;
+        const { words, file } = await transcribeProject(dir, project, { model: args.model, lang: args.lang, force: args.force, userData: userDataDir() }, (p) => {
+          if (p.stage === 'download') {
+            const mb = Math.floor(p.done / 1e6);
+            if (mb >= lastMb + 100) { lastMb = mb; err(`downloading the ${p.model} model: ${mb}${p.total ? ` / ${Math.round(p.total / 1e6)}` : ''} MB`); }
+          } else if (p.pct >= last + 10 || p.pct === 100) { last = p.pct - (p.pct % 10); err(`${p.src} ${p.pct}%`); }
+        });
+        transcriptLines(words).forEach((l) => out(l));
+        err(`${words.length} words -> ${show(file)}`);
         return 0;
       }
       case 'help': case '--help': case '-h':

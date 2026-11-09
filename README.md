@@ -9,7 +9,7 @@ A small desktop video editor that Claude Code drives. Your components, your bran
 
 ## Setup
 
-You need Node 22+ and ffmpeg (with ffprobe) on your `PATH` (`brew install ffmpeg`).
+You need Node 22+ and ffmpeg (with ffprobe) on your `PATH` (`brew install ffmpeg`). Transcripts also need whisper.cpp's `whisper-cli` (`brew install whisper-cpp`).
 
 ```bash
 npm install
@@ -62,6 +62,7 @@ vibe check <project>                   # check vibe.json against the library; ex
 vibe snapshot <project> --at 1,4.5,8   # PNGs at those seconds -> projects/<p>/out/snap-*.png
 vibe render <project> [-o out.mp4]     # export the MP4 -> projects/<p>/out/<p>.mp4
 vibe matte <project>                   # cut you out of every clip -> media/.matte/ (macOS)
+vibe transcribe <project>              # what you say, word by word, on the timeline -> projects/<p>/transcript.json
 vibe open [project]                    # open the app
 ```
 
@@ -71,12 +72,18 @@ vibe open [project]                    # open the app
 
 Effects that put something behind you need a matte: a grey video per footage file where white is you. They're made with Apple Vision by a small Swift helper (`native/vibe-matte.swift`), compiled with `swiftc` on first use into the app's data folder. It combines person segmentation (fine hair) with subject lifting (keeps a mic or whatever you hold in front of you). A matte takes about 1.5× the clip's length. The app makes them in the background as soon as a film uses a cutout effect, and export makes any that are missing. Cutouts need macOS and the Xcode command line tools (`xcode-select --install`); elsewhere, cutout effects show the whole frame and export refuses them.
 
+## Transcripts
+
+`vibe transcribe <project>` gives Claude what you say and when, so it can cut on your words and time captions and graphics to them. It runs whisper.cpp (`whisper-cli`) once per footage file and keeps the words, in source seconds, at `media/.transcript/<file>.json`; they're redone only when the file, the model or the language changes (or with `--force`). Whisper's word times run into the pauses around them, so each word is snapped to the speech using the pauses ffmpeg measures in the same audio. The words the cut keeps go onto the output timeline in `projects/<p>/transcript.json`, and the command prints them as short timed lines.
+
+The model is the best multilingual whisper.cpp model already on the machine (the app's data folder, `~/.cache/whisper.cpp`, `~/.cache/whisper`, HyperFrames' cache, Homebrew's share folder), or `large-v3-turbo` downloaded once (about 1.6 GB) into the app's data folder. `--model small` picks a model by name (downloaded if missing), `--model <path>.bin` uses that file, and `--lang ar` skips language detection.
+
 ## How it is built
 
 Electron, React, TypeScript and zustand. The renderer is a 2D canvas engine grown from the 9k motion skills:
 
 - `src/core/`: the project model, edit ops, validation, motion helpers, the painter (the drawing primitives that styles override) and the frame renderer. It has no DOM or Node dependencies and is unit-tested.
-- `src/main/`: the workspace, the `vibe://` protocol, the file watcher, export (ffmpeg), cutout mattes and the CLI.
+- `src/main/`: the workspace, the `vibe://` protocol, the file watcher, export (ffmpeg), cutout mattes, transcripts (whisper.cpp) and the CLI.
 - `native/`: the Apple Vision matte helper.
 - `src/renderer/`: the two rooms, the timeline, the inspector, and the hidden render window used by export.
 - `presets/`: what gets seeded into a new workspace.

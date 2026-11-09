@@ -6,7 +6,7 @@ import { coercedIssues, validateProject, type ComponentMeta, type Issue } from '
 import { listLibrary, resolveInside } from './workspace';
 import { matteReady, missingMattes } from './matte';
 
-export interface CliArgs { command: string; project?: string; at?: number[]; out?: string }
+export interface CliArgs { command: string; project?: string; at?: number[]; out?: string; lang?: string; model?: string; force?: boolean }
 
 export const USAGE = `vibe — Vibe Editing from the terminal
 
@@ -16,6 +16,8 @@ export const USAGE = `vibe — Vibe Editing from the terminal
   vibe snapshot <project> --at 1,4,8  render PNGs at those seconds (projects/<p>/out/snap-*.png)
   vibe render <project> [-o out.mp4]  export the MP4 (projects/<p>/out/<p>.mp4)
   vibe matte <project>                cut the speaker out of every clip (macOS; media/.matte/)
+  vibe transcribe <project>           word timings of the speech, on the timeline (projects/<p>/transcript.json)
+      [--lang ar|en|auto] [--model <name|path.bin>] [--force]
 
 Workspace: $VIBE_HOME or ~/Vibe`;
 
@@ -29,10 +31,15 @@ export function parseCliArgs(argv: string[]): CliArgs {
       if (!at.length || at.some((t) => !Number.isFinite(t) || t < 0)) throw new Error(`--at wants seconds like 1,4.5,8 (got "${rest[i] ?? ''}")`);
       args.at = at;
     } else if (a === '-o' || a === '--out') args.out = rest[++i];
+    else if (a === '--lang' || a === '--model') {
+      const v = rest[++i];
+      if (!v || v.startsWith('-')) throw new Error(`${a} wants a value`);
+      args[a === '--lang' ? 'lang' : 'model'] = v;
+    } else if (a === '--force') args.force = true;
     else if (!a.startsWith('-') && !args.project) args.project = a;
     else throw new Error(`unknown option "${a}"`);
   }
-  if (['check', 'snapshot', 'render', 'matte'].includes(command) && !args.project) throw new Error(`vibe ${command} needs a project name`);
+  if (['check', 'snapshot', 'render', 'matte', 'transcribe'].includes(command) && !args.project) throw new Error(`vibe ${command} needs a project name`);
   return args;
 }
 

@@ -16,6 +16,13 @@ describe('parseCliArgs', () => {
     expect(() => parseCliArgs(['render'])).toThrow(/project/);
     expect(() => parseCliArgs(['matte'])).toThrow(/project/);
   });
+  it('reads the transcribe options', () => {
+    expect(parseCliArgs(['transcribe', 'demo', '--lang', 'ar', '--model', 'small', '--force']))
+      .toEqual({ command: 'transcribe', project: 'demo', lang: 'ar', model: 'small', force: true });
+    expect(() => parseCliArgs(['transcribe'])).toThrow(/project/);
+    expect(() => parseCliArgs(['transcribe', 'demo', '--lang'])).toThrow(/--lang/);
+    expect(USAGE).toContain('vibe transcribe <project>');
+  });
   it('documents vibe matte', () => {
     expect(USAGE).toContain('vibe matte <project>');
   });

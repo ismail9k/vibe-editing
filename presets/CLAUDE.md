@@ -11,7 +11,8 @@ library/styles/<id>/style.js           its drawing code
 library/components/<id>/component.json name, description, default duration, default props, prop schema
 library/components/<id>/component.js   its drawing code
 projects/<name>/vibe.json              a film: format, style, mode, dir, tracks
-projects/<name>/media/                 footage and sounds
+projects/<name>/media/                 footage and sounds (.matte/ and .transcript/ are made by the app)
+projects/<name>/transcript.json        written by `vibe transcribe`: the words he says, on the timeline
 projects/<name>/.vibe/session.json     written by the app: what he's looking at (room, selection, playhead). Read it, never write it
 projects/<name>/out/                   renders and snapshots
 ```
@@ -23,6 +24,7 @@ projects/<name>/out/                   renders and snapshots
 - Look at your work: `vibe snapshot <project> --at 1.2,3.5` writes PNGs to `projects/<project>/out/`. Open them before you say something is done.
 - `vibe check <project>` validates the project against the library. Fix every error.
 - `vibe render <project>` exports `out/<name>.mp4`. Only render when he asks.
+- Before cutting or timing anything to speech, run `vibe transcribe <project>`. It prints what he says as timed lines on the output timeline and writes every word to `projects/<project>/transcript.json` (`at`/`end` on the timeline, `srcAt`/`srcEnd` in the footage file, for `in`/`out`). Run it again after changing the cuts; whisper only re-runs when the footage changes. Whisper misspells Arabic: fix captions by ear, not by copying.
 - Cutout effects need a matte per clip (`media/.matte/`). The app makes them in the background; from the terminal run `vibe matte <project>` (macOS only, about 1.5× the clip's length). `vibe check` warns when one is missing.
 - No `Math.random`: use `p.rng(seed)` so every frame is the same in preview and export.
 

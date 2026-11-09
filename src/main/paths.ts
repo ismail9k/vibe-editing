@@ -10,3 +10,5 @@ export const rendererUrl = (hash = '') =>
 export const appDir = join(here, '../..');
 /** Where the cutout helper is built: the app's own data folder, not the workspace. */
 export const matteTools = () => ({ appDir, binDir: join(app.getPath('userData'), 'bin') });
+/** The app's own data folder: the cutout helper and downloaded whisper models live here. */
+export const userDataDir = () => app.getPath('userData');
