@@ -111,3 +111,9 @@ export function footageAt(p: Project, t: number): { clip: Clip; srcTime: number;
 }
 
 export const serializeProject = (p: Project) => JSON.stringify(p, null, 2) + '\n';
+
+/** Where a clip's cutout matte lives: media/a.mov → media/.matte/a.mov.matte.mp4 */
+export function matteSrc(src: string): string {
+  const i = src.lastIndexOf('/');
+  return `${i >= 0 ? src.slice(0, i + 1) : ''}.matte/${src.slice(i + 1)}.matte.mp4`;
+}

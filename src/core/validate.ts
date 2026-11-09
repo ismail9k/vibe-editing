@@ -3,7 +3,13 @@ import type { Project } from './model';
 
 export type PropType = 'text' | 'number' | 'bool' | 'list' | 'select';
 export interface PropSpec { type: PropType; label: string; options?: string[] }
-export interface ComponentMeta { name: string; description: string; duration: number; defaults: Record<string, unknown>; schema: Record<string, PropSpec> }
+export interface ComponentMeta {
+  name: string; description: string; duration: number; defaults: Record<string, unknown>; schema: Record<string, PropSpec>;
+  /** Draws the footage itself while on screen (the plain footage layer is skipped). */
+  scene?: boolean;
+  /** Needs the speaker cut out (the clip's matte). */
+  matte?: boolean;
+}
 export interface Issue { level: 'error' | 'warn'; path: string; message: string }
 export interface ValidateContext { components: Record<string, ComponentMeta>; styles: string[]; mediaExists(src: string): boolean }
 

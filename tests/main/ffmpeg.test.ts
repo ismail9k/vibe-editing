@@ -1,67 +1,87 @@
 import { describe, it, expect } from 'vitest';
-import { parseProject } from '../../src/core/model';
-import { buildFfmpegArgs, fitFilter, clipOverruns } from '../../src/main/ffmpeg';
+import { parseProject, matteSrc } from '../../src/core/model';
+import { buildDecodeArgs, buildEncodeArgs, fitFilter, clipOverruns } from '../../src/main/ffmpeg';
 
 const proj = (o: object) => parseProject(JSON.stringify(o)).project!;
 const count = (args: string[], v: string) => args.filter((a) => a === v).length;
+const graphOf = (args: string[]) => args[args.indexOf('-filter_complex') + 1];
+const twoClips = () => proj({ tracks: { footage: [{ id: 'f1', src: 'media/a.mov', in: 2, out: 5 }, { id: 'f2', src: 'media/b.mov', in: 0, out: 4 }] } });
 
-describe('buildFfmpegArgs', () => {
-  it('trims and concatenates two clips under the overlay', () => {
-    const p = proj({ tracks: { footage: [{ id: 'f1', src: 'media/a.mov', in: 2, out: 5 }, { id: 'f2', src: 'media/b.mov', in: 0, out: 4 }] } });
-    const args = buildFfmpegArgs(p, '/w/projects/x', '/w/projects/x/out/x.mp4', { 'media/a.mov': true, 'media/b.mov': false });
+describe('matteSrc', () => {
+  it('keeps mattes in a hidden folder next to the media', () => {
+    expect(matteSrc('media/a.mov')).toBe('media/.matte/a.mov.matte.mp4');
+  });
+});
+
+describe('buildDecodeArgs', () => {
+  it('trims, fills the frame and joins the clips into raw RGBA frames on stdout', () => {
+    const args = buildDecodeArgs(twoClips(), '/w/projects/x', 'video', {})!;
     expect(count(args, '-ss')).toBe(2);
     expect(args[args.indexOf('-ss') + 1]).toBe('2');
     expect(args).toContain('/w/projects/x/media/a.mov');
-    const graph = args[args.indexOf('-filter_complex') + 1];
-    expect(graph).toContain('concat=n=2:v=1:a=1');
-    expect(graph).toContain('overlay');
-    expect(graph).toContain('anullsrc'); // b.mov has no audio: silence keeps the concat in step
-    expect(graph).toContain('scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920');
-    expect(args.join(' ')).toContain('-pix_fmt yuv420p');
-    expect(args[args.lastIndexOf('-t') + 1]).toBe('7');
-    expect(args[args.length - 1]).toBe('/w/projects/x/out/x.mp4');
+    const g = graphOf(args);
+    expect(g).toContain('scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920');
+    expect(g).toContain('fps=30');
+    expect(g).toContain('concat=n=2:v=1:a=0');
+    expect(args.slice(-5)).toEqual(['-f', 'rawvideo', '-pix_fmt', 'rgba', 'pipe:1']);
   });
 
-  it('reads the overlay as raw RGBA frames on stdin', () => {
-    const args = buildFfmpegArgs(proj({ tracks: {} }), '/w/p', '/w/p/out/p.mp4', {});
-    expect(args.join(' ')).toContain('-f rawvideo -pix_fmt rgba -s 1080x1920 -r 30 -i pipe:0');
+  it('tone-maps only the HDR clips', () => {
+    const g = graphOf(buildDecodeArgs(twoClips(), '/w/p', 'video', { 'media/a.mov': true })!);
+    const [a, b] = g.split(';');
+    expect(a).toContain('tonemap=tonemap=reinhard');
+    expect(b).not.toContain('tonemap');
   });
 
-  it('uses a black base and silence when there is no footage', () => {
-    const args = buildFfmpegArgs(proj({ tracks: { graphics: [{ id: 'g1', type: 'stat', at: 0, dur: 3, props: {} }] } }), '/w/p', '/w/p/out/p.mp4', {});
-    const graph = args[args.indexOf('-filter_complex') + 1];
-    expect(count(args, '-i')).toBe(1);
-    expect(graph).toContain('color=c=black:s=1080x1920:r=30:d=3');
-    expect(graph).toContain('anullsrc');
-    expect(graph).not.toContain('concat');
+  it('decodes the mattes as grey frames at half size', () => {
+    const args = buildDecodeArgs(twoClips(), '/w/p', 'matte', {})!;
+    expect(args).toContain('/w/p/media/.matte/a.mov.matte.mp4');
+    expect(graphOf(args)).toContain('scale=540:960:force_original_aspect_ratio=increase,crop=540:960');
+    expect(args.slice(-5)).toEqual(['-f', 'rawvideo', '-pix_fmt', 'gray', 'pipe:1']);
   });
 
-  it('delays and mixes sounds at their times', () => {
-    const p = proj({ tracks: { graphics: [{ id: 'g1', type: 'stat', at: 0, dur: 4, props: {} }], audio: [{ id: 'a1', src: 'media/whoosh.wav', at: 1.5, gain: 0.5 }] } });
-    const graph = buildFfmpegArgs(p, '/w/p', '/w/p/out/p.mp4', { 'media/whoosh.wav': true }).join(' ');
-    expect(graph).toContain('adelay=1500|1500');
-    expect(graph).toContain('volume=0.5');
-    expect(graph).toContain('amix=inputs=2');
+  it('has nothing to decode without footage', () => {
+    expect(buildDecodeArgs(proj({ tracks: {} }), '/w/p', 'video', {})).toBeNull();
   });
 
   it('refuses media paths that leave the project folder', () => {
     const p = proj({ tracks: { footage: [{ id: 'f1', src: '../../other/secret.mov', in: 0, out: 2 }] } });
-    expect(() => buildFfmpegArgs(p, '/w/projects/x', '/w/projects/x/out/x.mp4', {})).toThrow(/outside/);
-    const q = proj({ tracks: { graphics: [{ id: 'g1', type: 'stat', at: 0, dur: 2, props: {} }], audio: [{ id: 'a1', src: '../x.wav', at: 0, gain: 1 }] } });
-    expect(() => buildFfmpegArgs(q, '/w/projects/x', '/w/projects/x/out/x.mp4', {})).toThrow(/outside/);
+    expect(() => buildDecodeArgs(p, '/w/projects/x', 'video', {})).toThrow(/outside/);
+  });
+});
+
+describe('buildEncodeArgs', () => {
+  it('takes the finished frames as raw RGBA on stdin', () => {
+    const args = buildEncodeArgs(proj({ tracks: {} }), '/w/p', '/w/p/out/p.mp4', {});
+    expect(args.join(' ')).toContain('-f rawvideo -pix_fmt rgba -s 1080x1920 -r 30 -i pipe:0');
+    expect(args[args.length - 1]).toBe('/w/p/out/p.mp4');
   });
 
-  it('tone-maps HDR clips (HLG or PQ) to SDR and leaves SDR clips alone', () => {
-    const p = proj({ tracks: { footage: [{ id: 'f1', src: 'media/iphone.mov', in: 0, out: 2 }, { id: 'f2', src: 'media/sdr.mp4', in: 0, out: 2 }] } });
-    const args = buildFfmpegArgs(p, '/w/p', '/w/p/out/p.mp4', {}, { 'media/iphone.mov': true });
-    const graph = args[args.indexOf('-filter_complex') + 1];
-    const [v0, v1] = graph.split(';').filter((g) => g.startsWith('[0:v]') || g.startsWith('[1:v]'));
-    expect(v0).toContain('tonemap=tonemap=reinhard');
-    expect(v0).toContain('out_transfer=bt709');
-    expect(v1).not.toContain('tonemap');
+  it('joins the clips\' sound, with silence for clips that have none', () => {
+    const args = buildEncodeArgs(twoClips(), '/w/p', '/w/p/out/p.mp4', { 'media/a.mov': true, 'media/b.mov': false });
+    const g = graphOf(args);
+    expect(g).toContain('concat=n=2:v=0:a=1');
+    expect(g).toContain('anullsrc');
+    expect(args[args.lastIndexOf('-t') + 1]).toBe('7');
+    expect(args.join(' ')).toContain('-c:v libx264 -pix_fmt yuv420p');
   });
 
-  it('fitFilter fills the frame and only tone-maps when asked', () => {
+  it('delays and mixes sounds at their times', () => {
+    const p = proj({ tracks: { graphics: [{ id: 'g1', type: 'stat', at: 0, dur: 4, props: {} }], audio: [{ id: 'a1', src: 'media/whoosh.wav', at: 1.5, gain: 0.5 }] } });
+    const g = graphOf(buildEncodeArgs(p, '/w/p', '/w/p/out/p.mp4', { 'media/whoosh.wav': true }));
+    expect(g).toContain('adelay=1500|1500');
+    expect(g).toContain('volume=0.5');
+    expect(g).toContain('amix=inputs=2');
+  });
+
+  it('refuses sound paths that leave the project folder', () => {
+    const p = proj({ tracks: { graphics: [{ id: 'g1', type: 'stat', at: 0, dur: 2, props: {} }], audio: [{ id: 'a1', src: '../x.wav', at: 0, gain: 1 }] } });
+    expect(() => buildEncodeArgs(p, '/w/projects/x', '/w/projects/x/out/x.mp4', {})).toThrow(/outside/);
+  });
+});
+
+describe('fitFilter', () => {
+  it('fills the frame and only tone-maps when asked', () => {
     expect(fitFilter(1080, 1920, false)).toBe('scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,setsar=1');
     expect(fitFilter(1080, 1920, true)).toMatch(/out_transfer=linear.*tonemap=tonemap=reinhard.*crop=1080:1920,setsar=1$/);
   });

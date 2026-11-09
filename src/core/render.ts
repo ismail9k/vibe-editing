@@ -2,6 +2,7 @@
 // Used by the preview, the Studio grid, snapshots and the export.
 import { footageAt, type Graphic, type Project } from './model';
 import { createBasePainter, applyStyle, type Ctx, type Painter, type StyleModule } from './painter';
+import type { FrameMedia } from './media';
 import { drawCaption } from './captions';
 import { clamp } from './motion';
 import type { Brand } from './brand';
@@ -28,18 +29,19 @@ export function styleParams(meta?: StyleMeta): Record<string, unknown> {
   return Object.fromEntries(Object.entries(meta?.params ?? {}).map(([k, v]) => [k, v.value]));
 }
 
-export function makePainter(ctx: Ctx, project: Project, lib: Library, t: number): { p: Painter; error?: string } {
+export function makePainter(ctx: Ctx, project: Project, lib: Library, t: number, media?: FrameMedia | null): { p: Painter; error?: string } {
   const style = lib.styles[project.style] ?? lib.styles.flat9k;
   const base = createBasePainter(ctx, {
     W: project.format.w, H: project.format.h, dir: project.dir, mode: project.mode,
-    brand: lib.brand, params: styleParams(style?.meta), t,
+    brand: lib.brand, params: styleParams(style?.meta), t, media, clip: !!footageAt(project, t),
   });
   const { painter, error } = applyStyle(base, style?.mod);
   return { p: painter, error: style?.error ?? error };
 }
 
-/** Draws the frame and returns the problems it hit (a broken component draws a red box instead of stopping the frame). */
-export function renderFrame(ctx: Ctx, project: Project, lib: Library, t: number): string[] {
+/** Draws the frame and returns the problems it hit (a broken component draws a red box instead of stopping the frame).
+ *  `media` is the footage under this time; leave it out where there's no footage system (Studio tiles get a stand-in). */
+export function renderFrame(ctx: Ctx, project: Project, lib: Library, t: number, media?: FrameMedia | null): string[] {
   const errors: string[] = [];
   const { w: W, h: H } = project.format;
   // Start every frame from a clean context, whatever the last one left behind.
@@ -48,15 +50,15 @@ export function renderFrame(ctx: Ctx, project: Project, lib: Library, t: number)
   ctx.globalAlpha = 1;
   ctx.setLineDash?.([]);
   ctx.clearRect(0, 0, W, H);
-  const { p, error } = makePainter(ctx, project, lib, t);
+  const { p, error } = makePainter(ctx, project, lib, t, media);
   if (error) errors.push(error);
 
-  if (!footageAt(project, t)) {
-    const bg = sandboxed(ctx, () => p.background(t));
-    if (bg) errors.push(`background: ${bg}`);
-  }
-
   const active = project.tracks.graphics.filter((g) => t >= g.at && t < g.at + g.dur).sort((a, b) => a.at - b.at);
+  // The footage layer (or the brand background), unless a scene component is drawing the footage itself.
+  if (!active.some((g) => lib.components[g.type]?.meta.scene)) {
+    const base = sandboxed(ctx, () => (footageAt(project, t) ? p.footage() : p.background(t)));
+    if (base) errors.push(`${footageAt(project, t) ? 'footage' : 'background'}: ${base}`);
+  }
   for (const g of active) {
     const comp = lib.components[g.type];
     const local = t - g.at;

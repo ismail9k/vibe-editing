@@ -5,6 +5,8 @@
 import { motion, clamp, type SpringKind } from './motion';
 import { themeOf, cssFamily, type Brand, type ThemeTokens } from './brand';
 import type { Dir, Mode } from './model';
+import { mediaMethods, type FrameMedia, type FootageOpts, type SubjectOpts, type SubjectBox } from './media';
+export { boxFromAlpha } from './media';
 
 export type Ctx = CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D;
 export interface Rect { x: number; y: number; w: number; h: number }
@@ -17,7 +19,13 @@ export interface TextOpts {
 }
 export interface PanelOpts { variant?: 'default' | 'feature' | 'flat'; progress?: number; seed?: number; fill?: string; stroke?: string; radius?: number }
 export interface LineOpts { color?: string; width?: number; progress?: number; seed?: number }
-export interface Env { W: number; H: number; dir: Dir; mode: Mode; brand: Brand; params: Record<string, unknown>; t: number }
+export interface Env {
+  W: number; H: number; dir: Dir; mode: Mode; brand: Brand; params: Record<string, unknown>; t: number;
+  /** The footage under this frame; undefined means there's no footage system at all (Studio tiles). */
+  media?: FrameMedia | null;
+  /** Whether the timeline has a clip at this time. */
+  clip?: boolean;
+}
 
 export interface Painter {
   ctx: Ctx; W: number; H: number; rem: number; dir: Dir; mode: Mode; t: number;
@@ -39,6 +47,12 @@ export interface Painter {
   nino(x: number, y: number, size: number, o?: { expression?: string; t?: number; look?: string; white?: boolean }): void;
   enter(t: number, kind?: SpringKind): number;
   post(): void;
+  /** The footage at this time, fitted to `rect` (default: the frame), optionally zoomed. */
+  footage(o?: FootageOpts): void;
+  /** The speaker cut out of the footage (the whole frame until the clip has a matte). */
+  subject(o?: SubjectOpts): void;
+  /** Where the speaker is, in frame pixels, with their head. */
+  subjectBox(): SubjectBox;
 }
 
 export type StyleModule = (base: Painter) => Partial<Painter>;
@@ -286,6 +300,7 @@ export function createBasePainter(ctx: Ctx, env: Env): Painter {
 
     enter(t, kind = 'default') { return motion.sp(t, kind); },
     post() {},
+    ...mediaMethods({ media: env.media, clip: !!env.clip, W: env.W, H: env.H }),
   };
   return p;
 }
