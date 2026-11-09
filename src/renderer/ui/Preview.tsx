@@ -6,6 +6,7 @@ import { useStore } from '../store';
 import { duration, footageAt, matteSrc, type Project } from '../../core/model';
 import type { FrameMedia } from '../../core/media';
 import { renderFrame } from '../../core/render';
+import { CanvasEditor } from './CanvasEditor';
 
 export function Preview() {
   const project = useStore((s) => s.project);
@@ -56,6 +57,15 @@ export function Preview() {
     };
   }, []);
 
+  // What the canvas is drawing from right now, for the editor to draw a graphic alone the same way.
+  const media = (): FrameMedia | null => {
+    const st = useStore.getState(), lib = st.lib, p = st.project, video = videoRef.current, matte = matteRef.current;
+    if (!p || !lib || !video || !matte) return null;
+    const shown = (v: HTMLVideoElement) => v.dataset.ready === '1' && v.readyState >= 2;
+    const wantsMatte = p.tracks.graphics.some((g) => lib.components[g.type]?.meta.matte || lib.components[g.type]?.meta.aims);
+    return { frame: shown(video) ? video : null, matte: wantsMatte && shown(matte) ? matte : null };
+  };
+
   const aspect = project ? `${project.format.w} / ${project.format.h}` : '9 / 16';
   return (
     <div className="preview">
@@ -63,6 +73,7 @@ export function Preview() {
         <video ref={videoRef} className="source" crossOrigin="anonymous" playsInline preload="auto" />
         <video ref={matteRef} className="source" crossOrigin="anonymous" playsInline muted preload="auto" />
         <canvas ref={canvasRef} />
+        <CanvasEditor media={media} />
       </div>
     </div>
   );

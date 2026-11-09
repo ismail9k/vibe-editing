@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { parseProject } from '../../src/core/model';
-import { renderFrame, type Library } from '../../src/core/render';
+import { renderFrame, probeGraphic, type Library } from '../../src/core/render';
 import { boxFromAlpha } from '../../src/core/painter';
 
 // A stand-in 2D context: keeps a real save/restore stack for the state we check, no-ops for drawing.
@@ -160,5 +160,31 @@ describe('boxFromAlpha', () => {
   });
   it('is null for an empty matte', () => {
     expect(boxFromAlpha(new Uint8Array(200), 10, 20, 1)).toBeNull();
+  });
+});
+
+describe('probeGraphic', () => {
+  const lib = (draw: (p: { ctx: CanvasRenderingContext2D }, a: { place: (d: { y: number; w: number }) => unknown }) => void, extra: object = {}) => ({
+    brand, styles: {}, components: { box: { id: 'box', meta: { ...meta, ...extra }, mod: { draw } } },
+  }) as unknown as Library;
+  const one = (g: object = {}) => film([{ id: 'g1', type: 'box', at: 0, dur: 5, props: {}, ...g }]);
+
+  it('returns the box the graphic placed itself in, with its own x / y / w', () => {
+    const { ctx } = fakeCtx();
+    const at = probeGraphic(ctx, one({ x: 0.25, y: 0.1, w: 0.5 }), lib((p, a) => { a.place({ y: 0.6, w: 0.8 }); }), 1, 'g1');
+    expect(at).toMatchObject({ x: 1080 * 0.25, y: 1920 * 0.1, w: 1080 * 0.5 });
+  });
+  it('draws at full opacity even while the graphic fades out', () => {
+    const { ctx } = fakeCtx();
+    let alpha = 0;
+    probeGraphic(ctx, one(), lib((p, a) => { alpha = p.ctx.globalAlpha; a.place({ y: 0.6, w: 0.8 }); }), 4.9, 'g1');
+    expect(alpha).toBe(1);
+  });
+  it('is null for a graphic that never places itself, a scene, one that throws, or one not showing', () => {
+    const { ctx } = fakeCtx();
+    expect(probeGraphic(ctx, one(), lib(() => {}), 1, 'g1')).toBeNull();
+    expect(probeGraphic(ctx, one(), lib((p, a) => { a.place({ y: 0, w: 1 }); }, { scene: true }), 1, 'g1')).toBeNull();
+    expect(probeGraphic(ctx, one(), lib((p, a) => { a.place({ y: 0, w: 1 }); throw new Error('x'); }), 1, 'g1')).toBeNull();
+    expect(probeGraphic(ctx, one(), lib((p, a) => { a.place({ y: 0, w: 1 }); }), 6, 'g1')).toBeNull();
   });
 });

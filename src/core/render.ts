@@ -96,6 +96,28 @@ export function renderFrame(ctx: Ctx, project: Project, lib: Library, t: number,
   return errors;
 }
 
+/** Draws one graphic alone on a cleared canvas at full opacity (no footage, captions or post pass) and returns
+ *  the box it placed itself in. The preview reads these pixels to tell what was clicked and to outline it.
+ *  Null when the graphic can't be moved: it isn't showing at t, it's a scene, it failed, or it never called
+ *  place() (so x / y / w would change nothing). */
+export function probeGraphic(ctx: Ctx, project: Project, lib: Library, t: number, id: string, media?: FrameMedia | null): Place | null {
+  (ctx as { reset?: () => void }).reset?.();
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.globalAlpha = 1;
+  ctx.clearRect(0, 0, project.format.w, project.format.h);
+  const g = project.tracks.graphics.find((x) => x.id === id);
+  const comp = g && lib.components[g.type];
+  if (!g || !comp?.mod || comp.meta.scene || !(t >= g.at && t < g.at + g.dur)) return null;
+  const { p } = makePainter(ctx, project, lib, t, media);
+  let placed: Place | null = null;
+  const args: DrawArgs = {
+    t: t - g.at, dur: g.dur, props: { ...(comp.meta.defaults ?? {}), ...g.props }, graphic: g,
+    place: (def) => (placed = place(p, g, def)),
+  };
+  const msg = sandboxed(ctx, () => comp.mod!.draw(p, args));
+  return msg ? null : placed;
+}
+
 /** Run user drawing code (components, styles) so nothing it does to the context outlives it: every save it
  *  made is unwound, even when it throws, and it can't restore past its own start. Returns the error message. */
 function sandboxed(ctx: Ctx, fn: () => void): string | null {

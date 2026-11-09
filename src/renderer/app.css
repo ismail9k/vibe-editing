@@ -111,6 +111,14 @@ summary { cursor: pointer; color: var(--muted); font-size: 12px; }
 .stage video, .stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
 .stage video { object-fit: cover; }
 .stage video.source { visibility: hidden; } /* the canvas draws them */
+.canvas-editor { position: absolute; inset: 0; touch-action: none; }
+.canvas-editor .outline { position: absolute; box-shadow: 0 0 0 1.5px var(--green-text); cursor: move; }
+.canvas-editor .handle { position: absolute; top: 50%; width: 10px; height: 22px; margin-top: -11px; border-radius: 3px; background: #fff; box-shadow: 0 0 0 1.5px var(--green-text); cursor: ew-resize; }
+.canvas-editor .handle.left { left: -6px; }
+.canvas-editor .handle.right { right: -6px; }
+.canvas-editor .guide { position: absolute; background: var(--orange); pointer-events: none; }
+.canvas-editor .guide.v { left: 50%; top: 0; bottom: 0; width: 1px; }
+.canvas-editor .guide.h { top: 50%; left: 0; right: 0; height: 1px; }
 .transport { display: flex; align-items: center; gap: 12px; padding: 8px 14px; border-top: 1px solid var(--line); background: var(--panel); }
 .transport .play { width: 34px; height: 30px; border-radius: 6px; border: 1px solid var(--line-2); background: var(--panel-2); cursor: pointer; }
 .transport .time { font-family: 'IBM Plex Mono', monospace; }
