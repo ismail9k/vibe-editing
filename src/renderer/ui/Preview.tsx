@@ -1,7 +1,7 @@
 // The Edit room preview: one canvas draws everything, the footage included. The footage plays in a hidden
 // <video> (and the clip's cutout matte in a second one) that the renderer draws from, the same way the export
 // draws decoded frames. One animation-frame loop owns the clock; the videos and sounds follow it.
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useStore } from '../store';
 import { duration, footageAt, matteSrc, type Project } from '../../core/model';
 import type { FrameMedia } from '../../core/media';
@@ -13,6 +13,8 @@ export function Preview() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const matteRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  // The clip under the playhead whose file can't be played (gone, renamed, or not a video the app can read).
+  const [missing, setMissing] = useState<string | null>(null);
 
   useEffect(() => {
     const video = videoRef.current!, matte = matteRef.current!, canvas = canvasRef.current!;
@@ -36,6 +38,8 @@ export function Preview() {
         else useStore.setState({ playhead: t });
       }
       syncVideo(video, p, name, t, st.playing);
+      const hit = footageAt(p, t), gone = hit && video.dataset.ready === 'missing' ? hit.clip.src : null;
+      setMissing((was) => (was === gone ? was : gone));
       // Cutout and aiming effects use a clip's matte when it has one (the export and snapshots do the same).
       const wantsMatte = p.tracks.graphics.some((g) => lib.components[g.type]?.meta.matte || lib.components[g.type]?.meta.aims);
       syncMatte(matte, video, wantsMatte ? p : null, name, t, st.playing, st.mattes?.version ?? 0);
@@ -74,6 +78,12 @@ export function Preview() {
         <video ref={matteRef} className="source" crossOrigin="anonymous" playsInline muted preload="auto" />
         <canvas ref={canvasRef} />
         <CanvasEditor media={media} />
+        {missing && (
+          <div className="missing-media" role="status">
+            <b>Missing media</b>
+            <span>{missing}</span>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -81,14 +91,18 @@ export function Preview() {
 
 const mediaUrl = (name: string, src: string) => `vibe://ws/projects/${encodeURIComponent(name)}/${src.split('/').map(encodeURIComponent).join('/')}`;
 
+/** How long a file that failed to load waits before it is tried again (it may have been copied in meanwhile). */
+const RETRY_MS = 2000;
+
 /** Point a video at a url; true when it's ready to be synced. */
 function load(video: HTMLVideoElement, url: string): boolean {
-  if (video.dataset.src !== url) {
+  const retry = video.dataset.ready === 'missing' && performance.now() - Number(video.dataset.failedAt ?? 0) > RETRY_MS;
+  if (video.dataset.src !== url || retry) {
     video.dataset.src = url;
     video.dataset.ready = '';
     video.src = url;
     video.onloadedmetadata = () => { video.dataset.ready = '1'; };
-    video.onerror = () => { video.dataset.ready = 'missing'; };
+    video.onerror = () => { video.dataset.ready = 'missing'; video.dataset.failedAt = String(performance.now()); };
     return false;
   }
   return video.dataset.ready === '1';

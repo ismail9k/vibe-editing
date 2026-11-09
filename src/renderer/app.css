@@ -112,6 +112,8 @@ summary { cursor: pointer; color: var(--muted); font-size: 12px; }
 .stage video { object-fit: cover; }
 .stage video.source { visibility: hidden; } /* the canvas draws them */
 .canvas-editor { position: absolute; inset: 0; touch-action: none; }
+.missing-media { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); max-width: 80%; display: grid; gap: 4px; text-align: center; padding: 10px 14px; border-radius: 8px; background: rgba(0, 0, 0, 0.72); border: 1px solid #5a2323; color: var(--bad); font-size: 12px; pointer-events: none; }
+.missing-media span { color: #bbb; overflow-wrap: anywhere; }
 .canvas-editor .outline { position: absolute; box-shadow: 0 0 0 1.5px var(--green-text); cursor: move; }
 .canvas-editor .handle { position: absolute; top: 50%; width: 10px; height: 22px; margin-top: -11px; border-radius: 3px; background: #fff; box-shadow: 0 0 0 1.5px var(--green-text); cursor: ew-resize; }
 .canvas-editor .handle.left { left: -6px; }
