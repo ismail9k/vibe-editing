@@ -44,6 +44,7 @@ describe('preset components', () => {
 describe('wall headlines', () => {
   // A stub painter that records where each row of text lands, as a span on screen.
   const rows = async (dir: 'ltr' | 'rtl') => {
+    // @ts-expect-error -- preset components are plain JS modules, with no types
     const { default: wall } = await import('../../presets/library/components/wall/component.js');
     const W = 1080, H = 1920, rem = 24, spans: [number, number][] = [];
     const ctx = new Proxy({}, { get: () => () => {}, set: () => true });
