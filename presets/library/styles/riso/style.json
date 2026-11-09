@@ -1,0 +1,9 @@
+{
+  "name": "Riso",
+  "preset": true,
+  "description": "A two-ink risograph print: everything printed in grainy ink on paper, the green ink landing a little off the black, headlines doubled where the drums didn't line up.",
+  "params": {
+    "slip": { "type": "number", "label": "Misregistration", "value": 0.5, "min": 0, "max": 1, "step": 0.05 },
+    "grain": { "type": "number", "label": "Ink grain", "value": 0.5, "min": 0, "max": 1, "step": 0.05 }
+  }
+}

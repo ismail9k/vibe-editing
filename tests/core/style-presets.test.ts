@@ -3,7 +3,7 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 
-const STYLES = ['synthwave', 'woodblock', 'noir', 'sumi', 'glass', 'collage', 'film'];
+const STYLES = ['synthwave', 'woodblock', 'noir', 'sumi', 'glass', 'collage', 'film', 'comic', 'riso', 'papercut', 'bricks'];
 const styleMeta = (id: string) => JSON.parse(readFileSync(`presets/library/styles/${id}/style.json`, 'utf8'));
 const loadStyle = async (id: string) => (await import(`../../presets/library/styles/${id}/style.js`)).default;
 const loadComponent = async (id: string) => await import(`../../presets/library/components/${id}/component.js`);
@@ -97,6 +97,16 @@ describe('the reel styles', () => {
     (await loadStyle('glass'))(base).panel!.call(base, { x: 100, y: 100, w: 400, h: 200 }, {});
     expect(log).toContain('drawImage');
     expect(String((base.ctx as Record<string, unknown>).filter)).toMatch(/blur\(/);
+  });
+});
+
+describe('riso', () => {
+  it('prints each card on a layer only as big as the card, not the whole frame', async () => {
+    const made: [number, number][] = [], base = basePainter('dark', 'ltr', { slip: 0.5, grain: 0.5 }, [], []);
+    base.canvas = (w: number, h: number) => { made.push([w, h]); return fakeCanvas(w, h, []); };
+    (await loadStyle('riso'))(base).panel!.call(base, { x: 100, y: 300, w: 400, h: 200 }, {});
+    expect(made).toContainEqual([400 + 2 * Math.ceil(32 * 1.6), 200 + 2 * Math.ceil(32 * 1.6)]);
+    expect(made).not.toContainEqual([1080, 1920]);
   });
 });
 

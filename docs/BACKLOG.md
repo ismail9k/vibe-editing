@@ -9,7 +9,7 @@ Ideas and known gaps, roughly in the order they'd pay off.
 - **Vertigo on the real background**: v1 swaps in a drawn tunnel. A true dolly zoom of your own room needs the background filled in behind you (inpainting).
 
 ## Looks from the reference reel (instagram.com/reel/DfgtLums66K) not built yet
-- **Graphics styles to match the looks**: neon, comic, riso, paper and bricks restyle only the footage; panels and text keep the project's style. Chalkboard, pixel and terminal already exist as styles.
+- **A neon style**: neon is the one look from this reel without a graphics style to match (comic, riso, paper cut and bricks have one). The brand's rules say no neon, so it waits for a reason.
 - **Live preview cost**: every frame of a look is sampled and redrawn on the CPU; terminal (≈4,000 characters) and bricks are the heaviest. Not measured in the Edit room yet; if it stutters, cache the look per video frame or move it to WebGL.
 
 ## Looks from the second reel (instagram.com/reel/DffdKwWES9B) not built yet

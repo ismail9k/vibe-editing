@@ -1,0 +1,9 @@
+{
+  "name": "Bricks",
+  "preset": true,
+  "description": "Built from toy bricks: cards are plates with a row of studs along the top and a bevelled edge, pills are single bricks, the background is a baseplate of studs.",
+  "params": {
+    "studs": { "type": "number", "label": "Stud size (rem)", "value": 1, "min": 0.6, "max": 2, "step": 0.1 },
+    "plate": { "type": "bool", "label": "Baseplate background", "value": true }
+  }
+}
