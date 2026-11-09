@@ -1,19 +1,25 @@
-// The Edit room preview: footage in a <video>, graphics and captions on a canvas above it.
-// One animation-frame loop owns the clock; the video and sounds follow it.
+// The Edit room preview: one canvas draws everything, the footage included. The footage plays in a hidden
+// <video> (and the clip's cutout matte in a second one) that the renderer draws from, the same way the export
+// draws decoded frames. One animation-frame loop owns the clock; the videos and sounds follow it.
 import { useEffect, useRef } from 'react';
 import { useStore } from '../store';
-import { duration, footageAt, type Project } from '../../core/model';
+import { duration, footageAt, matteSrc, type Project } from '../../core/model';
+import type { FrameMedia } from '../../core/media';
 import { renderFrame } from '../../core/render';
 
 export function Preview() {
   const project = useStore((s) => s.project);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const matteRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
-    const video = videoRef.current!, canvas = canvasRef.current!;
+    const video = videoRef.current!, matte = matteRef.current!, canvas = canvasRef.current!;
     const sounds = new Map<string, HTMLAudioElement>();
-    let raf = 0, last = performance.now(), drawn = '';
+    let raf = 0, last = performance.now(), drawn = '', dirty = false;
+    // A paused seek lands after the frame was drawn: draw again when the picture arrives.
+    const redraw = () => { dirty = true; };
+    for (const v of [video, matte]) { v.addEventListener('seeked', redraw); v.addEventListener('loadeddata', redraw); }
     let lastP: Project | null = null, lastLib: unknown = null;
 
     const loop = (now: number) => {
@@ -29,47 +35,80 @@ export function Preview() {
         else useStore.setState({ playhead: t });
       }
       syncVideo(video, p, name, t, st.playing);
+      const wantsMatte = p.tracks.graphics.some((g) => lib.components[g.type]?.meta.matte);
+      syncMatte(matte, video, wantsMatte ? p : null, name, t, st.playing, st.mattes?.version ?? 0);
       syncSounds(sounds, p, name, t, st.playing);
-      // Redraw while playing, or when the time, project or library changed.
+      // Redraw while playing, or when the time, project, library or a video picture changed.
       const key = `${t.toFixed(4)}`;
-      if (st.playing || key !== drawn || p !== lastP || lib !== lastLib) {
+      if (st.playing || dirty || key !== drawn || p !== lastP || lib !== lastLib) {
         if (canvas.width !== p.format.w || canvas.height !== p.format.h) { canvas.width = p.format.w; canvas.height = p.format.h; }
-        renderFrame(canvas.getContext('2d')!, p, lib, t);
-        drawn = key; lastP = p; lastLib = lib;
+        const shown = (v: HTMLVideoElement) => v.dataset.ready === '1' && v.readyState >= 2;
+        const media: FrameMedia = { frame: shown(video) ? video : null, matte: wantsMatte && shown(matte) ? matte : null };
+        renderFrame(canvas.getContext('2d')!, p, lib, t, media);
+        drawn = key; lastP = p; lastLib = lib; dirty = false;
       }
     };
     raf = requestAnimationFrame(loop);
-    return () => { cancelAnimationFrame(raf); video.pause(); sounds.forEach((a) => a.pause()); };
+    return () => {
+      cancelAnimationFrame(raf); video.pause(); matte.pause(); sounds.forEach((a) => a.pause());
+      for (const v of [video, matte]) { v.removeEventListener('seeked', redraw); v.removeEventListener('loadeddata', redraw); }
+    };
   }, []);
 
   const aspect = project ? `${project.format.w} / ${project.format.h}` : '9 / 16';
   return (
     <div className="preview">
       <div className="stage" style={{ aspectRatio: aspect }}>
-        <video ref={videoRef} playsInline preload="auto" />
+        <video ref={videoRef} className="source" crossOrigin="anonymous" playsInline preload="auto" />
+        <video ref={matteRef} className="source" crossOrigin="anonymous" playsInline muted preload="auto" />
         <canvas ref={canvasRef} />
       </div>
     </div>
   );
 }
 
-function syncVideo(video: HTMLVideoElement, p: Project, name: string, t: number, playing: boolean) {
-  const hit = footageAt(p, t);
-  if (!hit) {
-    video.style.visibility = 'hidden';
-    if (!video.paused) video.pause();
-    return;
-  }
-  video.style.visibility = 'visible';
-  const url = `vibe://ws/projects/${encodeURIComponent(name)}/${hit.clip.src.split('/').map(encodeURIComponent).join('/')}`;
+const mediaUrl = (name: string, src: string) => `vibe://ws/projects/${encodeURIComponent(name)}/${src.split('/').map(encodeURIComponent).join('/')}`;
+
+/** Point a video at a url; true when it's ready to be synced. */
+function load(video: HTMLVideoElement, url: string): boolean {
   if (video.dataset.src !== url) {
     video.dataset.src = url;
     video.dataset.ready = '';
     video.src = url;
     video.onloadedmetadata = () => { video.dataset.ready = '1'; };
+    video.onerror = () => { video.dataset.ready = 'missing'; };
+    return false;
+  }
+  return video.dataset.ready === '1';
+}
+
+/** The cutout matte follows the footage video: the same source time, and while playing its rate is nudged
+ *  (not seeked) so the cutout doesn't lag the picture. */
+function syncMatte(matte: HTMLVideoElement, video: HTMLVideoElement, p: Project | null, name: string, t: number, playing: boolean, version: number) {
+  const hit = p && footageAt(p, t);
+  if (!hit) { if (!matte.paused) matte.pause(); return; }
+  if (!load(matte, `${mediaUrl(name, matteSrc(hit.clip.src))}?v=${version}`) || matte.seeking) return;
+  const target = video.dataset.ready === '1' && !video.seeking ? video.currentTime : hit.srcTime;
+  const drift = target - matte.currentTime;
+  if (playing) {
+    if (matte.paused) matte.play().catch(() => {});
+    if (Math.abs(drift) > 0.25) matte.currentTime = target;
+    else matte.playbackRate = 1 + Math.max(-0.2, Math.min(0.2, drift * 2));
+  } else {
+    if (!matte.paused) matte.pause();
+    matte.playbackRate = 1;
+    if (Math.abs(drift) > 0.01) matte.currentTime = target;
+  }
+}
+
+function syncVideo(video: HTMLVideoElement, p: Project, name: string, t: number, playing: boolean) {
+  const hit = footageAt(p, t);
+  if (!hit) {
+    if (!video.paused) video.pause();
     return;
   }
-  if (!video.dataset.ready || video.seeking) return;
+  if (!load(video, mediaUrl(name, hit.clip.src))) return;
+  if (video.seeking) return;
   const drift = Math.abs(video.currentTime - hit.srcTime);
   if (playing) {
     if (video.paused) video.play().catch(() => {});
@@ -85,7 +124,7 @@ function syncSounds(sounds: Map<string, HTMLAudioElement>, p: Project, name: str
   for (const [id, el] of sounds) if (!ids.has(id)) { el.pause(); sounds.delete(id); }
   for (const a of p.tracks.audio) {
     let el = sounds.get(a.id);
-    const url = `vibe://ws/projects/${encodeURIComponent(name)}/${a.src.split('/').map(encodeURIComponent).join('/')}`;
+    const url = mediaUrl(name, a.src);
     if (!el || el.dataset.src !== url) { el?.pause(); el = new Audio(url); el.dataset.src = url; el.preload = 'auto'; sounds.set(a.id, el); }
     el.volume = Math.max(0, Math.min(1, a.gain));
     const local = t - a.at, len = Number.isFinite(el.duration) ? el.duration : 0;

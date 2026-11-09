@@ -51,12 +51,16 @@ export function componentMetas(root: string, types: string[]): Record<string, { 
   return out;
 }
 
-/** The compiled helper in <workspace>/.vibe/bin, rebuilt when its source changes. */
-async function helper(root: string, appDir: string): Promise<string> {
+/** Where the helper is built and what it's built from. binDir must be the app's own folder (userData), never the
+ *  workspace: the workspace holds files other tools write, and a binary planted there would be run. */
+export interface MatteTools { appDir: string; binDir: string }
+
+/** The compiled helper in binDir, rebuilt when its source changes. */
+async function helper({ appDir, binDir }: MatteTools): Promise<string> {
   if (process.platform !== 'darwin') throw new Error('cutouts need macOS (they use Apple Vision)');
   const source = join(appDir, 'native', 'vibe-matte.swift');
   const hash = createHash('sha1').update(readFileSync(source)).digest('hex').slice(0, 8);
-  const bin = join(root, '.vibe', 'bin', `vibe-matte-${hash}`);
+  const bin = join(binDir, `vibe-matte-${hash}`);
   if (existsSync(bin)) return bin;
   mkdirSync(dirname(bin), { recursive: true });
   const tmp = `${bin}.${process.pid}.tmp`;
@@ -118,10 +122,10 @@ async function makeMatte(bin: string, projectDir: string, src: string, onProgres
 const jobs = new Map<string, Promise<void>>();
 
 /** Makes the missing mattes for a project, one file at a time. */
-export async function ensureMattes(root: string, appDir: string, project: Project, projectDir: string, onProgress: (p: MatteProgress) => void = () => {}) {
+export async function ensureMattes(tools: MatteTools, project: Project, projectDir: string, onProgress: (p: MatteProgress) => void = () => {}) {
   const todo = missingMattes(project, (rel) => existsSync(resolveInside(projectDir, rel)));
   if (!todo.length) return;
-  const bin = await helper(root, appDir);
+  const bin = await helper(tools);
   for (const src of todo) {
     const key = resolveInside(projectDir, matteSrc(src));
     if (!jobs.has(key)) jobs.set(key, makeMatte(bin, projectDir, src, onProgress).finally(() => jobs.delete(key)));

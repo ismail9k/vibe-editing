@@ -1,3 +1,4 @@
+import { app } from 'electron';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -7,3 +8,5 @@ export const rendererUrl = (hash = '') =>
   process.env.ELECTRON_RENDERER_URL ? `${process.env.ELECTRON_RENDERER_URL}${hash}` : `file://${join(here, '../renderer/index.html')}${hash}`;
 /** The app's root: package.json, presets/ and native/ live here (the repo in dev). */
 export const appDir = join(here, '../..');
+/** Where the cutout helper is built: the app's own data folder, not the workspace. */
+export const matteTools = () => ({ appDir, binDir: join(app.getPath('userData'), 'bin') });

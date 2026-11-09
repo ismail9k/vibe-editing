@@ -3,7 +3,7 @@ import { relative, resolve } from 'node:path';
 import { checkProject, parseCliArgs, USAGE } from './check';
 import { loadProject, runExport, runSnapshot } from './export';
 import { ensureMattes } from './matte';
-import { appDir } from './paths';
+import { matteTools } from './paths';
 import { listProjects } from './workspace';
 
 const out = (s: string) => process.stdout.write(s + '\n');
@@ -46,7 +46,7 @@ export async function runCli(root: string, argv: string[], cwd = process.cwd()):
       case 'matte': {
         const { project, dir } = loadProject(root, args.project!);
         const last: Record<string, number> = {};
-        await ensureMattes(root, appDir, project, dir, (p) => {
+        await ensureMattes(matteTools(), project, dir, (p) => {
           const pct = Math.floor((p.done / p.total) * 100), was = last[p.src] ?? -10;
           if (pct >= was + 10) { last[p.src] = pct - (pct % 10); err(`${p.src} ${pct}%`); }
         });

@@ -8,7 +8,7 @@ import { duration, footageAt, matteSrc, parseProject, type Project } from '../co
 import { buildDecodeArgs, buildEncodeArgs, buildStillArgs, clipOverruns } from './ffmpeg';
 import { FrameReader } from './frames';
 import { componentMetas, ensureMattes, usesMatte } from './matte';
-import { appDir } from './paths';
+import { matteTools } from './paths';
 import { runHeadless, type MediaSource } from './headless';
 import { probe, resolveInside } from './workspace';
 import type { ExportProgress } from '../shared/api';
@@ -75,7 +75,7 @@ export async function runExport(root: string, name: string, onProgress: (p: Expo
   const { w: W, h: H, fps } = project.format;
   if (usesMatte(project, componentMetas(root, project.tracks.graphics.map((g) => g.type)))) {
     try {
-      await ensureMattes(root, appDir, project, dir, (m) => onProgress({ stage: 'mattes', done: m.done, total: m.total, message: m.src }));
+      await ensureMattes(matteTools(), project, dir, (m) => onProgress({ stage: 'mattes', done: m.done, total: m.total, message: m.src }));
     } catch (e) { throw new Error(`can't export: this film cuts you out of the footage, and ${(e as Error).message}`); }
   }
 
@@ -163,7 +163,7 @@ export function registerExport(root: string) {
   ipcMain.handle('matte:ensure', async (e, name: string) => {
     try {
       const { project, dir } = loadProject(root, name);
-      await ensureMattes(root, appDir, project, dir, (m) => { if (!e.sender.isDestroyed()) e.sender.send('matte:progress', { project: name, ...m }); });
+      await ensureMattes(matteTools(), project, dir, (m) => { if (!e.sender.isDestroyed()) e.sender.send('matte:progress', { project: name, ...m }); });
       return {};
     } catch (err) { return { error: (err as Error).message }; }
   });
