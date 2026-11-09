@@ -133,7 +133,7 @@ export async function runExport(root: string, name: string, onProgress: (p: Expo
     if (code !== 0) throw new Error(`ffmpeg failed: ${enc.lastError()}`);
     renameSync(partial, out);
     ok = true;
-    onProgress({ stage: 'done', done: total, total, out });
+    onProgress({ stage: 'done', done: total, total, out, errors: result.errors });
     return { out, errors: result.errors, mattes: !!mattes };
   } finally {
     await Promise.all([dec?.stop(), mdec?.stop()]);

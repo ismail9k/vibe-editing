@@ -42,10 +42,23 @@ export function TopBar() {
       )}
       {mattes?.state === 'error' && <span className="chip bad" title={mattes.message}>No cutouts: {mattes.message}</span>}
       {exporting && (
-        <span className="chip export-chip" title={exporting.message}>
-          {exporting.stage === 'done' ? `Exported · ${exporting.out?.split('/').slice(-2).join('/')}` : exporting.stage === 'error' ? `Export failed: ${exporting.message}` : `Exporting ${Math.round((100 * exporting.done) / Math.max(1, exporting.total))}%`}
-        </span>
+        <ExportChip exporting={exporting} />
       )}
     </header>
+  );
+}
+
+/** Export progress, and how it ended. Frames that drew with errors (a broken component's red box) still export,
+ *  so the chip says so instead of a plain "Exported". */
+function ExportChip({ exporting: x }: { exporting: NonNullable<ReturnType<typeof useStore.getState>['exporting']> }) {
+  const file = x.out?.split('/').slice(-2).join('/');
+  if (x.stage === 'error') return <span className="chip bad" title={x.message}>Export failed: {x.message}</span>;
+  if (x.stage !== 'done') return <span className="chip export-chip">Exporting {Math.round((100 * x.done) / Math.max(1, x.total))}%</span>;
+  const errors = x.errors ?? [];
+  if (!errors.length) return <span className="chip export-chip" title={x.out}>Exported · {file}</span>;
+  return (
+    <span className="chip bad" title={errors.join('\n')}>
+      Exported with {errors.length} render error{errors.length > 1 ? 's' : ''} · {file}
+    </span>
   );
 }

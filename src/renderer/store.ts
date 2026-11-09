@@ -30,7 +30,7 @@ interface State {
   history: Project[];
   future: Project[];
   studio: { style: string; mode: Mode; dir: Dir; focus: StudioFocus | null; sample: Record<string, Record<string, unknown>> };
-  exporting: { done: number; total: number; stage: string; message?: string; out?: string } | null;
+  exporting: { done: number; total: number; stage: string; message?: string; out?: string; errors?: string[] } | null;
   /** Cutout mattes for the open project, when it uses a cutout or aiming effect. `version` bumps when new ones land. */
   mattes: { state: 'working' | 'ready' | 'error'; src?: string; done?: number; total?: number; message?: string; version: number } | null;
 

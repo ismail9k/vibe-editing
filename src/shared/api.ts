@@ -3,7 +3,8 @@ export interface WorkspaceInfo { root: string; projects: string[]; styles: strin
 export interface ImportedMedia { src: string; duration: number; kind: 'video' | 'audio' }
 export interface WsChange { kind: 'project' | 'style' | 'component' | 'brand'; id: string; rel: string }
 export type WriteResult = { ok: true } | { ok: false; current: string | null };
-export interface ExportProgress { stage: 'mattes' | 'frames' | 'encoding' | 'done' | 'error'; done: number; total: number; message?: string; out?: string }
+/** At 'done', `errors` lists what went wrong drawing frames (a broken component draws a red box); the file still exists. */
+export interface ExportProgress { stage: 'mattes' | 'frames' | 'encoding' | 'done' | 'error'; done: number; total: number; message?: string; out?: string; errors?: string[] }
 
 export interface MatteProgressEvent { project: string; src: string; done: number; total: number }
 
