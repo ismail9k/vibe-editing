@@ -1,12 +1,12 @@
 // The vibe CLI, run inside Electron (`electron . --cli …`) so snapshots and renders use the app's renderer.
-import { relative, resolve } from 'node:path';
+import { join, relative, resolve } from 'node:path';
 import { checkProject, parseCliArgs, USAGE } from './check';
 import { loadProject, runExport, runSnapshot } from './export';
 import { ensureMattes } from './matte';
-import { matteTools, userDataDir } from './paths';
+import { appDir, matteTools, userDataDir } from './paths';
 import { transcribeProject } from './transcribe';
 import { transcriptLines } from '../core/transcript';
-import { listProjects } from './workspace';
+import { listProjects, presetStatus, takePresets } from './workspace';
 
 const out = (s: string) => process.stdout.write(s + '\n');
 const err = (s: string) => process.stderr.write(s + '\n');
@@ -20,6 +20,21 @@ export async function runCli(root: string, argv: string[], cwd = process.cwd()):
       case 'list':
         listProjects(root).forEach((p) => out(p));
         return 0;
+      case 'presets': {
+        const presets = join(appDir, 'presets');
+        if (args.take) {
+          const { backupDir } = takePresets(root, presets, args.take);
+          args.take.forEach((f) => out(`took the app's ${f}`));
+          if (backupDir) err(`your copies: ${show(backupDir)}`);
+          return 0;
+        }
+        const diff = presetStatus(root, presets);
+        for (const d of diff) out(`${d.state === 'changed' ? 'changed' : 'differs'}  ${d.rel}`);
+        err(diff.length
+          ? '"changed": you edited it since the app put it there. "differs": an older copy or an edit (this workspace predates tracking).\nvibe presets --take <file> replaces one with the app\'s version.'
+          : 'every library file matches the app\'s version');
+        return 0;
+      }
       case 'check': {
         const issues = checkProject(root, args.project!);
         for (const i of issues) out(`${i.level === 'error' ? 'error' : 'warn '}  ${i.path}  ${i.message}`);

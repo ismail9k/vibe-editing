@@ -1,6 +1,7 @@
 // The workspace on disk (~/Vibe by default): library, projects, media.
 import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, statSync, writeFileSync, copyFileSync } from 'node:fs';
 import { execFile } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { homedir } from 'node:os';
 import { basename, dirname, extname, isAbsolute, join, relative, resolve } from 'node:path';
 
@@ -15,17 +16,94 @@ export function resolveInside(root: string, rel: string): string {
   return abs;
 }
 
-/** Copy every preset file that isn't in the workspace yet. Never overwrites. */
-export function seedWorkspace(root: string, presetsDir: string) {
-  mkdirSync(root, { recursive: true });
+// Which preset files the workspace got from the app, and as what: `.vibe/presets.json` maps each one to the hash of
+// the text it was given. A file still holding that text is untouched and can follow the app's updates; one that
+// doesn't was changed by you (or Claude) and is never overwritten.
+const MANIFEST = '.vibe/presets.json';
+const hashOf = (text: Buffer | string) => createHash('sha1').update(text).digest('hex');
+
+function readManifest(root: string): Record<string, string> {
+  try { return JSON.parse(readFileSync(join(root, MANIFEST), 'utf8')); } catch { return {}; }
+}
+function writeManifest(root: string, m: Record<string, string>) {
+  mkdirSync(join(root, '.vibe'), { recursive: true });
+  writeFileSync(join(root, MANIFEST), JSON.stringify(m, null, 2) + '\n');
+}
+
+/** Every file under presets/, workspace-relative, with forward slashes. */
+function presetFiles(presetsDir: string): string[] {
+  const out: string[] = [];
   const walk = (rel: string) => {
     for (const name of readdirSync(join(presetsDir, rel))) {
-      const r = rel ? `${rel}/${name}` : name, src = join(presetsDir, r), dst = join(root, r);
-      if (statSync(src).isDirectory()) { mkdirSync(dst, { recursive: true }); walk(r); }
-      else if (!existsSync(dst)) copyFileSync(src, dst);
+      const r = rel ? `${rel}/${name}` : name;
+      if (statSync(join(presetsDir, r)).isDirectory()) walk(r); else out.push(r);
     }
   };
   walk('');
+  return out.sort();
+}
+
+/** Films are yours from the moment they're seeded: the app never updates anything under projects/. */
+const updatable = (rel: string) => !rel.startsWith('projects/');
+
+export interface PresetSync { added: string[]; updated: string[]; kept: string[] }
+
+/** Bring the workspace up to the app's presets: copy in what's missing, update what nobody has touched since the
+ *  app put it there, and keep everything else as it is (`kept` lists the files you changed that the app has a
+ *  newer version of). A workspace seeded before this was tracked only records the files that match the app's. */
+export function seedWorkspace(root: string, presetsDir: string): PresetSync {
+  mkdirSync(root, { recursive: true });
+  const manifest = readManifest(root), result: PresetSync = { added: [], updated: [], kept: [] };
+  for (const rel of presetFiles(presetsDir)) {
+    const src = join(presetsDir, rel), dst = join(root, rel), want = readFileSync(src), wantHash = hashOf(want);
+    if (!existsSync(dst)) {
+      mkdirSync(dirname(dst), { recursive: true });
+      copyFileSync(src, dst);
+      manifest[rel] = wantHash; result.added.push(rel);
+      continue;
+    }
+    const have = hashOf(readFileSync(dst));
+    if (have === wantHash) { manifest[rel] = wantHash; continue; }
+    if (manifest[rel] === have && updatable(rel)) {
+      writeText(root, rel, want);
+      manifest[rel] = wantHash; result.updated.push(rel);
+    } else if (manifest[rel] && updatable(rel)) result.kept.push(rel);
+  }
+  writeManifest(root, manifest);
+  return result;
+}
+
+/** Library and guide files that differ from the app's version: `changed` since the app put them there, or
+ *  `differs` when the workspace predates tracking (an older copy, or an edit; there's no telling which). */
+export function presetStatus(root: string, presetsDir: string): { rel: string; state: 'changed' | 'differs' }[] {
+  const manifest = readManifest(root);
+  return presetFiles(presetsDir).filter(updatable).flatMap((rel) => {
+    const dst = join(root, rel);
+    if (!existsSync(dst) || hashOf(readFileSync(dst)) === hashOf(readFileSync(join(presetsDir, rel)))) return [];
+    return [{ rel, state: manifest[rel] ? 'changed' as const : 'differs' as const }];
+  });
+}
+
+/** Replace workspace files with the app's version. The replaced copies go to .vibe/replaced/<time>/ first. */
+export function takePresets(root: string, presetsDir: string, rels: string[]): { backupDir: string | null } {
+  const known = new Set(presetFiles(presetsDir));
+  for (const rel of rels) if (!known.has(rel)) throw new Error(`${rel} is not a preset file`);
+  const manifest = readManifest(root), stamp = new Date().toISOString().replace(/[:.]/g, '-');
+  const backupDir = resolveInside(root, `.vibe/replaced/${stamp}`);
+  let backedUp = false;
+  for (const rel of rels) {
+    const dst = resolveInside(root, rel), want = readFileSync(join(presetsDir, rel));
+    if (existsSync(dst)) {
+      const keep = join(backupDir, rel);
+      mkdirSync(dirname(keep), { recursive: true });
+      copyFileSync(dst, keep);
+      backedUp = true;
+    }
+    writeText(root, rel, want);
+    manifest[rel] = hashOf(want);
+  }
+  writeManifest(root, manifest);
+  return { backupDir: backedUp ? backupDir : null };
 }
 
 const dirs = (p: string) => (existsSync(p) ? readdirSync(p).filter((n) => !n.startsWith('.') && statSync(join(p, n)).isDirectory()).sort() : []);
@@ -39,7 +117,7 @@ export function readText(root: string, rel: string): string | null {
 }
 
 /** Write through a temp file and rename, so a reader never sees half a file. */
-export function writeText(root: string, rel: string, text: string): string {
+export function writeText(root: string, rel: string, text: string | Uint8Array): string {
   const abs = resolveInside(root, rel);
   mkdirSync(dirname(abs), { recursive: true });
   const tmp = `${abs}.${process.pid}.tmp`;

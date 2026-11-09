@@ -26,6 +26,13 @@ describe('parseCliArgs', () => {
   it('documents vibe matte', () => {
     expect(USAGE).toContain('vibe matte <project>');
   });
+  it('reads vibe presets and the files to take', () => {
+    expect(parseCliArgs(['presets'])).toEqual({ command: 'presets' });
+    expect(parseCliArgs(['presets', '--take', 'CLAUDE.md', 'library/brand.json'])).toEqual({ command: 'presets', take: ['CLAUDE.md', 'library/brand.json'] });
+    expect(() => parseCliArgs(['presets', '--take'])).toThrow(/--take/);
+    expect(() => parseCliArgs(['presets', 'demo'])).toThrow(/--take/);
+    expect(USAGE).toContain('vibe presets --take');
+  });
 });
 
 describe('checkProject', () => {

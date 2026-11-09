@@ -6,7 +6,7 @@ import { coercedIssues, validateProject, type ComponentMeta, type Issue } from '
 import { listLibrary, resolveInside } from './workspace';
 import { matteReady, missingMattes } from './matte';
 
-export interface CliArgs { command: string; project?: string; at?: number[]; out?: string; lang?: string; model?: string; force?: boolean }
+export interface CliArgs { command: string; project?: string; at?: number[]; out?: string; lang?: string; model?: string; force?: boolean; take?: string[] }
 
 export const USAGE = `vibe — Vibe Editing from the terminal
 
@@ -18,12 +18,20 @@ export const USAGE = `vibe — Vibe Editing from the terminal
   vibe matte <project>                cut the speaker out of every clip (macOS; media/.matte/)
   vibe transcribe <project>           word timings of the speech, on the timeline (projects/<p>/transcript.json)
       [--lang ar|en|auto] [--model <name|path.bin>] [--force]
+  vibe presets                        list library files that differ from the app's version
+  vibe presets --take <file>…         replace them with the app's version (old copies kept in .vibe/replaced/)
 
 Workspace: $VIBE_HOME or ~/Vibe`;
 
 export function parseCliArgs(argv: string[]): CliArgs {
   const [command = 'help', ...rest] = argv;
   const args: CliArgs = { command };
+  if (command === 'presets') {
+    if (!rest.length) return args;
+    if (rest[0] !== '--take' || rest.length < 2) throw new Error('vibe presets takes --take <file> [<file>…]');
+    args.take = rest.slice(1);
+    return args;
+  }
   for (let i = 0; i < rest.length; i++) {
     const a = rest[i];
     if (a === '--at') {

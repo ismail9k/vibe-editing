@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { isAbsolute, join } from 'node:path';
-import { resolveInside, workspaceRoot, seedWorkspace, listLibrary, listProjects, uniqueName, importable, writeChecked } from '../../src/main/workspace';
+import { resolveInside, workspaceRoot, seedWorkspace, presetStatus, takePresets, listLibrary, listProjects, uniqueName, importable, writeChecked } from '../../src/main/workspace';
 
 let root: string, presets: string;
 beforeEach(() => {
@@ -96,5 +96,67 @@ describe('workspaceRoot', () => {
     } finally {
       if (was === undefined) delete process.env.VIBE_HOME; else process.env.VIBE_HOME = was;
     }
+  });
+});
+
+describe('preset updates', () => {
+  const STYLE = 'library/styles/flat9k/style.json';
+  const ship = (rel: string, text: string) => writeFileSync(join(presets, rel), text); // a newer app version
+  const ws = (rel: string) => readFileSync(join(root, rel), 'utf8');
+
+  it('brings a preset nobody touched up to the app\'s version', () => {
+    seedWorkspace(root, presets);
+    ship(STYLE, '{"preset":2}');
+    expect(seedWorkspace(root, presets).updated).toEqual([STYLE]);
+    expect(ws(STYLE)).toBe('{"preset":2}');
+    ship(STYLE, '{"preset":3}');
+    seedWorkspace(root, presets);
+    expect(ws(STYLE)).toBe('{"preset":3}');
+  });
+
+  it('keeps a preset you changed, and says so', () => {
+    seedWorkspace(root, presets);
+    writeFileSync(join(root, STYLE), '{"mine":true}');
+    ship(STYLE, '{"preset":2}');
+    const r = seedWorkspace(root, presets);
+    expect(r.updated).toEqual([]);
+    expect(r.kept).toEqual([STYLE]);
+    expect(ws(STYLE)).toBe('{"mine":true}');
+  });
+
+  it('never updates a film', () => {
+    seedWorkspace(root, presets);
+    ship('projects/demo/vibe.json', '{"v":2}');
+    seedWorkspace(root, presets);
+    expect(ws('projects/demo/vibe.json')).toBe('{}');
+  });
+
+  it('lists what differs in a workspace seeded before updates were tracked', () => {
+    mkdirSync(join(root, 'library/styles/flat9k'), { recursive: true });
+    writeFileSync(join(root, STYLE), '{"old":true}');       // an older copy, or an edit: can't tell
+    mkdirSync(join(root, 'library/components/stat'), { recursive: true });
+    writeFileSync(join(root, 'library/components/stat/component.json'), '{}'); // the same as the app's
+    seedWorkspace(root, presets);
+    expect(ws(STYLE)).toBe('{"old":true}');
+    expect(presetStatus(root, presets)).toEqual([{ rel: STYLE, state: 'differs' }]);
+  });
+
+  it('takes the app\'s version on request, keeping the old one aside', () => {
+    mkdirSync(join(root, 'library/styles/flat9k'), { recursive: true });
+    writeFileSync(join(root, STYLE), '{"old":true}');
+    seedWorkspace(root, presets);
+    const r = takePresets(root, presets, [STYLE]);
+    expect(ws(STYLE)).toBe('{"preset":true}');
+    expect(readFileSync(join(r.backupDir!, STYLE), 'utf8')).toBe('{"old":true}');
+    expect(presetStatus(root, presets)).toEqual([]);
+    // From now on it follows the app's updates.
+    ship(STYLE, '{"preset":2}');
+    seedWorkspace(root, presets);
+    expect(ws(STYLE)).toBe('{"preset":2}');
+  });
+
+  it('refuses to take a file that is not a preset', () => {
+    seedWorkspace(root, presets);
+    expect(() => takePresets(root, presets, ['library/styles/nope/style.json'])).toThrow(/not a preset/);
   });
 });
