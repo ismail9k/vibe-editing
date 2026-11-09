@@ -1,0 +1,19 @@
+{
+  "name": "Bar race",
+  "description": "Bars race as their values grow over the periods: they count up, swap places as one overtakes another, and the period ticks over in the corner. One bar carries the accent.",
+  "duration": 6,
+  "defaults": {
+    "title": "What keeps people watching",
+    "periods": ["Week 1", "Week 2", "Week 3", "Week 4"],
+    "bars": ["Hooks: 20, 45, 70, 96", "Captions: 35, 50, 62, 70", "Zooms: 10, 30, 64, 82", "Music: 30, 38, 44, 50", "B-roll: 15, 28, 40, 58"],
+    "unit": "%",
+    "highlight": "Hooks"
+  },
+  "schema": {
+    "title": { "type": "text", "label": "Title" },
+    "periods": { "type": "list", "label": "Periods (one per value)" },
+    "bars": { "type": "list", "label": "Bars, as \"Name: value, value, …\" (one value per period)" },
+    "unit": { "type": "text", "label": "Unit" },
+    "highlight": { "type": "text", "label": "Bar in the accent (its name)" }
+  }
+}

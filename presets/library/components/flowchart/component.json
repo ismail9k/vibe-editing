@@ -1,0 +1,19 @@
+{
+  "name": "Flowchart",
+  "description": "Boxes and arrows drawing in one step at a time, top to bottom. Without links it's a chain; links like \"1>3\" branch and join. One box carries the accent.",
+  "duration": 4,
+  "defaults": {
+    "title": "",
+    "nodes": ["Your idea", "Script", "Claude Code", "Render", "Post"],
+    "links": [],
+    "accent": 3,
+    "stagger": 0.45
+  },
+  "schema": {
+    "title": { "type": "text", "label": "Title" },
+    "nodes": { "type": "list", "label": "Boxes" },
+    "links": { "type": "list", "label": "Arrows, as \"from>to\" box numbers (empty: a chain)" },
+    "accent": { "type": "number", "label": "Accent box (1 = first, 0 = none)" },
+    "stagger": { "type": "number", "label": "Seconds per step" }
+  }
+}

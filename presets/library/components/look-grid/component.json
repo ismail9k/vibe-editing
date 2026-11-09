@@ -3,6 +3,7 @@
   "description": "The closing shot: your shot in every look as two rows of tiles sliding in from the top and bottom, with a typed call to action and the keyword in the accent.",
   "duration": 4,
   "scene": true,
+  "aims": true,
   "defaults": {
     "looks": ["neon", "sketch", "comic", "chalk", "pixel", "riso", "lowpoly", "papercut", "bricks", "terminal"],
     "text": "Comment",

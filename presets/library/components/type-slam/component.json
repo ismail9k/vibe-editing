@@ -1,0 +1,19 @@
+{
+  "name": "Type slam",
+  "description": "Kinetic type: one word a beat, slammed in huge from the camera with a jolt as it lands. Stack keeps the earlier words as lines; one word carries the accent.",
+  "duration": 2.4,
+  "defaults": {
+    "words": ["THIS", "CHANGES", "EVERYTHING"],
+    "each": 0.6,
+    "stack": false,
+    "accent": 3,
+    "backdrop": "full"
+  },
+  "schema": {
+    "words": { "type": "list", "label": "Words (or short lines), one per beat" },
+    "each": { "type": "number", "label": "Seconds per word" },
+    "stack": { "type": "bool", "label": "Keep earlier words, stacked" },
+    "accent": { "type": "number", "label": "Accent word (1 = first, 0 = none)" },
+    "backdrop": { "type": "select", "label": "Behind the words", "options": ["full", "dim", "none"] }
+  }
+}

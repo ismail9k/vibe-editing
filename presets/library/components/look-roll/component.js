@@ -5,6 +5,9 @@ const NAMES = {
   riso: 'Riso print', lowpoly: 'Low poly', papercut: 'Paper cut', bricks: 'Bricks', terminal: 'Terminal',
   hologram: 'Hologram', cyberpunk: 'Cyberpunk neon', isometric: 'Isometric', blueprint: 'Blueprint',
   thermal: 'Thermal cam', anime: 'Anime cel', watercolor: 'Watercolour', clay: 'Claymation',
+  woodblock: 'Woodblock print', noir: 'Noir comic', oldcartoon: '1930s cartoon', crt: 'CRT vector', sumi: 'Sumi ink',
+  knit: 'Knitted', ps2: 'PS2 style', synthwave: 'Synthwave', marble: 'Marble museum', underwater: 'Underwater',
+  collage: 'Collage',
 };
 const LEAD = 0.5, WIPE = 0.3;
 const clamp = (v) => Math.min(1, Math.max(0, v));

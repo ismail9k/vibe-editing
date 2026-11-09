@@ -1,0 +1,17 @@
+{
+  "name": "Flying cards",
+  "description": "A deck of cards flies in from both sides and lands in a fan, while a big number counts up to the total above it. The last card carries the accent.",
+  "duration": 3.5,
+  "defaults": {
+    "count": 49,
+    "label": "hook templates",
+    "cards": ["Hook", "Caption", "Cut", "Zoom", "B-roll", "CTA", "Title"],
+    "each": 0.14
+  },
+  "schema": {
+    "count": { "type": "number", "label": "Number to count up to" },
+    "label": { "type": "text", "label": "What the number counts" },
+    "cards": { "type": "list", "label": "Card titles" },
+    "each": { "type": "number", "label": "Seconds between cards" }
+  }
+}

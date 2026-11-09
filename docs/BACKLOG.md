@@ -20,6 +20,13 @@ Ideas and known gaps, roughly in the order they'd pay off.
 - **Scene rebuilds**: the reel's isometric, claymation and anime shots are generated, so the room itself is remodelled (an isometric diorama, a clay figure). Our looks restyle the shot's pixels: isometric is your shot in toy cubes, clay is your shot lit like clay. A true rebuild needs an image model per frame.
 - **Hologram on just you**: the reel's hologram floats over a dark room. Needs `p.subject({ look })` (also in the list above).
 
+## The "30 animations" and "10 styles, one prompt" reels (instagram.com/reel/DffhyPkv7Uv, instagram.com/reel/DfZ_iPdttLt)
+Both are illustrated films with no footage. Their styles came in as footage looks (woodblock, noir, 1930s cartoon, CRT, sumi, knit, PS2, synthwave, marble, underwater, collage) and four components (bar race, flowchart, type slam, flying cards); pixel, brick, clay, chalkboard, blueprint, paper cut, watercolour, sticker, comic, neon and low poly already existed. Not built:
+- **Graphics styles to match**: the new looks restyle only the footage; panels and text keep the project's style. Synthwave, woodblock, noir and sumi would make strong whole-film styles.
+- **Drawn scenes**: marble museum, night sky, underwater, kids cartoon, felt story and the 3D character are scenes drawn from nothing (a bust in a frame, a moon over a house). Vibe restyles your shot instead; a library of drawn backdrops would cover films without footage.
+- **Frosted glass, avatar dashboard, gold chart**: close to `glass-type`, `stat` and `chart-grow`; a glassmorphism style and a gold variant of the chart would finish them.
+- **Pixel dissolve**: a transition where the shot breaks into pixels and reforms as the next look.
+
 ## Engine
 - **Zoom headroom**: footage is decoded at the output size, so a 2× punch-in is soft. Decode at 2× for clips under a zoom effect.
 - **Cutouts off the Mac**: mattes use Apple Vision. For open source, add MediaPipe or Robust Video Matting as a second engine.

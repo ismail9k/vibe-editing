@@ -3,10 +3,11 @@ import { describe, it, expect } from 'vitest';
 import { LOOKS, LOOK_NAMES, isLook, lookSample, lumaOf, edges, mesh, asciiFor, posterize, ramp, heatOf, cube, guessBody } from '../../src/core/looks';
 
 describe('look list', () => {
-  it('has the looks from both reels, each with a display name', () => {
+  it('has the looks from the reels, each with a display name', () => {
     expect(LOOKS).toEqual([
       'neon', 'sketch', 'comic', 'chalk', 'pixel', 'riso', 'lowpoly', 'papercut', 'bricks', 'terminal',
       'hologram', 'cyberpunk', 'isometric', 'blueprint', 'thermal', 'anime', 'watercolor', 'clay',
+      'woodblock', 'noir', 'oldcartoon', 'crt', 'sumi', 'knit', 'ps2', 'synthwave', 'marble', 'underwater', 'collage',
     ]);
     for (const l of LOOKS) expect(LOOK_NAMES[l]).toBeTruthy();
     expect(isLook('comic')).toBe(true);

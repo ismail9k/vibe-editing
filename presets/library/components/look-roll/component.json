@@ -3,6 +3,7 @@
   "description": "The reel's format: a title, a numbered list of looks that fills in one by one, and a card of your shot that wipes from each look to the next.",
   "duration": 12,
   "scene": true,
+  "aims": true,
   "defaults": {
     "title": "10 looks, one shot",
     "subtitle": "made with Claude",

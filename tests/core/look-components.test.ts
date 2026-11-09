@@ -31,7 +31,12 @@ const draw = async (id: string, t: number, props: Record<string, unknown> = {}, 
 describe('look components', () => {
   it('offer every look, and are scenes', () => {
     expect(meta('look').schema.look.options).toEqual([...LOOKS]);
-    for (const id of ['look', 'look-roll', 'look-grid']) expect(meta(id).scene).toBe(true);
+    for (const id of ['look', 'look-roll', 'look-grid']) {
+      expect(meta(id).scene).toBe(true);
+      // Hologram and thermal read the cutout when there is one, and guess without: aiming, not needing.
+      expect(meta(id).aims).toBe(true);
+      expect(meta(id).matte).toBeUndefined();
+    }
   });
 
   it('look: wipes in from the plain shot, then holds the look', async () => {
