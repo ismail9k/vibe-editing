@@ -217,8 +217,9 @@ async function makeMatte(bin: string, projectDir: string, src: string, onProgres
   onProgress({ src, done: total, total });
 }
 
-// One job per matte file, shared by the app's background run and the export.
-const jobs = new Map<string, Promise<void>>();
+// One job per matte file, shared by the app's background run and the export. Everyone waiting on a job hears its
+// progress, so an export that joins the app's run still shows how far along it is.
+const jobs = new Map<string, { done: Promise<void>; listeners: Set<(p: MatteProgress) => void> }>();
 
 interface MatteDeps { helper: (tools: MatteTools) => Promise<string>; make: typeof makeMatte }
 
@@ -233,8 +234,15 @@ export async function ensureMattes(tools: MatteTools, project: Project, projectD
   const failed: string[] = [];
   for (const src of todo) {
     const key = resolveInside(projectDir, matteSrc(src));
-    if (!jobs.has(key)) jobs.set(key, deps.make(bin, projectDir, src, onProgress).finally(() => jobs.delete(key)));
-    try { await jobs.get(key); } catch (e) { failed.push((e as Error).message); }
+    let job = jobs.get(key);
+    if (!job) {
+      const listeners = new Set<(p: MatteProgress) => void>();
+      const done = deps.make(bin, projectDir, src, (p) => listeners.forEach((l) => l(p))).finally(() => jobs.delete(key));
+      jobs.set(key, job = { done, listeners });
+    }
+    job.listeners.add(onProgress);
+    try { await job.done; } catch (e) { failed.push((e as Error).message); }
+    finally { job.listeners.delete(onProgress); }
   }
   if (failed.length) throw new Error(failed.join('; '));
 }

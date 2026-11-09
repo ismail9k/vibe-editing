@@ -192,3 +192,27 @@ describe('ensureMattes', () => {
     expect(made).toEqual(['media/c.mov', 'media/d.mov']);
   });
 });
+
+describe('ensureMattes, two callers at once', () => {
+  it('gives a caller that joins a run in progress the progress from then on', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'vibe-proj-'));
+    mkdirSync(join(dir, 'media'), { recursive: true });
+    writeFileSync(join(dir, 'media', 'a.mov'), 'a');
+    const project = parseProject(JSON.stringify({ tracks: { footage: [{ id: 'f1', src: 'media/a.mov', in: 0, out: 1 }] } })).project!;
+    let step!: () => void;
+    const make = async (_b: string, _d: string, src: string, onProgress: (p: { src: string; done: number; total: number }) => void) => {
+      for (let done = 1; done <= 3; done++) { await new Promise<void>((ok) => { step = ok; }); onProgress({ src, done, total: 3 }); }
+    };
+    const deps = { helper: async () => 'bin', make };
+    const tick = () => new Promise((ok) => setTimeout(ok, 0));
+    const app: number[] = [], exp: number[] = [];
+    const first = ensureMattes({ appDir: '', binDir: '' }, project, dir, (p) => app.push(p.done), deps);
+    await tick(); step(); await tick();
+    const second = ensureMattes({ appDir: '', binDir: '' }, project, dir, (p) => exp.push(p.done), deps);
+    await tick(); step(); await tick(); step();
+    await Promise.all([first, second]);
+    expect(app).toEqual([1, 2, 3]);
+    expect(exp).toEqual([2, 3]);
+  });
+});
+
