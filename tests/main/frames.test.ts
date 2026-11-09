@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { PassThrough } from 'node:stream';
 import { FrameReader } from '../../src/main/frames';
 
@@ -26,5 +26,20 @@ describe('FrameReader', () => {
     expect(s.isPaused()).toBe(true);
     await r.next(); await r.next(); await r.next(); await r.next();
     expect(s.isPaused()).toBe(false);
+  });
+
+  it('copies only the frame it hands out, never the whole queue', async () => {
+    const s = new PassThrough(), r = new FrameReader(s, 4, 3);
+    s.write(Buffer.from([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12])); // three frames queued in one chunk
+    s.write(Buffer.from([13, 14])); s.write(Buffer.from([15, 16]));
+    await new Promise((ok) => setTimeout(ok, 5));
+    const alloc = vi.spyOn(Buffer, 'allocUnsafe'), concat = vi.spyOn(Buffer, 'concat');
+    const got: number[][] = [];
+    for (let i = 0; i < 4; i++) got.push([...(await r.next())!]);
+    expect(got).toEqual([[1, 2, 3, 4], [5, 6, 7, 8], [9, 10, 11, 12], [13, 14, 15, 16]]);
+    expect(concat).not.toHaveBeenCalled();
+    // Only the frame split over two chunks needs a buffer of its own, and only one frame long.
+    expect(alloc.mock.calls).toEqual([[4]]);
+    alloc.mockRestore(); concat.mockRestore();
   });
 });
