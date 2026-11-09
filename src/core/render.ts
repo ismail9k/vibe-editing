@@ -54,8 +54,9 @@ export function renderFrame(ctx: Ctx, project: Project, lib: Library, t: number,
   if (error) errors.push(error);
 
   const active = project.tracks.graphics.filter((g) => t >= g.at && t < g.at + g.dur).sort((a, b) => a.at - b.at);
-  // The footage layer (or the brand background), unless a scene component is drawing the footage itself.
-  if (!active.some((g) => lib.components[g.type]?.meta.scene)) {
+  // The footage layer (or the brand background), unless a scene component is drawing the footage itself. In a
+  // scene's last EXIT seconds it fades out, so the footage goes back under it.
+  if (!active.some((g) => lib.components[g.type]?.meta.scene && t - g.at < g.dur - EXIT)) {
     const base = sandboxed(ctx, () => (footageAt(project, t) ? p.footage() : p.background(t)));
     if (base) errors.push(`${footageAt(project, t) ? 'footage' : 'background'}: ${base}`);
   }

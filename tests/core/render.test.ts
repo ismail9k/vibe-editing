@@ -108,6 +108,15 @@ describe('the renderer draws the footage', () => {
     near(draws[0].args, [808.125, 0, 303.75, 540, 0, 0, 1080, 1920]);
   });
 
+  it('puts the footage back under a scene component while it fades out, so the exit is not to black', () => {
+    const { ctx, log } = fakeCtx();
+    const lib = { brand, styles: {}, components: { zoom: { id: 'zoom', meta: sceneMeta, mod: { draw: (p: { footage: (o: object) => void }) => p.footage({ zoom: 2 }) } } } } as unknown as Library;
+    renderFrame(ctx, film([{ id: 'g1', type: 'zoom', at: 0, dur: 5, props: {} }]), lib, 4.9, { frame: landscape as unknown as CanvasImageSource, matte: null });
+    const draws = log.draws.filter((x) => x.img === landscape);
+    expect(draws).toHaveLength(2); // the base pass first, then the fading zoom over it
+    near(draws[0].args, [656.25, 0, 607.5, 1080, 0, 0, 1080, 1920]);
+  });
+
   it('gives scene components a stand-in subject when there is no footage at all (Studio)', () => {
     const { ctx } = fakeCtx();
     let box: { x: number; y: number; w: number; h: number; head: { x: number; y: number; r: number } } | null = null;

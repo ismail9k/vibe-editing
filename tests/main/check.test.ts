@@ -58,4 +58,16 @@ describe('checkProject', () => {
     const issues = checkProject(root, 'p');
     expect(issues).toContainEqual({ level: 'error', path: 'tracks.graphics[0].at', message: 'tracks.graphics[0].at should be a number (got "3.2")' });
   });
+
+  it('warns when a cutout effect has no matte yet, and says how to make one', () => {
+    mkdirSync(join(root, 'library/components/orbit'), { recursive: true });
+    writeFileSync(join(root, 'library/components/orbit/component.json'), JSON.stringify({ name: 'Orbit', description: '', duration: 3, scene: true, matte: true, defaults: {}, schema: {} }));
+    mkdirSync(join(root, 'projects/p/media'), { recursive: true });
+    writeFileSync(join(root, 'projects/p/media/a.mov'), '');
+    write({ style: 'flat9k', tracks: { footage: [{ id: 'f1', src: 'media/a.mov', in: 0, out: 2 }], graphics: [{ id: 'g1', type: 'orbit', at: 0, dur: 2, props: {} }] } });
+    expect(checkProject(root, 'p')).toContainEqual({ level: 'warn', path: 'media/a.mov', message: 'no cutout yet (orbit needs one): run `vibe matte p`, or open the film in the app' });
+    mkdirSync(join(root, 'projects/p/media/.matte'), { recursive: true });
+    writeFileSync(join(root, 'projects/p/media/.matte/a.mov.matte.mp4'), '');
+    expect(checkProject(root, 'p')).toEqual([]);
+  });
 });

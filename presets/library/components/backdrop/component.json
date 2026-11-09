@@ -1,0 +1,21 @@
+{
+  "name": "Backdrop",
+  "description": "Green screen without the green: you, cut out, in front of the brand background, the green band or a grid. It wipes in from the bottom.",
+  "duration": 4,
+  "scene": true,
+  "matte": true,
+  "defaults": {
+    "backdrop": "glow"
+  },
+  "schema": {
+    "backdrop": {
+      "type": "select",
+      "label": "Behind you",
+      "options": [
+        "glow",
+        "band",
+        "grid"
+      ]
+    }
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "name": "Vertigo",
+  "description": "A dolly zoom: you hold still while a tunnel behind you rushes away. (A drawn tunnel for now; your own room needs background fill.)",
+  "duration": 3,
+  "scene": true,
+  "matte": true,
+  "defaults": {
+    "speed": 1,
+    "rings": 14
+  },
+  "schema": {
+    "speed": {
+      "type": "number",
+      "label": "Speed"
+    },
+    "rings": {
+      "type": "number",
+      "label": "Rings"
+    }
+  }
+}

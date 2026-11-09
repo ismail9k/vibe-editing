@@ -1,0 +1,44 @@
+{
+  "name": "Chart grow",
+  "description": "Bars grow from the baseline and count up their values. One bar carries the accent.",
+  "duration": 4,
+  "defaults": {
+    "title": "Watch time",
+    "labels": [
+      "Jan",
+      "Feb",
+      "Mar",
+      "Apr"
+    ],
+    "values": [
+      "12",
+      "28",
+      "46",
+      "90"
+    ],
+    "unit": "%",
+    "highlight": 0
+  },
+  "schema": {
+    "title": {
+      "type": "text",
+      "label": "Title"
+    },
+    "labels": {
+      "type": "list",
+      "label": "Labels"
+    },
+    "values": {
+      "type": "list",
+      "label": "Values"
+    },
+    "unit": {
+      "type": "text",
+      "label": "Unit"
+    },
+    "highlight": {
+      "type": "number",
+      "label": "Accent bar (1 = first, 0 = last)"
+    }
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "name": "Digital zoom",
+  "description": "Punches in on your face and holds, then eases back out. Finds your face with the cutout when the clip has one.",
+  "duration": 3,
+  "scene": true,
+  "defaults": {
+    "zoom": 1.6,
+    "on": "face",
+    "back": true
+  },
+  "schema": {
+    "zoom": {
+      "type": "number",
+      "label": "Zoom (×)"
+    },
+    "on": {
+      "type": "select",
+      "label": "Zoom on",
+      "options": [
+        "face",
+        "center"
+      ]
+    },
+    "back": {
+      "type": "bool",
+      "label": "Ease back out at the end"
+    }
+  }
+}

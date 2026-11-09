@@ -1,0 +1,20 @@
+{
+  "name": "Phone",
+  "description": "The shot shrinks into a phone on the brand background, with a line typed above it.",
+  "duration": 3.5,
+  "scene": true,
+  "defaults": {
+    "label": "Made on my phone",
+    "scale": 0.62
+  },
+  "schema": {
+    "label": {
+      "type": "text",
+      "label": "Line above"
+    },
+    "scale": {
+      "type": "number",
+      "label": "Phone size (0–1)"
+    }
+  }
+}

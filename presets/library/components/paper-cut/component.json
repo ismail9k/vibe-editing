@@ -1,0 +1,21 @@
+{
+  "name": "Paper cut",
+  "description": "You as a paper cut-out: a white sticker edge, a hard shadow and stop-motion wobble on a paper background.",
+  "duration": 3,
+  "scene": true,
+  "matte": true,
+  "defaults": {
+    "fps": 8,
+    "tilt": 2.5
+  },
+  "schema": {
+    "fps": {
+      "type": "number",
+      "label": "Stop-motion frames per second"
+    },
+    "tilt": {
+      "type": "number",
+      "label": "Wobble (degrees)"
+    }
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "name": "Orbit",
+  "description": "Words circle you at chest height, passing behind you and in front of you.",
+  "duration": 4,
+  "scene": true,
+  "matte": true,
+  "defaults": {
+    "words": [
+      "React",
+      "Claude",
+      "ffmpeg",
+      "Vision"
+    ],
+    "speed": 0.3,
+    "tilt": 0.3
+  },
+  "schema": {
+    "words": {
+      "type": "list",
+      "label": "Words"
+    },
+    "speed": {
+      "type": "number",
+      "label": "Turns per second"
+    },
+    "tilt": {
+      "type": "number",
+      "label": "Tilt (0 flat – 1 round)"
+    }
+  }
+}

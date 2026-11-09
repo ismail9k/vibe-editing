@@ -1,0 +1,29 @@
+{
+  "name": "Cover story",
+  "description": "A magazine cover: the masthead sits behind you, cover lines beside you, the issue in mono.",
+  "duration": 4,
+  "scene": true,
+  "matte": true,
+  "defaults": {
+    "title": "VIBE",
+    "lines": [
+      "Claude edits the film",
+      "17 tricks, one app"
+    ],
+    "issue": "No. 09"
+  },
+  "schema": {
+    "title": {
+      "type": "text",
+      "label": "Masthead"
+    },
+    "lines": {
+      "type": "list",
+      "label": "Cover lines"
+    },
+    "issue": {
+      "type": "text",
+      "label": "Issue"
+    }
+  }
+}

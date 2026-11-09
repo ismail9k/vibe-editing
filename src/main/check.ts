@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { parseProject } from '../core/model';
 import { coercedIssues, validateProject, type ComponentMeta, type Issue } from '../core/validate';
 import { listLibrary, resolveInside } from './workspace';
+import { missingMattes } from './matte';
 
 export interface CliArgs { command: string; project?: string; at?: number[]; out?: string }
 
@@ -57,8 +58,11 @@ export function checkProject(root: string, name: string): Issue[] {
     try { JSON.parse(readFileSync(join(root, rel), 'utf8')); }
     catch (e) { issues.push({ level: 'error', path: rel, message: (e as Error).message }); }
   }
-  return [...issues, ...validateProject(project, {
-    components, styles: lib.styles,
-    mediaExists: (src) => { try { return existsSync(resolveInside(dir, src)); } catch { return false; } },
-  })];
+  const mediaExists = (src: string) => { try { return existsSync(resolveInside(dir, src)); } catch { return false; } };
+  const cutout = project.tracks.graphics.find((g) => components[g.type]?.matte)?.type;
+  if (cutout) {
+    for (const src of missingMattes(project, mediaExists).filter(mediaExists))
+      issues.push({ level: 'warn', path: src, message: `no cutout yet (${cutout} needs one): run \`vibe matte ${name}\`, or open the film in the app` });
+  }
+  return [...issues, ...validateProject(project, { components, styles: lib.styles, mediaExists })];
 }

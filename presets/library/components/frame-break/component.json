@@ -1,0 +1,21 @@
+{
+  "name": "Frame break",
+  "description": "The shot shrinks into a framed card on the brand background, and your head breaks out over the top edge.",
+  "duration": 3.5,
+  "scene": true,
+  "matte": true,
+  "defaults": {
+    "scale": 0.76,
+    "label": ""
+  },
+  "schema": {
+    "scale": {
+      "type": "number",
+      "label": "Card size (0–1)"
+    },
+    "label": {
+      "type": "text",
+      "label": "Line under the card"
+    }
+  }
+}

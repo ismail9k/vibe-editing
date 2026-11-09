@@ -1,0 +1,21 @@
+{
+  "name": "Glass type",
+  "description": "Huge letters of frosted glass behind you: the shot shows through them, blurred and bright.",
+  "duration": 3.5,
+  "scene": true,
+  "matte": true,
+  "defaults": {
+    "text": "VIBE",
+    "blur": 18
+  },
+  "schema": {
+    "text": {
+      "type": "text",
+      "label": "Word"
+    },
+    "blur": {
+      "type": "number",
+      "label": "Frost (px)"
+    }
+  }
+}

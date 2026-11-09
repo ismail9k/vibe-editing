@@ -1,0 +1,28 @@
+{
+  "name": "Checklist",
+  "description": "Items tick off one by one in a panel. The newest tick carries the accent.",
+  "duration": 4,
+  "defaults": {
+    "title": "Before you ship",
+    "items": [
+      "Tests pass",
+      "Captions checked",
+      "Exported in 9:16"
+    ],
+    "stagger": 0.8
+  },
+  "schema": {
+    "title": {
+      "type": "text",
+      "label": "Title"
+    },
+    "items": {
+      "type": "list",
+      "label": "Items"
+    },
+    "stagger": {
+      "type": "number",
+      "label": "Seconds between ticks"
+    }
+  }
+}

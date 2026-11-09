@@ -1,0 +1,25 @@
+{
+  "name": "Wall",
+  "description": "A wall behind you: rows of headlines sliding past, or a grid of screens all playing the shot.",
+  "duration": 4,
+  "scene": true,
+  "matte": true,
+  "defaults": {
+    "kind": "headlines",
+    "text": "SHIP IT"
+  },
+  "schema": {
+    "kind": {
+      "type": "select",
+      "label": "Wall",
+      "options": [
+        "headlines",
+        "screens"
+      ]
+    },
+    "text": {
+      "type": "text",
+      "label": "Headline"
+    }
+  }
+}

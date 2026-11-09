@@ -1,0 +1,27 @@
+{
+  "name": "Doodle boil",
+  "description": "Hand-drawn marks round your head that boil like a cartoon: sparks, a crown, a circle or an arrow.",
+  "duration": 3,
+  "scene": true,
+  "matte": true,
+  "defaults": {
+    "doodle": "sparks",
+    "fps": 8
+  },
+  "schema": {
+    "doodle": {
+      "type": "select",
+      "label": "Doodle",
+      "options": [
+        "sparks",
+        "crown",
+        "circle",
+        "arrow"
+      ]
+    },
+    "fps": {
+      "type": "number",
+      "label": "Boil frames per second"
+    }
+  }
+}
