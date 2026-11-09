@@ -25,6 +25,23 @@ function typeOk(spec: PropSpec, v: unknown): boolean {
   }
 }
 
+/** Letters a viewer reads in a second. The speaker usually says what a graphic shows, so this is the reading time
+ *  alone, with no grace added for text nobody says. */
+export const READ_RATE = 15;
+
+/** The letters a graphic puts on screen to read: its text props (given or default), without spaces. A value that
+ *  appears inside another one (an underlined word, a button repeating the call to action) counts once. */
+export function lettersToRead(meta: ComponentMeta, props: Record<string, unknown>): number {
+  const texts = Object.entries(meta.schema)
+    .filter(([, spec]) => spec.type === 'text')
+    .map(([k]) => (props[k] ?? meta.defaults[k]))
+    .filter((v): v is string => typeof v === 'string')
+    .map((v) => v.replace(/\s+/g, ''))
+    .filter(Boolean);
+  return texts.filter((v, i) => !texts.some((w, j) => j !== i && w.includes(v) && (w !== v || j < i)))
+    .reduce((n, v) => n + [...v].length, 0);
+}
+
 export function validateProject(p: Project, ctx: ValidateContext): Issue[] {
   const issues: Issue[] = [];
   const err = (path: string, message: string) => issues.push({ level: 'error', path, message });
@@ -47,6 +64,9 @@ export function validateProject(p: Project, ctx: ValidateContext): Issue[] {
       if (!spec) issues.push({ level: 'warn', path: `${at}.props.${k}`, message: `${g.type} has no prop "${k}"` });
       else if (!typeOk(spec, v)) err(`${at}.props.${k}`, `${k} should be ${spec.type}${spec.options ? ` (${spec.options.join(' | ')})` : ''}`);
     }
+    const letters = lettersToRead(meta, g.props), need = Math.ceil((letters / READ_RATE) * 10) / 10;
+    if (g.dur > 0 && g.dur < need) issues.push({ level: 'warn', path: `${at}.dur`,
+      message: `${g.type} has ${letters} letters to read in ${g.dur} s: hold it at least ${need} s, or cut words` });
   });
 
   p.tracks.audio.forEach((a, i) => {
