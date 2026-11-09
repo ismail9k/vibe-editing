@@ -15,7 +15,7 @@ export default (base) => {
     const n = 160, c = p.canvas(n, n), x = c.getContext('2d'), r = p.rng(key);
     x.fillStyle = color; x.fillRect(0, 0, n, n);
     x.globalCompositeOperation = 'destination-out';
-    for (let i = 0; i < n * n * 0.18 * grain; i++) {
+    for (let i = 0; i < n * n * 0.45 * grain; i++) {
       x.globalAlpha = 0.35 + r() * 0.65;
       x.fillRect(Math.floor(r() * n), Math.floor(r() * n), 1 + Math.floor(r() * 2), 1);
     }
@@ -25,7 +25,7 @@ export default (base) => {
 
   // Points along a rough path: each segment bends through a jittered midpoint.
   function roughStroke(p, pts, { color, width, progress = 1, seed = 1, passes = 2, closed = false } = {}) {
-    const c = p.ctx, r = p.rng(seed), j = p.rem * 0.35 * wobble;
+    const c = p.ctx, r = p.rng(seed), j = p.rem * 1.1 * wobble;
     const path = closed ? [...pts, pts[0]] : pts;
     const lens = path.slice(1).map((q, i) => Math.hypot(q[0] - path[i][0], q[1] - path[i][1]));
     const total = lens.reduce((a, b) => a + b, 0);
@@ -33,9 +33,10 @@ export default (base) => {
     c.lineCap = 'round'; c.lineJoin = 'round';
     c.strokeStyle = chalk(p, color ?? p.theme.text);
     for (let pass = 0; pass < passes; pass++) {
-      c.lineWidth = (width ?? p.rem * 0.13) * (pass ? 0.6 : 1);
-      c.globalAlpha *= pass ? 0.7 : 1;
-      c.setLineDash([p.rem * (1.4 + r()), p.rem * 0.07]);
+      c.lineWidth = (width ?? p.rem * 0.2) * (pass ? 0.55 : 1);
+      c.globalAlpha *= pass ? 0.75 : 1;
+      c.setLineDash([p.rem * (0.6 + r() * 1.2), p.rem * (0.06 + r() * 0.1)]);
+      c.translate((r() - 0.5) * j * 0.5, (r() - 0.5) * j * 0.5); // the second pass never lands on the first
       let left = total * Math.max(0, Math.min(1, progress));
       c.beginPath();
       c.moveTo(path[0][0] + (r() - 0.5) * j, path[0][1] + (r() - 0.5) * j);

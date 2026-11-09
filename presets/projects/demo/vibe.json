@@ -18,7 +18,7 @@
     "captions": [
       { "id": "c1", "text": "same scene, ten looks", "at": 2.6, "dur": 2.2, "keyword": "ten" },
       { "id": "c2", "text": "Claude writes the code", "at": 5.2, "dur": 2.4, "keyword": "Claude" },
-      { "id": "c3", "text": "and you make it yours", "at": 13.2, "dur": 2.6, "keyword": "yours" }
+      { "id": "c3", "text": "and you make it yours", "at": 13.2, "dur": 2.6 }
     ],
     "audio": []
   }

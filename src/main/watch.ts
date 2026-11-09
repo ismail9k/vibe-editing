@@ -42,9 +42,8 @@ export function watchWorkspace(root: string, guard: SelfWriteGuard, onChange: (c
     clearTimeout(timers.get(rel));
     timers.set(rel, setTimeout(() => {
       timers.delete(rel);
-      if (what.kind === 'project') {
-        try { if (guard.isSelf(join(root, rel), readFileSync(join(root, rel), 'utf8'))) return; } catch { /* deleted: still report */ }
-      }
+      // The app's own saves (project, brand, style params) never come back as outside changes.
+      try { if (guard.isSelf(join(root, rel), readFileSync(join(root, rel), 'utf8'))) return; } catch { /* deleted: still report */ }
       onChange({ ...what, rel });
     }, 120));
   });

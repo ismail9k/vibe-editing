@@ -29,7 +29,7 @@ export default (base) => {
         for (let i = 0; i < 70; i++) {
           const sx = snap(r() * this.W, k * 2), sy = snap(r() * this.H * 0.6, k * 2), blink = r();
           if ((tick + Math.floor(blink * 7)) % 7 === 0) continue;
-          c.fillStyle = blink > 0.85 ? this.brand.colors.accent : this.theme.text;
+          c.fillStyle = this.theme.text; // never the accent: it gets one hit per shot
           c.globalAlpha = 0.5 + blink * 0.5;
           c.fillRect(sx, sy, k * (blink > 0.7 ? 2 : 1), k * (blink > 0.7 ? 2 : 1));
         }
@@ -51,9 +51,13 @@ export default (base) => {
       c.restore();
     },
 
+    measure(str, o = {}) {
+      return base.measure.call(this, str, { ...o, weight: Math.max(o.weight ?? 600, 600) });
+    },
+
     text(str, x, y, o = {}) {
-      const size = Math.max(o.size ?? this.rem, this.rem * 0.95);
-      return base.text.call(this, str, x, y, { ...o, size, weight: Math.max(o.weight ?? 600, 600) });
+      // Heavier strokes survive the pixel grid; the size stays, so layouts measured by components still fit.
+      return base.text.call(this, str, x, y, { ...o, weight: Math.max(o.weight ?? 600, 600) });
     },
 
     pill(rect, o = {}) {
