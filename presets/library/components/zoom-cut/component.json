@@ -3,6 +3,7 @@
   "description": "Pushes into the shot and out the other side. Put it across a cut: half before, half after.",
   "duration": 0.8,
   "scene": true,
+  "aims": true,
   "defaults": {
     "depth": 5,
     "on": "face"

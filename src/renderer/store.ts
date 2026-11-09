@@ -31,7 +31,7 @@ interface State {
   future: Project[];
   studio: { style: string; mode: Mode; dir: Dir; focus: StudioFocus | null; sample: Record<string, Record<string, unknown>> };
   exporting: { done: number; total: number; stage: string; message?: string; out?: string } | null;
-  /** Cutout mattes for the open project, when it uses a cutout effect. `version` bumps when new ones land. */
+  /** Cutout mattes for the open project, when it uses a cutout or aiming effect. `version` bumps when new ones land. */
   mattes: { state: 'working' | 'ready' | 'error'; src?: string; done?: number; total?: number; message?: string; version: number } | null;
 
   boot(): Promise<void>;
@@ -165,7 +165,7 @@ export const useStore = create<State>((set, get) => ({
       const components = Object.fromEntries(Object.entries(lib.components).map(([k, v]) => [k, v.meta]));
       set({ issues: [...coerced, ...validateProject(project, { components, styles: info.styles, mediaExists: (s) => !!exists[`projects/${projectName}/${s}`] })] });
       const usable = project.tracks.footage.filter((c) => exists[`projects/${projectName}/${c.src}`]);
-      if (usable.length && project.tracks.graphics.some((g) => lib.components[g.type]?.meta.matte)) ensureMattes(projectName, usable.map((c) => c.src));
+      if (usable.length && project.tracks.graphics.some((g) => lib.components[g.type]?.meta.matte || lib.components[g.type]?.meta.aims)) ensureMattes(projectName, usable.map((c) => c.src));
     }, 150);
   },
 }));

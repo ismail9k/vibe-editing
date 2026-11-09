@@ -2,8 +2,8 @@
 // native/vibe-matte.swift and kept at media/.matte/<file>.matte.mp4. ffmpeg decodes the footage upright (and
 // tone-mapped when it's HDR), the helper cuts out each frame, and ffmpeg encodes the mattes at 30 fps.
 import { spawn, execFile, type ChildProcess } from 'node:child_process';
-import { createHash } from 'node:crypto';
-import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync } from 'node:fs';
+import { createHash, randomBytes } from 'node:crypto';
+import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { matteSrc, type Project } from '../core/model';
 import { fitFilter } from './ffmpeg';
@@ -32,19 +32,57 @@ export function matteEncodeArgs(w: number, h: number, out: string): string[] {
     '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-crf', '16', '-preset', 'fast', '-movflags', '+faststart', out];
 }
 
-/** Whether any graphic on the timeline is a component that cuts the speaker out. */
-export function usesMatte(p: Project, metas: Record<string, { matte?: boolean }>): boolean {
+export interface MatteMeta { matte?: boolean; aims?: boolean }
+
+/** Whether any graphic on the timeline is a component that cuts the speaker out (it needs a matte to export). */
+export function usesMatte(p: Project, metas: Record<string, MatteMeta>): boolean {
   return p.tracks.graphics.some((g) => metas[g.type]?.matte === true);
 }
 
-/** Footage files that have no matte yet, each once. `exists` takes a project-relative path. */
-export function missingMattes(p: Project, exists: (rel: string) => boolean): string[] {
-  return [...new Set(p.tracks.footage.map((c) => c.src))].filter((src) => !exists(matteSrc(src)));
+/** Whether any graphic cuts the speaker out or aims at them (a zoom on the face). Aiming uses a matte when there
+ *  is one and guesses without; the app and the export make mattes for both, but only cutouts refuse to go on
+ *  without one. */
+export function wantsMatte(p: Project, metas: Record<string, MatteMeta>): boolean {
+  return p.tracks.graphics.some((g) => metas[g.type]?.matte === true || metas[g.type]?.aims === true);
+}
+
+/** Footage files with no ready matte, each once. */
+export function missingMattes(p: Project, ready: (src: string) => boolean): string[] {
+  return [...new Set(p.tracks.footage.map((c) => c.src))].filter((src) => !ready(src));
+}
+
+// A matte is trusted only with a stamp of the footage it was cut from (size and mtime) next to it: a run that
+// died leaves no stamp, and replacing a file under the same name changes the stamp.
+const stampPath = (projectDir: string, src: string) => resolveInside(projectDir, matteSrc(src)).replace(/\.mp4$/, '.json');
+const footageStamp = (projectDir: string, src: string) => {
+  const st = statSync(resolveInside(projectDir, src));
+  return { size: st.size, mtimeMs: st.mtimeMs };
+};
+
+/** Records that the matte for src was cut from the footage as it is now (or as `stamp` says it was). */
+export function stampMatte(projectDir: string, src: string, stamp = footageStamp(projectDir, src)) {
+  writeFileSync(stampPath(projectDir, src), JSON.stringify(stamp));
+}
+
+/** True when src's matte exists and was cut from the footage file that's there now. */
+export function matteReady(projectDir: string, src: string): boolean {
+  try {
+    if (!existsSync(resolveInside(projectDir, matteSrc(src)))) return false;
+    const want = footageStamp(projectDir, src), got = JSON.parse(readFileSync(stampPath(projectDir, src), 'utf8'));
+    return got.size === want.size && got.mtimeMs === want.mtimeMs;
+  } catch { return false; }
+}
+
+const tag = () => `${process.pid}.${randomBytes(4).toString('hex')}`;
+
+/** Where a run writes its matte until it's done: unique per run, so the app and the CLI never share a file. */
+export function partialPath(out: string): string {
+  return out.replace(/\.mp4$/, `.${tag()}.partial.mp4`);
 }
 
 /** Component metas from the workspace library (main has no renderer-side library). */
-export function componentMetas(root: string, types: string[]): Record<string, { matte?: boolean }> {
-  const out: Record<string, { matte?: boolean }> = {};
+export function componentMetas(root: string, types: string[]): Record<string, MatteMeta> {
+  const out: Record<string, MatteMeta> = {};
   for (const t of new Set(types)) {
     try { out[t] = JSON.parse(readFileSync(resolveInside(root, `library/components/${t}/component.json`), 'utf8')); } catch { /* reported by check */ }
   }
@@ -55,24 +93,40 @@ export function componentMetas(root: string, types: string[]): Record<string, { 
  *  workspace: the workspace holds files other tools write, and a binary planted there would be run. */
 export interface MatteTools { appDir: string; binDir: string }
 
+type Compile = (source: string, out: string) => Promise<void>;
+const swiftc: Compile = (source, out) => new Promise((ok, fail) => execFile('swiftc', ['-O', source, '-o', out], (err, _o, se) => {
+  if (!err) return ok();
+  fail(new Error((err as NodeJS.ErrnoException).code === 'ENOENT'
+    ? 'cutouts need the Swift compiler: run `xcode-select --install`'
+    : `couldn't build the cutout helper: ${se || err.message}`));
+}));
+
+// One build per helper version in this process; other processes build into their own temp names.
+const builds = new Map<string, Promise<string>>();
+
 /** The compiled helper in binDir, rebuilt when its source changes. */
-async function helper({ appDir, binDir }: MatteTools): Promise<string> {
-  if (process.platform !== 'darwin') throw new Error('cutouts need macOS (they use Apple Vision)');
-  const source = join(appDir, 'native', 'vibe-matte.swift');
+export function helper(tools: MatteTools, compile: Compile = swiftc): Promise<string> {
+  if (process.platform !== 'darwin') return Promise.reject(new Error('cutouts need macOS (they use Apple Vision)'));
+  const source = join(tools.appDir, 'native', 'vibe-matte.swift');
   const hash = createHash('sha1').update(readFileSync(source)).digest('hex').slice(0, 8);
-  const bin = join(binDir, `vibe-matte-${hash}`);
-  if (existsSync(bin)) return bin;
-  mkdirSync(dirname(bin), { recursive: true });
-  const tmp = `${bin}.${process.pid}.tmp`;
-  await new Promise<void>((ok, fail) => execFile('swiftc', ['-O', source, '-o', tmp], (err, _o, se) => {
-    if (!err) return ok();
-    fail(new Error((err as NodeJS.ErrnoException).code === 'ENOENT'
-      ? 'cutouts need the Swift compiler: run `xcode-select --install`'
-      : `couldn't build the cutout helper: ${se || err.message}`));
-  }));
-  renameSync(tmp, bin);
-  for (const old of readdirSync(dirname(bin))) if (old.startsWith('vibe-matte-') && join(dirname(bin), old) !== bin) rmSync(join(dirname(bin), old), { force: true });
-  return bin;
+  const bin = join(tools.binDir, `vibe-matte-${hash}`);
+  if (existsSync(bin)) return Promise.resolve(bin);
+  let build = builds.get(bin);
+  if (!build) {
+    build = (async () => {
+      mkdirSync(tools.binDir, { recursive: true });
+      const tmp = `${bin}.${tag()}.tmp`;
+      try { await compile(source, tmp); renameSync(tmp, bin); }
+      finally { rmSync(tmp, { force: true }); }
+      // Old versions go; anything else (another run's .tmp) is left alone.
+      for (const old of readdirSync(tools.binDir)) {
+        if (/^vibe-matte-[0-9a-f]{8}$/.test(old) && join(tools.binDir, old) !== bin) rmSync(join(tools.binDir, old), { force: true });
+      }
+      return bin;
+    })().finally(() => builds.delete(bin));
+    builds.set(bin, build);
+  }
+  return build;
 }
 
 function rotationOf(file: string): Promise<{ w: number; h: number; rotation: number }> {
@@ -93,37 +147,42 @@ export function runChain(procs: ChildProcess[], names: string[]): Promise<void> 
     p.stderr?.on('data', (d) => { errs[i] = (errs[i] + d).slice(-2000); });
     if (i > 0) { p.stdin!.on('error', () => {}); procs[i - 1].stdout!.pipe(p.stdin!); }
   });
+  procs[procs.length - 1].stdout?.resume(); // nobody reads the last step's output: don't let it fill up
   const running = procs.map(() => true);
   let failed = -1;
   return new Promise((ok, fail) => {
     let left = procs.length;
-    const finish = () => {
+    // Fail fast on 'exit'; settle on 'close', once stderr is in. A killed chain leaves data buffered between the
+    // steps, so their stdouts are destroyed or 'close' would never come.
+    const settle = () => {
       if (--left) return;
       if (failed < 0) return ok();
       const why = errs[failed].trim().split('\n').pop() || 'stopped early';
       fail(new Error(`${names[failed]} ${why}`));
     };
     procs.forEach((p, i) => {
-      let done = false;
-      const end = (code: number | null) => {
-        if (done) return; done = true;
+      let exited = false, closed = false;
+      const exit = (code: number | null) => {
+        if (exited) return; exited = true;
         running[i] = false;
         if (failed < 0 && (code !== 0 || running.slice(0, i).some(Boolean))) {
           failed = i;
-          procs.forEach((q, j) => { if (running[j]) q.kill('SIGKILL'); });
+          procs.forEach((q, j) => { if (running[j]) q.kill('SIGKILL'); q.stdout?.destroy(); });
         }
-        finish();
       };
-      p.on('error', () => end(1));
-      p.on('close', (c) => end(c));
+      const close = () => { if (closed) return; closed = true; settle(); };
+      p.on('exit', (c) => exit(c));
+      p.on('error', () => { exit(1); close(); });
+      p.on('close', (c) => { exit(c); close(); });
     });
   });
 }
 
 async function makeMatte(bin: string, projectDir: string, src: string, onProgress: (p: MatteProgress) => void) {
   const file = resolveInside(projectDir, src), out = resolveInside(projectDir, matteSrc(src));
-  const partial = out.replace(/\.mp4$/, '.partial.mp4');
+  const partial = partialPath(out);
   mkdirSync(dirname(out), { recursive: true });
+  const stamp = footageStamp(projectDir, src);
   const [{ w: sw, h: sh, rotation }, info] = await Promise.all([rotationOf(file), probe(file)]);
   if (!info.hasVideo) throw new Error(`${src} has no video`);
   const [w, h] = matteSize(sw, sh, rotation);
@@ -141,6 +200,7 @@ async function makeMatte(bin: string, projectDir: string, src: string, onProgres
   try { await runChain([dec, cut, enc], ['ffmpeg (decode)', 'vibe-matte', 'ffmpeg (encode)']); }
   catch (err) { rmSync(partial, { force: true }); throw new Error(`couldn't cut out ${src}: ${(err as Error).message}`); }
   renameSync(partial, out);
+  stampMatte(projectDir, src, stamp);
   onProgress({ src, done: total, total });
 }
 
@@ -149,7 +209,7 @@ const jobs = new Map<string, Promise<void>>();
 
 /** Makes the missing mattes for a project, one file at a time. */
 export async function ensureMattes(tools: MatteTools, project: Project, projectDir: string, onProgress: (p: MatteProgress) => void = () => {}) {
-  const todo = missingMattes(project, (rel) => existsSync(resolveInside(projectDir, rel)));
+  const todo = missingMattes(project, (src) => matteReady(projectDir, src));
   if (!todo.length) return;
   const bin = await helper(tools);
   for (const src of todo) {

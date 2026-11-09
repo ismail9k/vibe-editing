@@ -9,6 +9,8 @@ export interface ComponentMeta {
   scene?: boolean;
   /** Needs the speaker cut out (the clip's matte). */
   matte?: boolean;
+  /** Aims at the speaker (subjectBox): uses the matte when there is one, guesses without. */
+  aims?: boolean;
 }
 export interface Issue { level: 'error' | 'warn'; path: string; message: string }
 export interface ValidateContext { components: Record<string, ComponentMeta>; styles: string[]; mediaExists(src: string): boolean }

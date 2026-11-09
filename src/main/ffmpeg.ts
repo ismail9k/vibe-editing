@@ -19,7 +19,7 @@ export function fitFilter(W: number, H: number, hdr: boolean): string {
 /** Decoder for the footage track: every clip trimmed, fitted to the frame and joined, as raw frames on stdout.
  *  'video' gives RGBA at W×H (HDR clips tone-mapped); 'matte' gives the clips' cutout mattes as grey at W/2×H/2.
  *  Null when there is no footage. */
-export function buildDecodeArgs(p: Project, projectDir: string, kind: 'video' | 'matte', hdr: Record<string, boolean>): string[] | null {
+export function buildDecodeArgs(p: Project, projectDir: string, kind: 'video' | 'matte', hdr: Record<string, boolean>, ready: (src: string) => boolean = () => true): string[] | null {
   const clips = p.tracks.footage;
   if (!clips.length) return null;
   const { w, h, fps: F } = p.format;
@@ -37,8 +37,14 @@ export function buildDecodeArgs(p: Project, projectDir: string, kind: 'video' | 
     const at = c.in + (first / F - start);
     start = end;
     if (frames <= 0) continue;
-    const i = parts.length, src = kind === 'video' ? c.src : matteSrc(c.src);
-    args.push('-ss', n(at), '-t', n(frames / F + 2 / F), '-i', resolveInside(projectDir, src));
+    const i = parts.length;
+    if (kind === 'video' || ready(c.src)) {
+      const src = kind === 'video' ? c.src : matteSrc(c.src);
+      args.push('-ss', n(at), '-t', n(frames / F + 2 / F), '-i', resolveInside(projectDir, src));
+    } else {
+      // No matte for this clip yet: a blank keeps the frames in step (the export ignores it for this clip).
+      args.push('-f', 'lavfi', '-i', `color=c=black:s=${W}x${H}:r=${F}:d=${n(frames / F + 2 / F)}`);
+    }
     const fit = kind === 'video' ? fitFilter(W, H, !!hdr[c.src]) : fitFilter(W, H, false);
     // A clip that runs past its file's end holds the last frame for the rest of its count.
     graph.push(`[${i}:v]${fit},setpts=PTS-STARTPTS,fps=${F}:start_time=0:round=up,tpad=stop_mode=clone:stop=${frames},`

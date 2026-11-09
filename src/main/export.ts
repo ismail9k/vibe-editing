@@ -7,7 +7,7 @@ import { join } from 'node:path';
 import { duration, footageAt, matteSrc, parseProject, type Project } from '../core/model';
 import { buildDecodeArgs, buildEncodeArgs, buildStillArgs, clipOverruns } from './ffmpeg';
 import { FrameReader } from './frames';
-import { componentMetas, ensureMattes, usesMatte } from './matte';
+import { componentMetas, ensureMattes, matteReady, usesMatte, wantsMatte } from './matte';
 import { matteTools } from './paths';
 import { runHeadless, type MediaSource } from './headless';
 import { probe, resolveInside } from './workspace';
@@ -28,9 +28,13 @@ function checkMedia(project: Project, dir: string) {
   }
 }
 
-/** True when every footage clip has its cutout matte on disk. */
-export function mattesReady(project: Project, dir: string): boolean {
-  return project.tracks.footage.length > 0 && project.tracks.footage.every((c) => existsSync(resolveInside(dir, matteSrc(c.src))));
+/** Whether the film's effects want mattes (cutouts or aiming), and which clips have one ready. A clip without a
+ *  ready matte draws as if it had none: the preview, the export and snapshots all follow this rule. */
+function matteState(root: string, project: Project, dir: string) {
+  const metas = componentMetas(root, project.tracks.graphics.map((g) => g.type));
+  const wants = wantsMatte(project, metas);
+  const ready = () => new Set(wants ? project.tracks.footage.map((c) => c.src).filter((src) => matteReady(dir, src)) : []);
+  return { needs: usesMatte(project, metas), wants, ready };
 }
 
 async function probeMedia(project: Project, dir: string) {
@@ -73,11 +77,16 @@ export async function runExport(root: string, name: string, onProgress: (p: Expo
   const out = outPath ?? join(dir, 'out', `${name}.mp4`);
   mkdirSync(join(out, '..'), { recursive: true });
   const { w: W, h: H, fps } = project.format;
-  if (usesMatte(project, componentMetas(root, project.tracks.graphics.map((g) => g.type)))) {
+  const mattesFor = matteState(root, project, dir);
+  if (mattesFor.wants) {
     try {
       await ensureMattes(matteTools(), project, dir, (m) => onProgress({ stage: 'mattes', done: m.done, total: m.total, message: m.src }));
-    } catch (e) { throw new Error(`can't export: this film cuts you out of the footage, and ${(e as Error).message}`); }
+    } catch (e) {
+      // Aiming falls back to a guess; a cutout can't.
+      if (mattesFor.needs) throw new Error(`can't export: this film cuts you out of the footage, and ${(e as Error).message}`);
+    }
   }
+  const ready = mattesFor.ready();
 
   // Footage (and its cutout mattes) decoded to raw frames; the render window draws every frame over them; the encoder
   // takes the finished frames plus the sound. Encode next to the target and rename at the end: a failed export
@@ -85,7 +94,7 @@ export async function runExport(root: string, name: string, onProgress: (p: Expo
   const partial = out.replace(/\.mp4$/i, '') + '.partial.mp4';
   const enc = ffmpeg(buildEncodeArgs(project, dir, partial, hasAudio), true);
   const videoArgs = buildDecodeArgs(project, dir, 'video', hdr);
-  const matteArgs = mattesReady(project, dir) ? buildDecodeArgs(project, dir, 'matte', hdr) : null;
+  const matteArgs = ready.size ? buildDecodeArgs(project, dir, 'matte', hdr, (src) => ready.has(src)) : null;
   const dec = videoArgs ? ffmpeg(videoArgs, false) : null;
   const mdec = matteArgs ? ffmpeg(matteArgs, false) : null;
   const frames = dec && new FrameReader(dec.proc.stdout!, W * H * 4);
@@ -97,13 +106,14 @@ export async function runExport(root: string, name: string, onProgress: (p: Expo
   const media: MediaSource = async (i) => {
     if (i !== next) throw new Error(`frames out of order: wanted ${next}, got ${i}`);
     next++;
-    if (!footageAt(project, i / fps)) return { frame: null, matte: null };
+    const hit = footageAt(project, i / fps);
+    if (!hit) return { frame: null, matte: null };
     if (frames) {
       lastFrame = (await frames.next()) ?? lastFrame;
       if (!lastFrame) throw new Error(`ffmpeg couldn't decode the footage: ${dec!.lastError()}`);
     }
     if (mattes) lastMatte = (await mattes.next()) ?? lastMatte;
-    return { frame: lastFrame, matte: lastMatte };
+    return { frame: lastFrame, matte: ready.has(hit.clip.src) ? lastMatte : null };
   };
 
   try {
@@ -135,6 +145,7 @@ export async function runExport(root: string, name: string, onProgress: (p: Expo
 export async function runSnapshot(root: string, name: string, times: number[], outPath?: string) {
   const { project, dir } = loadProject(root, name);
   const { w: W, h: H } = project.format;
+  const ready = matteState(root, project, dir).ready();
   const media: MediaSource = async (i) => {
     const hit = footageAt(project, times[i]);
     if (!hit) return { frame: null, matte: null };
@@ -143,7 +154,7 @@ export async function runSnapshot(root: string, name: string, times: number[], o
     const { hdr } = await probe(file);
     const frame = await still(buildStillArgs(file, hit.srcTime, W, H, 'video', hdr), W * H * 4);
     const mfile = resolveInside(dir, matteSrc(hit.clip.src));
-    const matte = existsSync(mfile) ? await still(buildStillArgs(mfile, hit.srcTime, W, H, 'matte', false), Math.round(W / 2) * Math.round(H / 2)) : null;
+    const matte = ready.has(hit.clip.src) ? await still(buildStillArgs(mfile, hit.srcTime, W, H, 'matte', false), Math.round(W / 2) * Math.round(H / 2)) : null;
     return { frame, matte };
   };
   const result = await runHeadless({ kind: 'png', project: name, times }, undefined, media);

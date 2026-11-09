@@ -3,6 +3,7 @@ import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { USAGE, parseCliArgs, checkProject } from '../../src/main/check';
+import { stampMatte } from '../../src/main/matte';
 
 describe('parseCliArgs', () => {
   it('reads the command, the project, times and the output', () => {
@@ -68,6 +69,8 @@ describe('checkProject', () => {
     expect(checkProject(root, 'p')).toContainEqual({ level: 'warn', path: 'media/a.mov', message: 'no cutout yet (orbit needs one): run `vibe matte p`, or open the film in the app' });
     mkdirSync(join(root, 'projects/p/media/.matte'), { recursive: true });
     writeFileSync(join(root, 'projects/p/media/.matte/a.mov.matte.mp4'), '');
+    expect(checkProject(root, 'p')).toHaveLength(1); // not stamped: a run that died, or older footage
+    stampMatte(join(root, 'projects/p'), 'media/a.mov');
     expect(checkProject(root, 'p')).toEqual([]);
   });
 });

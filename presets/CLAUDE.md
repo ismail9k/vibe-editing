@@ -76,7 +76,7 @@ The renderer draws the footage too. A component flagged `"scene": true` in its c
 - `p.subject({ …same, outline: { color, width } })`: you, cut out of the shot (the clip's matte), with an optional sticker edge. Draw what goes behind you first, then `p.subject()`, then what goes in front.
 - `p.subjectBox()`: where you are, in pixels: `{ x, y, w, h, head: { x, y, r } }`. Use it to aim zooms and place things round your head.
 
-Flag `"matte": true` on any component that calls `p.subject()`, so the app makes the matte. Without footage (Studio tiles) these draw a stand-in head and shoulders; without a matte yet, `subject()` draws the whole frame. `p.ctx` transforms and clips apply to all three.
+Flag `"matte": true` on any component that calls `p.subject()`, so the app makes the matte (an export refuses without one). Flag `"aims": true` on one that only calls `p.subjectBox()` (a zoom on your face): the app makes the matte too, but without one it aims at a guess instead of refusing. A clip whose matte isn't ready draws as if it had none, the same in the preview, the export and snapshots; a matte is re-cut when its footage file changes. Without footage (Studio tiles) these draw a stand-in head and shoulders; without a matte yet, `subject()` draws the whole frame. `p.ctx` transforms and clips apply to all three.
 
 Ready-made effects: `checklist`, `chart-grow`, `digital-zoom`, `phone`, `zoom-cut` (put it across a cut, half on each side), `backdrop`, `paper-cut`, `doodle-boil`, `cover-story`, `frame-break`, `orbit`, `vertigo`, `wall`, `glass-type`. One effect per beat: they're loud.
 

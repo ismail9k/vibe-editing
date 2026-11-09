@@ -35,7 +35,8 @@ export function Preview() {
         else useStore.setState({ playhead: t });
       }
       syncVideo(video, p, name, t, st.playing);
-      const wantsMatte = p.tracks.graphics.some((g) => lib.components[g.type]?.meta.matte);
+      // Cutout and aiming effects use a clip's matte when it has one (the export and snapshots do the same).
+      const wantsMatte = p.tracks.graphics.some((g) => lib.components[g.type]?.meta.matte || lib.components[g.type]?.meta.aims);
       syncMatte(matte, video, wantsMatte ? p : null, name, t, st.playing, st.mattes?.version ?? 0);
       syncSounds(sounds, p, name, t, st.playing);
       // Redraw while playing, or when the time, project, library or a video picture changed.

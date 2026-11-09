@@ -36,6 +36,7 @@ describe('preset components', () => {
   it.each(components.map((c) => [c.id, c] as const))('%s declares what it draws: footage → scene, cutout → matte', (_id, { meta, code }) => {
     if (/\bp\.footage\(/.test(code)) expect(meta.scene, 'draws the footage, so it must be a scene').toBe(true);
     if (/\bp\.subject\(/.test(code)) expect(meta.matte, 'draws the cutout, so it needs a matte').toBe(true);
+    if (/\bsubjectBox\(/.test(code)) expect(meta.matte || meta.aims, 'aims at the speaker, so it wants a matte (matte or aims)').toBe(true);
     expect(code).not.toMatch(/Math\.random/);
   });
 });

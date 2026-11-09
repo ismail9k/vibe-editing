@@ -56,6 +56,14 @@ describe('buildDecodeArgs', () => {
     expect(args.slice(-5)).toEqual(['-f', 'rawvideo', '-pix_fmt', 'gray', 'pipe:1']);
   });
 
+  it('stands a blank in for a clip whose matte isn\'t ready, so the other clips keep theirs', () => {
+    const args = buildDecodeArgs(twoClips(), '/w/p', 'matte', {}, (src) => src === 'media/b.mov')!;
+    expect(args).not.toContain('/w/p/media/.matte/a.mov.matte.mp4');
+    expect(args).toContain('/w/p/media/.matte/b.mov.matte.mp4');
+    expect(args[args.indexOf('lavfi') + 2]).toMatch(/^color=c=black:s=540x960:r=30/);
+    expect(graphOf(args)).toContain('trim=end_frame=90');
+  });
+
   it('has nothing to decode without footage', () => {
     expect(buildDecodeArgs(proj({ tracks: {} }), '/w/p', 'video', {})).toBeNull();
   });
