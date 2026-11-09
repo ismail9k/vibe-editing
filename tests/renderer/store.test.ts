@@ -74,3 +74,16 @@ describe('fields the parser had to replace', () => {
     expect(useStore.getState().issues.map((i) => i.message)).toContain('tracks.graphics[0].at should be a number (got "3.2")');
   });
 });
+
+describe('switching projects', () => {
+  it('saves an edit made just before the switch to the project it was made in', async () => {
+    const OTHER = 'projects/q/vibe.json';
+    disk.set(OTHER, film('q'));
+    useStore.getState().apply((p) => ops.updateItem(p, 'graphics', 'g1', { props: { value: 'app' } }));
+    await useStore.getState().openProject('q'); // well inside the 300 ms save delay
+    await vi.advanceTimersByTimeAsync(400);
+    expect(valueOnDisk()).toBe('app');
+    expect(JSON.parse(disk.get(OTHER)!).tracks.graphics[0].props.value).toBe('q');
+    expect(valueInApp()).toBe('q');
+  });
+});

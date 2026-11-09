@@ -94,6 +94,7 @@ export const useStore = create<State>((set, get) => ({
   },
 
   async openProject(name) {
+    await flushSave(); // an edit still waiting to be saved belongs to the project being left
     const text = await readDisk(projectRel(name));
     const { project, error, coerced } = parseProject(text ?? '{}');
     set({ coerced: coercedIssues(coerced), projectName: name, project: project ?? null, parseError: error ?? null, history: [], future: [], selection: null, playhead: 0, playing: false, diskNote: null, mattes: null });
@@ -192,18 +193,27 @@ async function ensureMattes(name: string, srcs: string[]) {
 
 function scheduleSave() {
   if (saveTimer) clearTimeout(saveTimer);
-  saveTimer = setTimeout(async () => {
-    saveTimer = null;
-    const { project, projectName, parseError } = useStore.getState();
-    if (!project || !projectName || parseError) return;
-    const rel = projectRel(projectName);
-    if (await writeDisk(rel, serializeProject(project))) return;
-    // vibe.json changed on disk after we last read it: disk wins, the app edit is dropped.
-    await useStore.getState().onDiskChange({ kind: 'project', id: projectName, rel });
-    const note = useStore.getState().diskNote?.text ?? 'vibe.json changed on disk';
-    useStore.setState({ diskNote: { text: `${note} · your last edit was not saved`, at: Date.now() } });
-  }, 300);
+  saveTimer = setTimeout(save, 300);
   useStore.getState().validate();
+}
+
+/** Save now if a save is waiting (before switching projects, so the edit lands in the project it was made in). */
+export async function flushSave() {
+  if (!saveTimer) return;
+  clearTimeout(saveTimer);
+  await save();
+}
+
+async function save() {
+  saveTimer = null;
+  const { project, projectName, parseError } = useStore.getState();
+  if (!project || !projectName || parseError) return;
+  const rel = projectRel(projectName);
+  if (await writeDisk(rel, serializeProject(project))) return;
+  // vibe.json changed on disk after we last read it: disk wins, the app edit is dropped.
+  await useStore.getState().onDiskChange({ kind: 'project', id: projectName, rel });
+  const note = useStore.getState().diskNote?.text ?? 'vibe.json changed on disk';
+  useStore.setState({ diskNote: { text: `${note} · your last edit was not saved`, at: Date.now() } });
 }
 
 /** While vibe.json on disk can't be read, app edits would replace it with the last good version: pause them. */

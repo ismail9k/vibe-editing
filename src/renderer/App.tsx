@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
-import { useStore } from './store';
-import { cancelWriteLater } from './writeLater';
+import { flushSave, useStore } from './store';
+import { cancelWriteLater, flushWriteLater } from './writeLater';
 import { TopBar } from './ui/TopBar';
 import { Studio } from './rooms/Studio';
 import { Edit } from './rooms/Edit';
@@ -31,7 +31,11 @@ export function App() {
       const name = s.projectName;
       timer = setTimeout(() => window.vibe.writeSession(name, { ...session, updatedAt: new Date().toISOString() }), 500);
     });
-    return () => { offChange(); offExport(); offMatte(); offSession(); };
+    // Closing the window inside a save's 300 ms delay would lose the last edit: send it now (the write request
+    // leaves before the page goes away).
+    const onUnload = () => { flushSave(); flushWriteLater(); };
+    window.addEventListener('beforeunload', onUnload);
+    return () => { offChange(); offExport(); offMatte(); offSession(); window.removeEventListener('beforeunload', onUnload); };
   }, []);
 
   return (
