@@ -47,7 +47,7 @@ The app is unsigned, so it is meant for the Mac that built it. ffmpeg and whispe
 
 ## The workspace
 
-Everything lives in `~/Vibe` (or in `$VIBE_HOME`). On first run the app copies in the presets: the 9k brand, seven styles, twenty-seven components, two demo films and a `CLAUDE.md` that teaches Claude Code how to work here. It copies in missing files, and later updates the ones nobody has touched since; a file you (or Claude) changed is never overwritten. `vibe presets` lists library files that differ from the app's version, and `vibe presets --take <file>` takes the app's (keeping yours in `.vibe/replaced/`).
+Everything lives in `~/Vibe` (or in `$VIBE_HOME`). On first run the app copies in the presets: the 9k brand, seven styles, twenty-seven components, nine sound effects, two demo films and a `CLAUDE.md` that teaches Claude Code how to work here. It copies in missing files, and later updates the ones nobody has touched since; a file you (or Claude) changed is never overwritten. `vibe presets` lists library files that differ from the app's version, and `vibe presets --take <file>` takes the app's (keeping yours in `.vibe/replaced/`).
 
 ```
 ~/Vibe/
@@ -55,6 +55,7 @@ Everything lives in `~/Vibe` (or in `$VIBE_HOME`). On first run the app copies i
   library/brand.json                      colours, modes (dark, light, green), fonts, design-language rules
   library/styles/<id>/style.{json,js}     a style: its params, and the painter overrides that restyle everything
   library/components/<id>/component.{json,js}   a component: props schema, defaults, and its draw function
+  library/sounds/<name>.wav               sound effects made in code (whoosh, riser, pop, ding, hit…) to copy into a film
   projects/<name>.vibe/vibe.json          a film: format, style, mode, direction, tracks
   projects/<name>.vibe/media/             footage and sounds (imported copies)
   projects/<name>.vibe/media/.matte/      cutout mattes, one per footage file (made on a Mac)

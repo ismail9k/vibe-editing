@@ -15,7 +15,8 @@
     "test": "vitest run",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "dist": "electron-vite build && electron-builder --mac --dir",
-    "dist:dmg": "electron-vite build && electron-builder --mac dmg"
+    "dist:dmg": "electron-vite build && electron-builder --mac dmg",
+    "sounds": "node scripts/sounds.ts"
   },
   "devDependencies": {
     "@fontsource/ibm-plex-mono": "^5.3.0",

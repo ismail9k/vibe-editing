@@ -26,6 +26,7 @@ npm run build        # build to out/
 npm test             # vitest run (tests/**/*.test.ts)
 npm run typecheck    # tsc --noEmit
 npm run dist         # dist/mac-arm64/Vibe Editing.app (electron-builder.yml; unsigned)
+npm run sounds       # rewrite presets/library/sounds/*.wav from src/core/sounds.ts
 npx vitest run tests/core/ops.test.ts          # one file
 npx vitest run tests/core/ops.test.ts -t "split"   # one test by name
 ```
@@ -84,7 +85,7 @@ Components (`library/components/<id>/component.{json,js}`) and styles (`library/
 
 #### `presets/` is the seed for a new workspace
 
-On startup `seedWorkspace` copies in every file from `presets/` that is missing, and records each file's hash in the workspace's `.vibe/presets.json`. A later start updates a file only if it still holds the recorded text (nobody touched it), and never anything under `projects/`; an edited file is kept. So an edited preset reaches an existing `~/Vibe` on the next start only where that file is untouched; `vibe presets` lists the files that differ and `vibe presets --take <file>` forces one (or use a fresh `VIBE_HOME`). `presets/CLAUDE.md` is the guide for a Claude session working *inside the workspace* (writing films, components and styles); keep it in sync when you change the painter API, component flags or `vibe.json` format. `tests/core/presets.test.ts` checks every preset component's schema and defaults.
+On startup `seedWorkspace` copies in every file from `presets/` that is missing, and records each file's hash in the workspace's `.vibe/presets.json`. A later start updates a file only if it still holds the recorded text (nobody touched it), and never anything under `projects/`; an edited file is kept. So an edited preset reaches an existing `~/Vibe` on the next start only where that file is untouched; `vibe presets` lists the files that differ and `vibe presets --take <file>` forces one (or use a fresh `VIBE_HOME`). `presets/CLAUDE.md` is the guide for a Claude session working *inside the workspace* (writing films, components and styles); keep it in sync when you change the painter API, component flags or `vibe.json` format. `tests/core/presets.test.ts` checks every preset component's schema and defaults. The sound effects in `presets/library/sounds/` are synthesised by `src/core/sounds.ts`: change the code, run `npm run sounds`, and commit the WAVs (`tests/core/sounds.test.ts` fails while they differ).
 
 #### Disk wins
 
