@@ -1,0 +1,11 @@
+{
+  "name": "Card",
+  "description": "A question or claim worth reading: a typed title, a body that lands after it, an optional tag.",
+  "duration": 3.5,
+  "defaults": { "title": "Is this still coding?", "body": "You describe the film, Claude writes it, and you steer.", "badge": "" },
+  "schema": {
+    "title": { "type": "text", "label": "Title" },
+    "body": { "type": "text", "label": "Body" },
+    "badge": { "type": "text", "label": "Tag" }
+  }
+}

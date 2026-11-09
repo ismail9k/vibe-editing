@@ -1,0 +1,11 @@
+{
+  "name": "Call to action",
+  "description": "The spoken call to action as a green block: a typed line, the orange button, Nino cheering.",
+  "duration": 3,
+  "defaults": { "text": "Comment STYLE and I'll send the prompts", "button": "STYLE", "nino": true },
+  "schema": {
+    "text": { "type": "text", "label": "Line" },
+    "button": { "type": "text", "label": "Button" },
+    "nino": { "type": "bool", "label": "Nino" }
+  }
+}

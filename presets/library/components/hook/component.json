@@ -1,0 +1,11 @@
+{
+  "name": "Hook",
+  "description": "The first-two-seconds line, typed big with the orange caret. An optional sub line lands under it.",
+  "duration": 2.5,
+  "defaults": { "text": "Claude wrote all of this", "sub": "", "size": 3 },
+  "schema": {
+    "text": { "type": "text", "label": "Line" },
+    "sub": { "type": "text", "label": "Sub line" },
+    "size": { "type": "number", "label": "Size (rem)" }
+  }
+}

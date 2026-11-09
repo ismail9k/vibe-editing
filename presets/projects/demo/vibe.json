@@ -1,0 +1,25 @@
+{
+  "name": "demo",
+  "format": { "w": 1080, "h": 1920, "fps": 30 },
+  "style": "flat9k",
+  "mode": "dark",
+  "dir": "ltr",
+  "tracks": {
+    "footage": [],
+    "graphics": [
+      { "id": "g1", "type": "hook", "at": 0, "dur": 2.4, "props": { "text": "Your style. Your brand.", "sub": "All of it from Claude Code" } },
+      { "id": "g2", "type": "stat", "at": 2.4, "dur": 2.6, "props": { "value": "10", "label": "styles for the same scene", "count": true } },
+      { "id": "g3", "type": "card", "at": 5, "dur": 2.8, "props": { "title": "Is this still editing?", "body": "You describe the film, Claude writes it, and you steer.", "badge": "vibe-editing" } },
+      { "id": "g4", "type": "list", "at": 7.8, "dur": 3.2, "props": { "title": "Three things", "items": ["Brand in one place", "Styles redraw everything", "Claude drives the edit"], "stagger": 0.7 } },
+      { "id": "g5", "type": "band", "at": 11, "dur": 2, "props": { "text": "Make your own style", "underline": "own" } },
+      { "id": "g6", "type": "nino", "at": 11.3, "dur": 1.7, "props": { "expression": "happy", "corner": "end", "size": 5 }, "y": 0.42 },
+      { "id": "g7", "type": "cta", "at": 13, "dur": 3, "props": { "text": "Comment STYLE and I'll send the prompts", "button": "STYLE", "nino": true } }
+    ],
+    "captions": [
+      { "id": "c1", "text": "same scene, ten looks", "at": 2.6, "dur": 2.2, "keyword": "ten" },
+      { "id": "c2", "text": "Claude writes the code", "at": 5.2, "dur": 2.4, "keyword": "Claude" },
+      { "id": "c3", "text": "and you make it yours", "at": 13.2, "dur": 2.6, "keyword": "yours" }
+    ],
+    "audio": []
+  }
+}

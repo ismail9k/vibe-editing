@@ -1,0 +1,10 @@
+{
+  "name": "Pixel Art",
+  "description": "Everything drawn on a coarse pixel grid: notched boxes with hard shadows, stepped motion, a banded night sky. Nino feels at home.",
+  "preset": true,
+  "params": {
+    "pixel": { "type": "number", "label": "Pixel size (at 1080 wide)", "value": 4, "min": 2, "max": 10, "step": 1 },
+    "steps": { "type": "number", "label": "Animation steps", "value": 6, "min": 2, "max": 16, "step": 1 },
+    "stars": { "type": "bool", "label": "Stars in the sky", "value": true }
+  }
+}

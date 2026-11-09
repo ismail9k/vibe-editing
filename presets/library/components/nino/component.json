@@ -1,0 +1,11 @@
+{
+  "name": "Nino",
+  "description": "The 9k mascot reacts from a corner. The only thing allowed a visible bounce.",
+  "duration": 2,
+  "defaults": { "expression": "happy", "corner": "end", "size": 5 },
+  "schema": {
+    "expression": { "type": "select", "label": "Expression", "options": ["idle", "happy", "thinking", "worried", "surprised", "eyes-closed"] },
+    "corner": { "type": "select", "label": "Corner", "options": ["start", "end"] },
+    "size": { "type": "number", "label": "Size (rem)" }
+  }
+}

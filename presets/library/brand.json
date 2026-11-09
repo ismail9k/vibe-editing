@@ -1,0 +1,37 @@
+{
+  "name": "9k",
+  "colors": {
+    "primary": "#166434",
+    "onPrimary": "#FFFFFF",
+    "accent": "#E85A02",
+    "onAccent": "#000000",
+    "ink": "#0A111A"
+  },
+  "modes": {
+    "dark": {
+      "bg": "#0F0F0F", "text": "#F5F5F5", "muted": "#999999", "primaryText": "#2FB161",
+      "surface": "#1A1A1A", "raised": "#242424", "sunken": "#141414", "border": "#404040", "selected": "#1F3327",
+      "success": "#72DA9A", "error": "#F39191", "warning": "#F4C871",
+      "glow": ["#499B56", "#4FA866", "#E85A02"], "glowOpacity": 0.35
+    },
+    "light": {
+      "bg": "#FAFAFA", "text": "#1A1A1A", "muted": "#666666", "primaryText": "#166434",
+      "surface": "#FFFFFF", "raised": "#FFFFFF", "sunken": "#F5F5F5", "border": "#D6D6D6", "selected": "#EAF5EE",
+      "success": "#166434", "error": "#A02222", "warning": "#885207",
+      "glow": ["#88D29B", "#FAC871", "#FF9363"], "glowOpacity": 0.5
+    },
+    "green": {
+      "bg": "#166434", "text": "#FFFFFF", "muted": "rgba(255,255,255,0.75)", "primaryText": "#FFFFFF",
+      "surface": "rgba(255,255,255,0.15)", "raised": "rgba(255,255,255,0.2)", "sunken": "rgba(0,0,0,0.12)", "border": "rgba(255,255,255,0.2)", "selected": "rgba(255,255,255,0.15)",
+      "glow": ["#88D29B", "#FAC871", "#FF9363"], "glowOpacity": 0.25
+    }
+  },
+  "fonts": {
+    "display": "IBM Plex Sans",
+    "body": "IBM Plex Sans",
+    "mono": "IBM Plex Mono",
+    "serif": "IBM Plex Serif",
+    "arabic": "Thmanyah Sans, IBM Plex Sans Arabic"
+  },
+  "rules": "Calm, precise, typed, and a little playful in the details. 9k is not flashy.\n\n- Green #166434 is the brand: bands, primary buttons, solid badges, Nino's body.\n- Orange #E85A02 is the accent and gets ONE hit per shot: an underline, the caret, a highlight, a key number. Text on orange is black, never white.\n- The glow (green → amber → orange, half off-screen, drifting) is the only gradient allowed. Never behind small text.\n- Type: IBM Plex Sans 700 for headlines, Plex Serif for the one editorial line, Plex Mono for code, numbers in UI and the wordmark. Arabic: Thmanyah, falling back to IBM Plex Sans Arabic; RTL mirrors the layout.\n- Text is typed, not faded in. Every film types at least one key line.\n- Motion has weight but doesn't bounce. Only Nino is allowed a visible bounce. Nino is whole pixels only: never blurred, rotated or smoothed. On the green band his body turns white.\n- Something new every 2–4 seconds; no beat sits dead for more than 4.\n- Never: Inter, Roboto, Poppins, Space Grotesk or system fonts; a violet or teal accent; gradients other than the glow; bouncy or elastic easing on text; everything fading in; neon, lens flares, particle bursts; more than one accent colour in a shot."
+}

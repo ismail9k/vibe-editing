@@ -1,0 +1,23 @@
+{
+  "name": "demo-ar",
+  "format": { "w": 1080, "h": 1920, "fps": 30 },
+  "style": "chalkboard",
+  "mode": "dark",
+  "dir": "rtl",
+  "tracks": {
+    "footage": [],
+    "graphics": [
+      { "id": "g1", "type": "hook", "at": 0, "dur": 2.4, "props": { "text": "ستايلك. البراند بتاعك.", "sub": "وكله من Claude Code" } },
+      { "id": "g2", "type": "stat", "at": 2.4, "dur": 2.6, "props": { "value": "10", "label": "ستايلات لنفس المشهد", "count": true } },
+      { "id": "g3", "type": "card", "at": 5, "dur": 2.8, "props": { "title": "لسه ده مونتاج؟", "body": "انت بتوصف الفيلم، وClaude بيكتبه، وانت بتوجّه.", "badge": "vibe" } },
+      { "id": "g4", "type": "list", "at": 7.8, "dur": 3.2, "props": { "title": "تلات حاجات", "items": ["البراند في مكان واحد", "ستايلات بتعيد رسم كل حاجة", "Claude بيمسك المونتاج"], "stagger": 0.7 } },
+      { "id": "g5", "type": "band", "at": 11, "dur": 2, "props": { "text": "اعمل الستايل بتاعك", "underline": "الستايل" } },
+      { "id": "g7", "type": "cta", "at": 13, "dur": 3, "props": { "text": "اكتب STYLE في الكومنتات", "button": "STYLE", "nino": true } }
+    ],
+    "captions": [
+      { "id": "c1", "text": "نفس المشهد بعشر أشكال", "at": 2.6, "dur": 2.2, "keyword": "بعشر" },
+      { "id": "c2", "text": "Claude بيكتب الكود", "at": 5.2, "dur": 2.4, "keyword": "Claude" }
+    ],
+    "audio": []
+  }
+}

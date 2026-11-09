@@ -1,0 +1,10 @@
+{
+  "name": "Band",
+  "description": "The climax: a full-width green band with white type and one orange underline.",
+  "duration": 2.5,
+  "defaults": { "text": "Your style. Your brand.", "underline": "brand" },
+  "schema": {
+    "text": { "type": "text", "label": "Line" },
+    "underline": { "type": "text", "label": "Underlined word" }
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "name": "Stat",
+  "description": "Any number he says: a big value that counts up, with a small label, in the feature panel.",
+  "duration": 3,
+  "defaults": { "value": "90%", "label": "of developers use AI every day", "count": true, "source": "" },
+  "schema": {
+    "value": { "type": "text", "label": "Value" },
+    "label": { "type": "text", "label": "Label" },
+    "count": { "type": "bool", "label": "Count up" },
+    "source": { "type": "text", "label": "Source" }
+  }
+}

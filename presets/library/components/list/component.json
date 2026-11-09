@@ -1,0 +1,11 @@
+{
+  "name": "List",
+  "description": "Reasons and steps: items land one after another; the newest one carries the accent.",
+  "duration": 4,
+  "defaults": { "title": "Three things", "items": ["Brand in one place", "Styles that redraw everything", "Claude drives the edit"], "stagger": 0.7 },
+  "schema": {
+    "title": { "type": "text", "label": "Title" },
+    "items": { "type": "list", "label": "Items" },
+    "stagger": { "type": "number", "label": "Seconds between items" }
+  }
+}
