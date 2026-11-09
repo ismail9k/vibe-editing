@@ -10,7 +10,7 @@ const on = <T>(channel: string, cb: (v: T) => void) => {
 const api: VibeApi = {
   info: () => ipcRenderer.invoke('ws:info'),
   read: (rel) => ipcRenderer.invoke('ws:read', rel),
-  write: (rel, text) => ipcRenderer.invoke('ws:write', rel, text),
+  write: (rel, text, base) => ipcRenderer.invoke('ws:write', rel, text, base),
   exists: (rels) => ipcRenderer.invoke('ws:exists', rels),
   duplicate: (a, b) => ipcRenderer.invoke('ws:duplicate', a, b),
   createProject: (name) => ipcRenderer.invoke('ws:createProject', name),

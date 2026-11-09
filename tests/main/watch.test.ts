@@ -37,3 +37,12 @@ describe('classify', () => {
     expect(classify('projects/demo/media/a.mov')).toBeNull();
   });
 });
+
+describe('classify ignores temp and swap files', () => {
+  it('drops the atomic-write temp file and editor swap files', () => {
+    expect(classify('library/styles/flat9k/style.json.4821.tmp')).toBeNull();
+    expect(classify('library/components/stat/.component.js.swp')).toBeNull();
+    expect(classify('library/components/stat/component.js~')).toBeNull();
+    expect(classify('library/styles/flat9k/style.json')).toEqual({ kind: 'style', id: 'flat9k' });
+  });
+});

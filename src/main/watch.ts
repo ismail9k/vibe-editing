@@ -22,6 +22,8 @@ export class SelfWriteGuard {
 /** What a workspace-relative path is, or null for files the app doesn't react to. */
 export function classify(rel: string): { kind: ChangeKind; id: string } | null {
   const parts = rel.split(/[\\/]/);
+  const base = parts[parts.length - 1];
+  if (/\.tmp$|\.swp$|~$/.test(base) || base.startsWith(".#")) return null; // atomic-write temps, editor swap files
   if (parts[0] === 'library') {
     if (parts[1] === 'brand.json') return { kind: 'brand', id: 'brand' };
     if (parts[1] === 'styles' && parts[2] && parts.length >= 4) return { kind: 'style', id: parts[2] };

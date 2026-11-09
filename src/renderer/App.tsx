@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { useStore } from './store';
+import { cancelWriteLater } from './writeLater';
 import { TopBar } from './ui/TopBar';
 import { Studio } from './rooms/Studio';
 import { Edit } from './rooms/Edit';
@@ -12,7 +13,7 @@ export function App() {
   useEffect(() => {
     const st = useStore.getState();
     st.boot();
-    const offChange = window.vibe.onChange((c) => useStore.getState().onDiskChange(c));
+    const offChange = window.vibe.onChange((c) => { cancelWriteLater(c.rel); useStore.getState().onDiskChange(c); });
     const offExport = window.vibe.onExportProgress((p) => useStore.setState({ exporting: p }));
     // Tell Claude what he's looking at: .vibe/session.json in the open project.
     let timer: ReturnType<typeof setTimeout> | null = null, lastJson = '';

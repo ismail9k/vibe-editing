@@ -2,16 +2,14 @@
 import { BrowserWindow, dialog, ipcMain } from 'electron';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { duplicateDir, importMedia, MEDIA_EXTENSIONS, listLibrary, listProjects, readText, resolveInside, writeText } from './workspace';
+import { duplicateDir, importMedia, MEDIA_EXTENSIONS, listLibrary, listProjects, readText, resolveInside, writeChecked, writeText } from './workspace';
 import type { SelfWriteGuard } from './watch';
 
 export function registerIpc(root: string, guard: SelfWriteGuard, initialProject: string | null) {
   ipcMain.handle('ws:info', () => ({ root, projects: listProjects(root), ...listLibrary(root) }));
   ipcMain.handle('ws:read', (_e, rel: string) => readText(root, rel));
-  ipcMain.handle('ws:write', (_e, rel: string, text: string) => {
-    guard.mark(resolveInside(root, rel), text);
-    writeText(root, rel, text);
-  });
+  ipcMain.handle('ws:write', (_e, rel: string, text: string, base?: string | null) =>
+    writeChecked(root, rel, text, base, () => guard.mark(resolveInside(root, rel), text)));
   ipcMain.handle('ws:exists', (_e, rels: string[]) =>
     Object.fromEntries(rels.map((r) => { try { return [r, existsSync(resolveInside(root, r))]; } catch { return [r, false]; } })));
   ipcMain.handle('ws:duplicate', (_e, a: string, b: string) => duplicateDir(root, a, b));

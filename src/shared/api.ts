@@ -2,12 +2,14 @@
 export interface WorkspaceInfo { root: string; projects: string[]; styles: string[]; components: string[] }
 export interface ImportedMedia { src: string; duration: number; kind: 'video' | 'audio' }
 export interface WsChange { kind: 'project' | 'style' | 'component' | 'brand'; id: string; rel: string }
+export type WriteResult = { ok: true } | { ok: false; current: string | null };
 export interface ExportProgress { stage: 'frames' | 'encoding' | 'done' | 'error'; done: number; total: number; message?: string; out?: string }
 
 export interface VibeApi {
   info(): Promise<WorkspaceInfo>;
   read(rel: string): Promise<string | null>;
-  write(rel: string, text: string): Promise<void>;
+  /** With `base`, writes only if the file still holds it (see writeChecked). */
+  write(rel: string, text: string, base?: string | null): Promise<WriteResult>;
   exists(rels: string[]): Promise<Record<string, boolean>>;
   duplicate(fromRel: string, toRel: string): Promise<void>;
   createProject(name: string): Promise<string>;

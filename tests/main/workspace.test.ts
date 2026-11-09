@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { resolveInside, seedWorkspace, listLibrary, listProjects, uniqueName, importable } from '../../src/main/workspace';
+import { resolveInside, seedWorkspace, listLibrary, listProjects, uniqueName, importable, writeChecked } from '../../src/main/workspace';
 
 let root: string, presets: string;
 beforeEach(() => {
@@ -60,5 +60,28 @@ describe('uniqueName', () => {
     writeFileSync(join(root, 'media/take.mov'), '');
     expect(uniqueName(join(root, 'media'), 'take.mov')).toBe('take-2.mov');
     expect(uniqueName(join(root, 'media'), 'other.mov')).toBe('other.mov');
+  });
+});
+
+describe('writeChecked', () => {
+  it('writes when the disk still holds the text the app last saw', () => {
+    mkdirSync(join(root, 'projects/p'), { recursive: true });
+    writeFileSync(join(root, 'projects/p/vibe.json'), 'A');
+    expect(writeChecked(root, 'projects/p/vibe.json', 'B', 'A')).toEqual({ ok: true });
+    expect(readFileSync(join(root, 'projects/p/vibe.json'), 'utf8')).toBe('B');
+  });
+  it('refuses, and returns the disk text, when someone else changed the file', () => {
+    mkdirSync(join(root, 'projects/p'), { recursive: true });
+    writeFileSync(join(root, 'projects/p/vibe.json'), 'CLAUDE');
+    expect(writeChecked(root, 'projects/p/vibe.json', 'APP', 'A')).toEqual({ ok: false, current: 'CLAUDE' });
+    expect(readFileSync(join(root, 'projects/p/vibe.json'), 'utf8')).toBe('CLAUDE');
+  });
+  it('treats a null base as "the file should not exist yet"', () => {
+    expect(writeChecked(root, 'library/styles/new/style.json', '{}', null)).toEqual({ ok: true });
+    expect(writeChecked(root, 'library/styles/new/style.json', '{"x":1}', null)).toEqual({ ok: false, current: '{}' });
+  });
+  it('writes unconditionally without a base', () => {
+    expect(writeChecked(root, 'a.json', '1', undefined)).toEqual({ ok: true });
+    expect(writeChecked(root, 'a.json', '2', undefined)).toEqual({ ok: true });
   });
 });

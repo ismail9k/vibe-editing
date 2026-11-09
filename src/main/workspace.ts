@@ -47,6 +47,19 @@ export function writeText(root: string, rel: string, text: string): string {
   return abs;
 }
 
+/** Write `text` only if the file still holds `base` (the text the app last read or wrote; null = must not exist).
+ *  Without a base the write is unconditional. Disk wins: a refused write returns what is on disk now. */
+export function writeChecked(root: string, rel: string, text: string, base: string | null | undefined, beforeWrite?: () => void):
+  { ok: true } | { ok: false; current: string | null } {
+  if (base !== undefined) {
+    const current = readText(root, rel);
+    if (current !== base) return { ok: false, current };
+  }
+  beforeWrite?.();
+  writeText(root, rel, text);
+  return { ok: true };
+}
+
 export function uniqueName(dir: string, name: string): string {
   const ext = extname(name), stem = basename(name, ext);
   let candidate = name, n = 2;

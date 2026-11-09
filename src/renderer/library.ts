@@ -4,9 +4,10 @@ import type { ComponentModule, Library, LibComponent, LibStyle, StyleMeta } from
 import type { ComponentMeta } from '../core/validate';
 import type { StyleModule } from '../core/painter';
 import type { WorkspaceInfo } from '../shared/api';
+import { readDisk } from './disk';
 
 async function json<T>(rel: string): Promise<T> {
-  const text = await window.vibe.read(rel);
+  const text = await readDisk(rel);
   if (text === null) throw new Error(`${rel} is missing`);
   try { return JSON.parse(text) as T; } catch (e) { throw new Error(`${rel}: ${(e as Error).message}`); }
 }

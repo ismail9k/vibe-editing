@@ -6,6 +6,7 @@ import { validateProject, type Issue } from '../core/validate';
 import type { Library } from '../core/render';
 import type { WorkspaceInfo, WsChange } from '../shared/api';
 import { loadLibrary } from './library';
+import { lastSeen, readDisk, writeDisk } from './disk';
 
 export type Room = 'studio' | 'edit';
 export interface Selection { track: TrackName; id: string }
@@ -89,7 +90,7 @@ export const useStore = create<State>((set, get) => ({
   },
 
   async openProject(name) {
-    const text = await window.vibe.read(projectRel(name));
+    const text = await readDisk(projectRel(name));
     const { project, error } = parseProject(text ?? '{}');
     set({ projectName: name, project: project ?? null, parseError: error ?? null, history: [], future: [], selection: null, playhead: 0, playing: false, diskNote: null });
     if (project) set({ studio: { ...get().studio, style: project.style, mode: project.mode, dir: project.dir } });
@@ -99,7 +100,9 @@ export const useStore = create<State>((set, get) => ({
   async onDiskChange(c) {
     if (c.kind !== 'project') { await get().reloadLibrary(); set({ diskNote: { text: `${c.rel} changed on disk`, at: Date.now() } }); return; }
     if (c.id !== get().projectName) { await get().refreshInfo(); return; }
-    const text = await window.vibe.read(c.rel);
+    const before = lastSeen(c.rel);
+    const text = await readDisk(c.rel);
+    if (text === before && get().project && !get().parseError) return; // already showing this version
     if (text === null) { set({ parseError: 'vibe.json was deleted' }); return; }
     const { project, error } = parseProject(text);
     if (!project) { set({ parseError: error ?? 'invalid vibe.json' }); return; } // keep the last good project
@@ -120,7 +123,7 @@ export const useStore = create<State>((set, get) => ({
 
   apply(fn) {
     const { project, projectName } = get();
-    if (!project || !projectName) return;
+    if (!project || !projectName || pausedForParseError()) return;
     const next = fn(project);
     if (next === project) return;
     set({ project: next, history: [...get().history, project].slice(-200), future: [] });
@@ -129,14 +132,14 @@ export const useStore = create<State>((set, get) => ({
 
   undo() {
     const { history, project } = get();
-    if (!history.length || !project) return;
+    if (!history.length || !project || pausedForParseError()) return;
     set({ project: history[history.length - 1], history: history.slice(0, -1), future: [project, ...get().future] });
     scheduleSave();
   },
 
   redo() {
     const { future, project } = get();
-    if (!future.length || !project) return;
+    if (!future.length || !project || pausedForParseError()) return;
     set({ project: future[0], future: future.slice(1), history: [...get().history, project] });
     scheduleSave();
   },
@@ -164,8 +167,21 @@ function scheduleSave() {
   if (saveTimer) clearTimeout(saveTimer);
   saveTimer = setTimeout(async () => {
     saveTimer = null;
-    const { project, projectName } = useStore.getState();
-    if (project && projectName) await window.vibe.write(projectRel(projectName), serializeProject(project));
+    const { project, projectName, parseError } = useStore.getState();
+    if (!project || !projectName || parseError) return;
+    const rel = projectRel(projectName);
+    if (await writeDisk(rel, serializeProject(project))) return;
+    // vibe.json changed on disk after we last read it: disk wins, the app edit is dropped.
+    await useStore.getState().onDiskChange({ kind: 'project', id: projectName, rel });
+    const note = useStore.getState().diskNote?.text ?? 'vibe.json changed on disk';
+    useStore.setState({ diskNote: { text: `${note} · your last edit was not saved`, at: Date.now() } });
   }, 300);
   useStore.getState().validate();
+}
+
+/** While vibe.json on disk can't be read, app edits would replace it with the last good version: pause them. */
+function pausedForParseError(): boolean {
+  if (!useStore.getState().parseError) return false;
+  useStore.setState({ diskNote: { text: 'vibe.json on disk has an error. Fix it (or ask Claude) before editing here', at: Date.now() } });
+  return true;
 }
