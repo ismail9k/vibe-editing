@@ -21,8 +21,10 @@ export interface VibeApi {
   // export window only
   frameReady(rgba: ArrayBuffer): Promise<void>;
   headlessJob(): Promise<HeadlessJob | null>;
-  headlessDone(result: { errors: string[]; pngs?: string[] }): Promise<void>;
+  headlessDone(result: HeadlessResult): Promise<void>;
 }
+
+export interface HeadlessResult { errors: string[]; pngs?: ArrayBuffer[]; fatal?: string }
 
 export type HeadlessJob =
   | { kind: 'frames'; project: string; from: number; count: number }

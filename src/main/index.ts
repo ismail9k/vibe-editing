@@ -1,19 +1,16 @@
 // Vibe Editing main process: the app window, the workspace, the watcher.
 // `electron . --cli <command> …` runs the vibe CLI headless instead (see cli.ts).
 import { app, BrowserWindow } from 'electron';
-import { join, dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { join } from 'node:path';
 import { registerScheme, handleProtocol } from './protocol';
 import { registerIpc } from './ipc';
 import { seedWorkspace, workspaceRoot } from './workspace';
 import { SelfWriteGuard, watchWorkspace } from './watch';
 import { registerExport } from './export';
 import { runCli } from './cli';
+import { registerHeadless } from './headless';
+import { preloadPath, rendererUrl } from './paths';
 
-const here = dirname(fileURLToPath(import.meta.url));
-export const preloadPath = join(here, '../preload/index.mjs');
-export const rendererUrl = (hash = '') =>
-  process.env.ELECTRON_RENDERER_URL ? `${process.env.ELECTRON_RENDERER_URL}${hash}` : `file://${join(here, '../renderer/index.html')}${hash}`;
 
 const argv = process.argv.slice(app.isPackaged ? 1 : 2);
 const cliAt = argv.indexOf('--cli');
@@ -28,6 +25,8 @@ app.whenReady().then(async () => {
   seedWorkspace(root, join(app.getAppPath(), 'presets'));
   handleProtocol(root);
   const guard = new SelfWriteGuard();
+  registerIpc(root, guard, projectArg);
+  registerHeadless();
   registerExport(root);
 
   if (cliArgs) {
@@ -36,7 +35,6 @@ app.whenReady().then(async () => {
     return;
   }
 
-  registerIpc(root, guard, projectArg);
   const win = new BrowserWindow({
     width: 1480, height: 920, minWidth: 1100, minHeight: 680,
     backgroundColor: '#0F0F0F', titleBarStyle: 'hiddenInset', title: 'Vibe Editing',

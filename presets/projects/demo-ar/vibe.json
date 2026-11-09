@@ -15,7 +15,7 @@
       { "id": "g7", "type": "cta", "at": 13, "dur": 3, "props": { "text": "اكتب STYLE في الكومنتات", "button": "STYLE", "nino": true } }
     ],
     "captions": [
-      { "id": "c1", "text": "نفس المشهد بعشر أشكال", "at": 2.6, "dur": 2.2, "keyword": "بعشر" },
+      { "id": "c1", "text": "نفس المشهد بعشر أشكال", "at": 2.6, "dur": 2.2 },
       { "id": "c2", "text": "Claude بيكتب الكود", "at": 5.2, "dur": 2.4, "keyword": "Claude" }
     ],
     "audio": []
