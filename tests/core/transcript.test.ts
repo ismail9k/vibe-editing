@@ -15,6 +15,10 @@ describe('parseWhisperWords', () => {
     expect(words.map((w) => w.text)).toEqual(['hi']);
   });
 
+  it('strips control characters from the words', () => {
+    expect(parseWhisperWords({ transcription: [seg(0, 400, ' a\u0007b\u009b')] })).toEqual([{ text: 'ab', start: 0, end: 0.4 }]);
+  });
+
   it('glues punctuation-only segments onto the word before', () => {
     const words = parseWhisperWords({ transcription: [seg(0, 400, ' ليه'), seg(400, 500, '؟'), seg(500, 900, ' طب')] });
     expect(words).toEqual([{ text: 'ليه؟', start: 0, end: 0.5 }, { text: 'طب', start: 0.5, end: 0.9 }]);

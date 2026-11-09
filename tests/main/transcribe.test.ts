@@ -60,6 +60,16 @@ describe('transcript cache', () => {
     expect(cachedWords(dir, 'media/a.mp4', 'small', 'auto')).toBeNull();
   });
 
+  it('keeps only well-formed words from the cache, without control characters', () => {
+    const dir = tmp();
+    mkdirSync(join(dir, 'media/.transcript'), { recursive: true });
+    writeFileSync(join(dir, 'media/a.mp4'), 'footage');
+    const st = statSync(join(dir, 'media/a.mp4'));
+    const words = [{ text: 'hi\u001b[2J', start: 0, end: 0.5 }, { text: 7, start: 1, end: 2 }, { text: 'x', start: 'a', end: 2 }, { text: 'ok', start: 1, end: 1.5 }];
+    writeFileSync(transcriptPath(dir, 'media/a.mp4'), JSON.stringify({ size: st.size, mtimeMs: st.mtimeMs, model: 'small', lang: 'auto', silences: [], words }));
+    expect(cachedWords(dir, 'media/a.mp4', 'small', 'auto')).toEqual([{ text: 'hi[2J', start: 0, end: 0.5 }, { text: 'ok', start: 1, end: 1.5 }]);
+  });
+
   it('has no cache for a file never transcribed', () => {
     const dir = tmp();
     writeFileSync(join(dir, 'a.mp4'), 'x');

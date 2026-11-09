@@ -8,7 +8,7 @@ import { basename, dirname, join } from 'node:path';
 import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import type { Project } from '../core/model';
-import { parseWhisperWords, phrases, snapToSpeech, wordsOnTimeline, type SourceWord, type TimelineWord } from '../core/transcript';
+import { cleanWords, parseWhisperWords, phrases, snapToSpeech, wordsOnTimeline, type SourceWord, type TimelineWord } from '../core/transcript';
 import { resolveInside } from './workspace';
 
 /** Multilingual and fast; good enough for Arabic and English talking heads. About 1.6 GB, downloaded once. */
@@ -75,7 +75,7 @@ export function cachedWords(projectDir: string, src: string, model: string, lang
   try {
     const c = JSON.parse(readFileSync(transcriptPath(projectDir, src), 'utf8'));
     const s = stamp(projectDir, src);
-    return c.size === s.size && c.mtimeMs === s.mtimeMs && c.model === model && c.lang === lang && Array.isArray(c.silences) && Array.isArray(c.words) ? c.words : null;
+    return c.size === s.size && c.mtimeMs === s.mtimeMs && c.model === model && c.lang === lang && Array.isArray(c.silences) && Array.isArray(c.words) ? cleanWords(c.words) : null;
   } catch { return null; }
 }
 

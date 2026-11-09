@@ -11,6 +11,17 @@ export interface Phrase { text: string; at: number; end: number }
 const r3 = (v: number) => Math.round(v * 1000) / 1000;
 const PUNCT_ONLY = /^[\p{P}\s]+$/u;
 const NON_SPEECH = /^[[(].*[\])]$/;
+// Words get printed to a terminal: no escape sequences, bells or other control characters.
+const CONTROL = /[\u0000-\u001f\u007f-\u009f]/g;
+const clean = (s: string) => s.replace(CONTROL, '');
+
+/** Words read back from a cache file: only well-formed ones, with control characters stripped. */
+export function cleanWords(v: unknown): SourceWord[] {
+  if (!Array.isArray(v)) return [];
+  return v.filter((w) => typeof w?.text === 'string' && Number.isFinite(w.start) && Number.isFinite(w.end))
+    .map((w) => ({ text: clean(w.text), start: w.start, end: w.end }))
+    .filter((w) => w.text.length > 0);
+}
 
 /** Words from whisper-cli's `-oj` output run with `-ml 1 -sow` (one word per segment). Never throws. */
 export function parseWhisperWords(json: unknown): SourceWord[] {
@@ -18,7 +29,7 @@ export function parseWhisperWords(json: unknown): SourceWord[] {
   if (!Array.isArray(segs)) return [];
   const words: SourceWord[] = [];
   for (const s of segs) {
-    const text = typeof s?.text === 'string' ? s.text.trim() : '';
+    const text = typeof s?.text === 'string' ? clean(s.text).trim() : '';
     const from = Number(s?.offsets?.from), to = Number(s?.offsets?.to);
     if (!text || NON_SPEECH.test(text) || !Number.isFinite(from) || !Number.isFinite(to)) continue;
     const prev = words[words.length - 1];
