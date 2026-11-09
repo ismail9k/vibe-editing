@@ -4,7 +4,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, existsSync, readdirSync, utimesS
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { parseProject } from '../../src/core/model';
-import { matteSize, matteDecodeArgs, matteEncodeArgs, usesMatte, wantsMatte, missingMattes, runChain, helper, matteReady, stampMatte, partialPath } from '../../src/main/matte';
+import { matteSize, matteDecodeArgs, matteEncodeArgs, usesMatte, wantsMatte, missingMattes, runChain, helper, matteReady, stampMatte, partialPath, parseRotation, ensureMattes } from '../../src/main/matte';
 
 describe('matteSize', () => {
   it('keeps the long side at 960 and even sides', () => {
@@ -29,7 +29,8 @@ describe('matte ffmpeg args', () => {
     expect(a).not.toContain('-ss');
     const vf = a[a.indexOf('-vf') + 1];
     expect(vf).toContain('tonemap=tonemap=reinhard');
-    expect(vf).toMatch(/fps=30,format=bgra$/);
+    // From the file's zero, not its first video frame: a file whose picture starts after its sound stays aligned.
+    expect(vf).toMatch(/fps=30:start_time=0,format=bgra$/);
     expect(a.slice(-5)).toEqual(['-f', 'rawvideo', '-pix_fmt', 'bgra', 'pipe:1']);
   });
   it('encodes grey frames from stdin to H.264', () => {
@@ -146,5 +147,48 @@ describe('matte freshness', () => {
     const out = '/p/media/.matte/a.mov.matte.mp4';
     expect(partialPath(out)).not.toBe(partialPath(out));
     expect(partialPath(out)).toMatch(/^\/p\/media\/\.matte\/a\.mov\.matte\.\d+\.[0-9a-f]{8}\.partial\.mp4$/);
+  });
+});
+
+describe('parseRotation', () => {
+  it('reads the display matrix rotation', () => {
+    expect(parseRotation({ streams: [{ width: 1920, height: 1080, side_data_list: [{ rotation: -90 }] }] })).toEqual({ w: 1920, h: 1080, rotation: -90 });
+  });
+  it('falls back to an older file\'s rotate tag (clockwise, so the sign flips)', () => {
+    expect(parseRotation({ streams: [{ width: 1920, height: 1080, tags: { rotate: '90' } }] })).toEqual({ w: 1920, h: 1080, rotation: -90 });
+  });
+  it('is upright without either', () => {
+    expect(parseRotation({ streams: [{ width: 640, height: 360 }] }).rotation).toBe(0);
+    expect(parseRotation({}).rotation).toBe(0);
+  });
+});
+
+describe('ensureMattes', () => {
+  const setup = () => {
+    const dir = mkdtempSync(join(tmpdir(), 'vibe-proj-'));
+    mkdirSync(join(dir, 'media'), { recursive: true });
+    for (const f of ['a.mov', 'c.mov', 'd.mov']) writeFileSync(join(dir, 'media', f), f);
+    const project = parseProject(JSON.stringify({ tracks: {
+      footage: ['a', 'b', 'c', 'd'].map((n, i) => ({ id: `f${i}`, src: `media/${n}.mov`, in: 0, out: 1 })),
+      graphics: [{ id: 'g1', type: 'orbit', at: 0, dur: 1 }],
+    } })).project!;
+    return { dir, project };
+  };
+  const tools = { appDir: '/nowhere', binDir: '/nowhere' };
+
+  it('skips a clip whose file is missing and cuts the ones after it', async () => {
+    const { dir, project } = setup(), made: string[] = [];
+    await ensureMattes(tools, project, dir, undefined, { helper: async () => 'bin', make: async (_b, _d, src) => { made.push(src); } });
+    expect(made).toEqual(['media/a.mov', 'media/c.mov', 'media/d.mov']);
+  });
+
+  it('goes on past a clip that fails, then reports it', async () => {
+    const { dir, project } = setup(), made: string[] = [];
+    const run = ensureMattes(tools, project, dir, undefined, {
+      helper: async () => 'bin',
+      make: async (_b, _d, src) => { if (src === 'media/a.mov') throw new Error("couldn't cut out media/a.mov: bad file"); made.push(src); },
+    });
+    await expect(run).rejects.toThrow("couldn't cut out media/a.mov: bad file");
+    expect(made).toEqual(['media/c.mov', 'media/d.mov']);
   });
 });

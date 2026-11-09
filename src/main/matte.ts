@@ -22,9 +22,11 @@ export function matteSize(w: number, h: number, rotation: number): [number, numb
   return [even(uw), even(uh)];
 }
 
+/** Matte frame n is the footage at n/30 s of the file's own clock, counted from its zero rather than its first
+ *  picture: in a file whose video starts after its audio, the first picture is held over the gap. */
 export function matteDecodeArgs(file: string, w: number, h: number, hdr: boolean): string[] {
   return ['-hide_banner', '-loglevel', 'error', '-i', file, '-an',
-    '-vf', `${fitFilter(w, h, hdr)},fps=${MATTE_FPS},format=bgra`, '-f', 'rawvideo', '-pix_fmt', 'bgra', 'pipe:1'];
+    '-vf', `${fitFilter(w, h, hdr)},fps=${MATTE_FPS}:start_time=0,format=bgra`, '-f', 'rawvideo', '-pix_fmt', 'bgra', 'pipe:1'];
 }
 
 export function matteEncodeArgs(w: number, h: number, out: string): string[] {
@@ -129,12 +131,23 @@ export function helper(tools: MatteTools, compile: Compile = swiftc): Promise<st
   return build;
 }
 
+interface ProbedStream { width?: number; height?: number; side_data_list?: { rotation?: number }[]; tags?: { rotate?: string } }
+
+/** A video stream's stored size and rotation from ffprobe's JSON. Newer files say it in a display matrix
+ *  (counter-clockwise degrees); older ones in a `rotate` tag (clockwise), so the tag's sign is flipped. */
+export function parseRotation(json: { streams?: ProbedStream[] }): { w: number; h: number; rotation: number } {
+  const s = json.streams?.[0] ?? {};
+  const matrix = s.side_data_list?.find((d) => d.rotation !== undefined)?.rotation;
+  const tag = Number(s.tags?.rotate);
+  const rotation = matrix ?? (Number.isFinite(tag) && tag ? -tag : 0);
+  return { w: s.width ?? 0, h: s.height ?? 0, rotation };
+}
+
 function rotationOf(file: string): Promise<{ w: number; h: number; rotation: number }> {
-  return new Promise((ok, fail) => execFile('ffprobe', ['-v', 'error', '-select_streams', 'v:0', '-show_entries', 'stream=width,height:stream_side_data=rotation', '-of', 'json', file], (err, out) => {
+  const entries = 'stream=width,height:stream_side_data=rotation:stream_tags=rotate';
+  return new Promise((ok, fail) => execFile('ffprobe', ['-v', 'error', '-select_streams', 'v:0', '-show_entries', entries, '-of', 'json', file], (err, out) => {
     if (err) return fail(new Error(`ffprobe failed: ${err.message}`));
-    const s = (JSON.parse(out).streams ?? [])[0] ?? {};
-    const rot = (s.side_data_list ?? []).find((d: { rotation?: number }) => d.rotation !== undefined)?.rotation ?? 0;
-    ok({ w: s.width, h: s.height, rotation: rot });
+    ok(parseRotation(JSON.parse(out)));
   }));
 }
 
@@ -207,14 +220,21 @@ async function makeMatte(bin: string, projectDir: string, src: string, onProgres
 // One job per matte file, shared by the app's background run and the export.
 const jobs = new Map<string, Promise<void>>();
 
-/** Makes the missing mattes for a project, one file at a time. */
-export async function ensureMattes(tools: MatteTools, project: Project, projectDir: string, onProgress: (p: MatteProgress) => void = () => {}) {
-  const todo = missingMattes(project, (src) => matteReady(projectDir, src));
+interface MatteDeps { helper: (tools: MatteTools) => Promise<string>; make: typeof makeMatte }
+
+/** Makes the missing mattes for a project, one file at a time. A clip whose file is missing is skipped (the check
+ *  reports it), and one that fails doesn't stop the rest: every other file gets its matte, then the failures are
+ *  reported together. */
+export async function ensureMattes(tools: MatteTools, project: Project, projectDir: string, onProgress: (p: MatteProgress) => void = () => {},
+  deps: MatteDeps = { helper, make: makeMatte }) {
+  const todo = missingMattes(project, (src) => matteReady(projectDir, src)).filter((src) => existsSync(resolveInside(projectDir, src)));
   if (!todo.length) return;
-  const bin = await helper(tools);
+  const bin = await deps.helper(tools);
+  const failed: string[] = [];
   for (const src of todo) {
     const key = resolveInside(projectDir, matteSrc(src));
-    if (!jobs.has(key)) jobs.set(key, makeMatte(bin, projectDir, src, onProgress).finally(() => jobs.delete(key)));
-    await jobs.get(key);
+    if (!jobs.has(key)) jobs.set(key, deps.make(bin, projectDir, src, onProgress).finally(() => jobs.delete(key)));
+    try { await jobs.get(key); } catch (e) { failed.push((e as Error).message); }
   }
+  if (failed.length) throw new Error(failed.join('; '));
 }
