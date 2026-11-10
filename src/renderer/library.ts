@@ -1,5 +1,5 @@
-// Loads the workspace library: brand.json, styles and components (their JS over vibe://).
-import type { Brand } from '../core/brand';
+// Loads the workspace library: the brands, styles and components (their JS over vibe://).
+import { fillBrand, type Brand } from '../core/brand';
 import type { ComponentModule, Library, LibComponent, LibStyle, StyleMeta } from '../core/render';
 import type { ComponentMeta } from '../core/validate';
 import type { StyleModule } from '../core/painter';
@@ -32,16 +32,21 @@ async function loadComponent(id: string, stamp: number): Promise<LibComponent> {
   return c;
 }
 
-/** Load the whole library. A broken brand.json throws (the caller keeps its last good library); broken modules load as errors. */
+/** Load the whole library. A broken brand.json throws (the caller keeps its last good library); broken modules load as
+ *  errors, and a broken extra brand is left out (`vibe check` names it; a film asking for it draws in the main brand). */
 export async function loadLibrary(info: WorkspaceInfo): Promise<Library> {
   const stamp = Date.now();
   const brand = await json<Brand>('library/brand.json');
-  const [styles, components] = await Promise.all([
+  const [styles, components, brands] = await Promise.all([
     Promise.all(info.styles.map((id) => loadStyle(id, stamp))),
     Promise.all(info.components.map((id) => loadComponent(id, stamp))),
+    Promise.all((info.brands ?? []).map(async (id) => {
+      try { return [id, fillBrand(brand, await json<Partial<Brand>>(`library/brands/${id}.json`), id)] as const; } catch { return null; }
+    })),
   ]);
   return {
     brand,
+    brands: Object.fromEntries(brands.filter((b) => !!b)),
     styles: Object.fromEntries(styles.map((s) => [s.id, s])),
     components: Object.fromEntries(components.map((c) => [c.id, c])),
   };

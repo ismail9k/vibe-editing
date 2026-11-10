@@ -2,7 +2,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { VibeApi, WorkspaceInfo } from '../../src/shared/api';
 
-const info: WorkspaceInfo = { root: '/ws', projects: [], styles: ['flat9k'], components: ['card'] };
+const info: WorkspaceInfo = { root: '/ws', projects: [], styles: ['flat9k'], components: ['card'], brands: [] };
 (globalThis as unknown as { window: { vibe: Partial<VibeApi> } }).window = {
   vibe: { info: async () => ({ ...info, components: [...info.components] }), read: async () => null, exists: async () => ({}) },
 };

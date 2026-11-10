@@ -85,7 +85,7 @@ Components (`library/components/<id>/component.{json,js}`) and styles (`library/
 
 - A **component** exports `{ draw(p, { t, dur, props, graphic, place }) }` and must draw through the painter `p`, never raw canvas calls for the look, so styles can restyle it. `component.json` flags: `scene` (draws the footage itself; the plain footage layer is skipped), `matte` (calls `p.subject()`, needs a cutout; export refuses without one), `aims` (only uses `p.subjectBox()`; guesses without a matte).
 - A **style** exports `(base) => ({ ...overrides })`. Base painter methods call each other through `this`, so an override applies everywhere; overrides call the base as `base.method.call(this, ...)`.
-- Colours come from `brand.json` and the project's mode, not from styles or components.
+- Colours come from the brand and the project's mode, not from styles or components. The workspace's own brand is `library/brand.json` (id `default`, `MAIN_BRAND`); more live beside it as `library/brands/<id>.json`, and a film picks one with `"brand": "<id>"` in `vibe.json` (left out, it uses the workspace's own). `brandOf(lib, project.brand)` in `src/core/brand.ts` is the one place that choice is made, and `fillBrand` fills whatever an extra brand's file leaves out from the workspace's own.
 - **Claude makes and changes components itself**, inside the workspace. `vibe component new` writes the template in `src/core/component-template.ts` (or copies another component: `createComponent` in `src/main/workspace.ts`, also behind the Studio's "+ New component"). `vibe component snap` draws a `kind: 'component'` headless job: the same one-graphic film as a Studio tile (`tileProject` in `render.ts`), as a contact sheet. `validateComponent` in `src/core/validate.ts` is the one component check, run by `vibe component snap`, by `vibe check` for the components a film uses, and by `tests/core/presets.test.ts` on every preset, so a preset that fails it fails the tests. When a new component appears on disk while the Studio is open, the Studio focuses it.
 
 #### `presets/` is the seed for a new workspace
@@ -98,7 +98,7 @@ The project file on disk is the source of truth, since Claude edits it while the
 
 - `parseProject` never throws: invalid JSON returns `error` so the app keeps the last good project; wrong-typed fields fall back to defaults and are reported in `coerced`.
 - App writes are conditional (`writeChecked`): the renderer sends the text it last read (`src/renderer/disk.ts`) and main writes only if the file still holds it. A refused write reloads from disk. Writes are atomic (temp file + rename).
-- `SelfWriteGuard` (`src/main/watch.ts`) remembers the app's own writes so the watcher doesn't report them back as outside changes. The watcher only reacts to `library/brand.json`, `library/styles/*`, `library/components/*` and `projects/*.vibe/vibe.json`.
+- `SelfWriteGuard` (`src/main/watch.ts`) remembers the app's own writes so the watcher doesn't report them back as outside changes. The watcher only reacts to `library/brand.json`, `library/brands/*.json`, `library/styles/*`, `library/components/*` and `projects/*.vibe/vibe.json`.
 - All workspace paths go through `resolveInside()`, which rejects anything outside the workspace.
 
 #### Projects are `.vibe` packages

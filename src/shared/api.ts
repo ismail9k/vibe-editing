@@ -1,6 +1,6 @@
 // The bridge between the app window and the main process (window.vibe).
 import type { Dir, Mode } from '../core/model';
-export interface WorkspaceInfo { root: string; projects: string[]; styles: string[]; components: string[] }
+export interface WorkspaceInfo { root: string; projects: string[]; styles: string[]; components: string[]; brands: string[] }
 export interface ImportedMedia { src: string; duration: number; kind: 'video' | 'audio' }
 export interface WsChange { kind: 'project' | 'style' | 'component' | 'brand'; id: string; rel: string }
 export type WriteResult = { ok: true } | { ok: false; current: string | null };

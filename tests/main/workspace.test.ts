@@ -33,7 +33,7 @@ describe('seedWorkspace', () => {
   it('copies presets into an empty workspace', () => {
     seedWorkspace(root, presets);
     expect(existsSync(join(root, 'library/styles/flat9k/style.json'))).toBe(true);
-    expect(listLibrary(root)).toEqual({ styles: ['flat9k'], components: ['stat'] });
+    expect(listLibrary(root)).toEqual({ styles: ['flat9k'], components: ['stat'], brands: [] });
     expect(listProjects(root)).toEqual(['demo']);
   });
   it('never overwrites a file the user changed', () => {

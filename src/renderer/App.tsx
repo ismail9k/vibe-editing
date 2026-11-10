@@ -33,7 +33,7 @@ export function App() {
     let timer: ReturnType<typeof setTimeout> | null = null, lastJson = '';
     const offSession = useStore.subscribe((s) => {
       if (!s.projectName || !s.project) return;
-      const session = { room: s.room, selection: s.selection, playhead: +s.playhead.toFixed(2), style: s.project.style, studio: { style: s.studio.style, mode: s.studio.mode, dir: s.studio.dir, focus: s.studio.focus } };
+      const session = { room: s.room, selection: s.selection, playhead: +s.playhead.toFixed(2), style: s.project.style, studio: { style: s.studio.style, brand: s.studio.brand, mode: s.studio.mode, dir: s.studio.dir, focus: s.studio.focus } };
       const json = s.projectName + JSON.stringify(session); // a switched-to project gets its own session.json
       if (json === lastJson || s.playing) return;
       lastJson = json;

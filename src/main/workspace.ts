@@ -110,7 +110,10 @@ export function takePresets(root: string, presetsDir: string, rels: string[]): {
 
 const dirs = (p: string) => (existsSync(p) ? readdirSync(p).filter((n) => !n.startsWith('.') && statSync(join(p, n)).isDirectory()).sort() : []);
 
-export const listLibrary = (root: string) => ({ styles: dirs(join(root, 'library/styles')), components: dirs(join(root, 'library/components')) });
+/** The extra brands: library/brands/<id>.json. The workspace's own brand (library/brand.json) isn't in the list. */
+const brandIds = (p: string) => (existsSync(p) ? readdirSync(p).filter((n) => !n.startsWith('.') && n.endsWith('.json')).map((n) => n.slice(0, -5)).sort() : []);
+
+export const listLibrary = (root: string) => ({ styles: dirs(join(root, 'library/styles')), components: dirs(join(root, 'library/components')), brands: brandIds(join(root, 'library/brands')) });
 export const listProjects = (root: string) => dirs(join(root, 'projects'))
   .filter((n) => n.endsWith(PROJECT_EXT) && existsSync(join(root, 'projects', n, 'vibe.json')))
   .map((n) => n.slice(0, -PROJECT_EXT.length));

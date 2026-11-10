@@ -10,7 +10,8 @@ export interface Graphic { id: string; type: string; at: number; dur: number; pr
 export interface Caption { id: string; text: string; at: number; dur: number; keyword?: string }
 export interface AudioItem { id: string; src: string; at: number; gain: number }
 export interface Tracks { footage: Clip[]; graphics: Graphic[]; captions: Caption[]; audio: AudioItem[] }
-export interface Project { name: string; format: Format; style: string; mode: Mode; dir: Dir; tracks: Tracks }
+/** `brand` is the id of a brand in library/brands/; left out, the film uses the workspace's own (library/brand.json). */
+export interface Project { name: string; format: Format; style: string; brand?: string; mode: Mode; dir: Dir; tracks: Tracks }
 export type TrackName = keyof Tracks;
 export type TimedTrack = 'graphics' | 'captions' | 'audio';
 
@@ -61,6 +62,7 @@ export function parseProject(text: string): { project?: Project; error?: string;
     name: str(r.name, 'untitled', 'name'),
     format: { w: num(f.w, 1080, 'format.w'), h: num(f.h, 1920, 'format.h'), fps: num(f.fps, 30, 'format.fps') },
     style: str(r.style, 'flat9k', 'style'),
+    ...(str(r.brand, '', 'brand') ? { brand: r.brand as string } : {}),
     mode: MODES.includes(r.mode as Mode) ? (r.mode as Mode) : 'dark',
     dir: r.dir === 'rtl' ? 'rtl' : 'ltr',
     tracks: {

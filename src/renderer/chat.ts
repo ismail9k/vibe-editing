@@ -1,5 +1,6 @@
 // The Claude panel's state in the window: whether it's open, and the open project's conversation, which lives in the
 // main process (src/main/chat.ts) and streams in through onChat.
+import { MAIN_BRAND } from '../core/brand';
 import { create } from 'zustand';
 import type { ChatContext, ChatState } from '../shared/api';
 import { useStore } from './store';
@@ -45,7 +46,7 @@ function context(): ChatContext {
   const s = useStore.getState(), f = s.studio.focus;
   return {
     room: s.room, playhead: s.playhead, selection: s.selection,
-    focus: !f ? null : f.kind === 'brand' ? 'the brand' : `${f.kind} ${f.id}`,
+    focus: !f ? null : f.kind === 'brand' ? (f.id === MAIN_BRAND ? 'the brand' : `brand ${f.id}`) : `${f.kind} ${f.id}`,
   };
 }
 

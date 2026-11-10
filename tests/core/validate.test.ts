@@ -24,6 +24,12 @@ describe('validateProject', () => {
     expect(validateProject(proj({ style: 'clay3d' }), ctx())[0]).toMatchObject({ level: 'error', path: 'style' });
   });
 
+  it('flags a brand that is not in the library', () => {
+    expect(validateProject(proj({ brand: 'client' }), ctx())[0]).toMatchObject({ level: 'error', path: 'brand' });
+    expect(validateProject(proj({ brand: 'client' }), { ...ctx(), brands: ['client'] })).toEqual([]);
+    expect(validateProject(proj({ brand: 'default' }), ctx())).toEqual([]);
+  });
+
   it('flags missing media', () => {
     const issues = validateProject(proj({ tracks: { footage: [{ id: 'f1', src: 'media/gone.mov', in: 0, out: 2 }] } }), ctx(false));
     expect(issues[0]).toMatchObject({ level: 'error', path: 'tracks.footage[0].src' });

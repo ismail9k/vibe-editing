@@ -130,6 +130,11 @@ export function checkProject(root: string, name: string): Issue[] {
     try { JSON.parse(readFileSync(join(root, rel), 'utf8')); }
     catch (e) { issues.push({ level: 'error', path: rel, message: (e as Error).message }); }
   }
+  for (const id of lib.brands) {
+    const rel = `library/brands/${id}.json`;
+    try { JSON.parse(readFileSync(join(root, rel), 'utf8')); }
+    catch (e) { issues.push({ level: 'error', path: rel, message: (e as Error).message }); }
+  }
   // The components this film uses, checked the way `vibe component snap` checks them. Unused drafts are left alone.
   for (const id of new Set(project.tracks.graphics.map((g) => g.type))) {
     if (!components[id]) continue;
@@ -142,5 +147,5 @@ export function checkProject(root: string, name: string): Issue[] {
     for (const src of missingMattes(project, (src) => matteReady(dir, src)).filter(mediaExists))
       issues.push({ level: 'warn', path: src, message: `no cutout yet (${cutout} needs one): run \`vibe matte ${name}\`, or open the film in the app` });
   }
-  return [...issues, ...validateProject(project, { components, styles: lib.styles, mediaExists })];
+  return [...issues, ...validateProject(project, { components, styles: lib.styles, brands: lib.brands, mediaExists })];
 }

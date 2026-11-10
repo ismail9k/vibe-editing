@@ -1,5 +1,5 @@
 // Studio: every component drawn in the chosen style, side by side; style params, brand and components edited on their own.
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useStore, type StudioFocus } from '../store';
 import { FrameCanvas } from '../ui/FrameCanvas';
 import { SchemaForm, Field } from '../ui/SchemaForm';
@@ -8,7 +8,7 @@ import { addGraphic } from '../../core/ops';
 import { componentId } from '../../core/component-template';
 import type { Mode, Dir } from '../../core/model';
 import { tileProject, type Library } from '../../core/render';
-import type { Brand } from '../../core/brand';
+import { MAIN_BRAND, brandFile, brandOf, type Brand } from '../../core/brand';
 
 const LOOP_PAD = 0.8;
 
@@ -21,32 +21,11 @@ export function Studio() {
 
   return (
     <div className="studio">
-      <aside className="panel left">
-        <h4>Styles</h4>
-        {Object.values(lib.styles).map((s) => (
-          <button key={s.id} className={`row ${studio.style === s.id ? 'active' : ''} ${isFocus(focus, 'style', s.id) ? 'focused' : ''}`}
-            onClick={() => setStudio({ style: s.id, focus: { kind: 'style', id: s.id } })}>
-            <span>{s.meta.name}</span><i>{s.error ? '⚠' : s.meta.preset ? 'preset' : 'yours'}</i>
-          </button>
-        ))}
-        <NewRow label="+ New style" placeholder={`Name (a copy of ${lib.styles[studio.style]?.meta.name ?? studio.style})`} create={(name) => newStyle(lib, studio.style, name)} />
-        <h4>Components</h4>
-        {comps.map((id) => (
-          <button key={id} className={`row ${isFocus(focus, 'component', id) ? 'focused' : ''}`} onClick={() => setStudio({ focus: { kind: 'component', id } })}>
-            <span>{lib.components[id].meta.name}</span><i>{lib.components[id].error ? '⚠' : ''}</i>
-          </button>
-        ))}
-        <NewRow label="+ New component" placeholder={big ? `Name (a copy of ${lib.components[big]?.meta.name ?? big})` : 'Name (from a template)'} create={(name) => newComponent(lib, big, name)} />
-        <h4>Brand</h4>
-        <button className={`row ${focus?.kind === 'brand' ? 'focused' : ''}`} onClick={() => setStudio({ focus: { kind: 'brand' } })}>
-          <span>{lib.brand.name}</span>
-          <i className="swatches">{[lib.brand.colors.primary, lib.brand.colors.accent, lib.brand.colors.ink].map((c) => <b key={c} style={{ background: c }} />)}</i>
-        </button>
-      </aside>
+      <StudioLibrary lib={lib} />
 
       <main className="studio-main">
         <div className="studio-bar">
-          <span className="muted">{lib.styles[studio.style]?.meta.name} · {studio.mode} · {studio.dir.toUpperCase()}</span>
+          <span className="muted">{lib.styles[studio.style]?.meta.name} · {brandOf(lib, studio.brand).name} · {studio.mode} · {studio.dir.toUpperCase()}</span>
           <div className="seg">{(['dark', 'light', 'green'] as Mode[]).map((m) => <button key={m} className={studio.mode === m ? 'on' : ''} onClick={() => setStudio({ mode: m })}>{m}</button>)}</div>
           <div className="seg">{(['ltr', 'rtl'] as Dir[]).map((d) => <button key={d} className={studio.dir === d ? 'on' : ''} onClick={() => setStudio({ dir: d })}>{d.toUpperCase()}</button>)}</div>
           {big && <button className="ghost" onClick={() => setStudio({ focus: null })}>← All components</button>}
@@ -74,15 +53,96 @@ export function Studio() {
   );
 }
 
+type LibraryTab = 'styles' | 'components';
+const TABS: { id: LibraryTab; label: string; one: string }[] = [
+  { id: 'styles', label: 'Styles', one: 'style' }, { id: 'components', label: 'Components', one: 'component' },
+];
+
+/** Every brand by id, the workspace's own first. */
+const allBrands = (lib: Library): [string, Brand][] => [[MAIN_BRAND, lib.brand], ...Object.entries(lib.brands ?? {})];
+
+/** The left panel. Styles and components are two long lists, so each gets its own tab with a filter, and the tab
+ *  follows the focus: a tile clicked in the grid, or a component Claude just made, brings its own list forward.
+ *  The brand is a choice that holds under both, so it's a menu pinned at the foot, not a third list. */
+function StudioLibrary({ lib }: { lib: Library }) {
+  const { studio, setStudio } = useStore();
+  const focus = studio.focus;
+  const [tab, setTab] = useState<LibraryTab>(focus?.kind === 'component' ? 'components' : 'styles');
+  const [query, setQuery] = useState('');
+  const list = useRef<HTMLDivElement>(null);
+  const focusKey = focus ? `${focus.kind}:${focus.id}` : null;
+
+  useEffect(() => {
+    if (focus && focus.kind !== 'brand') setTab(`${focus.kind}s`);
+  }, [focusKey]);
+  // After the tab has caught up, bring the focused row into view (it may be far down a long list).
+  useEffect(() => { list.current?.querySelector('.row.focused')?.scrollIntoView({ block: 'nearest' }); }, [focusKey, tab]);
+
+  const q = query.trim().toLowerCase();
+  const match = (name: string, id: string) => !q || name.toLowerCase().includes(q) || id.toLowerCase().includes(q);
+  const styles = Object.values(lib.styles).filter((s) => match(s.meta.name, s.id));
+  const comps = Object.values(lib.components).filter((c) => match(c.meta.name, c.id));
+  const big = focus?.kind === 'component' ? focus.id : null;
+  const counts = { styles: Object.keys(lib.styles).length, components: Object.keys(lib.components).length };
+  const shown = { styles, components: comps }[tab].length;
+  const brand = brandOf(lib, studio.brand);
+  const one = TABS.find((t) => t.id === tab)!.one;
+  const pick = (t: LibraryTab) => { setTab(t); setQuery(''); };
+
+  return (
+    <aside className="panel left studio-library">
+      <div className="tabs" role="tablist">
+        {TABS.map((t) => (
+          <button key={t.id} role="tab" aria-selected={tab === t.id} className={tab === t.id ? 'on' : ''} onClick={() => pick(t.id)}>{t.label} <i>{counts[t.id]}</i></button>
+        ))}
+      </div>
+      <div className="library-tools">
+        <input className="filter" type="search" value={query} placeholder={`Filter ${tab}`}
+          onChange={(e) => setQuery(e.target.value)} onKeyDown={(e) => { if (e.key === 'Escape') setQuery(''); }} />
+        {tab === 'styles'
+          ? <NewRow key="style" label="+ New style" placeholder={`Name (a copy of ${lib.styles[studio.style]?.meta.name ?? studio.style})`} create={(name) => newStyle(lib, studio.style, name)} />
+          : <NewRow key="component" label="+ New component" placeholder={big ? `Name (a copy of ${lib.components[big]?.meta.name ?? big})` : 'Name (from a template)'} create={(name) => newComponent(lib, big, name)} />}
+      </div>
+      <div className="library-list" ref={list}>
+        {tab === 'styles' && styles.map((s) => (
+          <button key={s.id} className={`row ${studio.style === s.id ? 'active' : ''} ${isFocus(focus, 'style', s.id) ? 'focused' : ''}`}
+            onClick={() => setStudio({ style: s.id, focus: { kind: 'style', id: s.id } })}>
+            <span>{s.meta.name}</span><i>{s.error ? '⚠' : s.meta.preset ? 'preset' : 'yours'}</i>
+          </button>
+        ))}
+        {tab === 'components' && comps.map((c) => (
+          <button key={c.id} className={`row ${isFocus(focus, 'component', c.id) ? 'focused' : ''}`} onClick={() => setStudio({ focus: { kind: 'component', id: c.id } })}>
+            <span>{c.meta.name}</span><i>{c.error ? '⚠' : ''}</i>
+          </button>
+        ))}
+        {!shown && <p className="muted none">{query.trim() ? `Nothing matches “${query.trim()}”.` : `No ${one} yet.`}</p>}
+      </div>
+      <div className={`library-foot ${focus?.kind === 'brand' ? 'focused' : ''}`}>
+        <h4>Brand</h4>
+        <div className="brand-pick">
+          <select aria-label="Brand" value={studio.brand} onChange={(e) => setStudio({ brand: e.target.value, focus: { kind: 'brand', id: e.target.value } })}>
+            {allBrands(lib).map(([id, b]) => <option key={id} value={id}>{b.name}</option>)}
+          </select>
+          <button className="brand-edit" title={`Edit ${brand.name}`} onClick={() => setStudio({ focus: { kind: 'brand', id: studio.brand } })}>
+            <i className="swatches">{[brand.colors.primary, brand.colors.accent, brand.colors.ink].map((c, i) => <b key={i} style={{ background: c }} />)}</i>
+            <span>Edit</span>
+          </button>
+        </div>
+        <NewRow label="+ New brand" placeholder={`Name (a copy of ${brand.name})`} create={(name) => newBrand(lib, studio.brand, name)} />
+      </div>
+    </aside>
+  );
+}
+
 function Tile({ lib, comp, w, h }: { lib: Library; comp: string; w: number; h: number }) {
   const { studio } = useStore();
   const props = studio.sample[comp] ?? {};
-  const project = useMemo(() => tileProject(lib, studio.style, studio.mode, studio.dir, comp, props, w, h), [lib, studio.style, studio.mode, studio.dir, comp, props, w, h]);
+  const project = useMemo(() => tileProject(lib, studio.style, studio.mode, studio.dir, comp, props, w, h, studio.brand), [lib, studio.style, studio.brand, studio.mode, studio.dir, comp, props, w, h]);
   const loop = (lib.components[comp]?.meta.duration ?? 2) + LOOP_PAD;
   return <FrameCanvas project={project} lib={lib} time={() => (performance.now() / 1000) % loop} animate className="tile-canvas" />;
 }
 
-const isFocus = (f: StudioFocus | null, kind: string, id: string) => !!f && f.kind === kind && 'id' in f && f.id === id;
+const isFocus = (f: StudioFocus | null, kind: string, id: string) => !!f && f.kind === kind && f.id === id;
 
 /** A "+ New …" row that turns into a name field. Electron has no window.prompt (calling it throws), so new things
  *  are named inline: Enter makes it, Escape (or leaving it empty) cancels. */
@@ -124,6 +184,15 @@ async function newStyle(lib: Library, from: string, name: string) {
   useStore.getState().setStudio({ style: id, focus: { kind: 'style', id } });
 }
 
+/** A copy of the brand being shown, under a new name: then its colours, fonts and rules are changed on the right. */
+async function newBrand(lib: Library, from: string, name: string) {
+  const id = freeId(name, 'brand', { ...lib.brands, [MAIN_BRAND]: lib.brand });
+  const res = await window.vibe.write(brandFile(id), JSON.stringify({ ...brandOf(lib, from), name }, null, 2) + '\n');
+  if (!res.ok) throw new Error(`Could not write ${brandFile(id)}`);
+  await useStore.getState().reloadLibrary();
+  useStore.getState().setStudio({ brand: id, focus: { kind: 'brand', id } });
+}
+
 /** A copy of the component in focus, or the template when none is: then Claude rewrites it. */
 async function newComponent(lib: Library, from: string | null, name: string) {
   const id = freeId(name, 'component', lib.components);
@@ -136,7 +205,7 @@ function StudioInspector() {
   const { lib, studio, setStudio, project, apply, playhead, setRoom, select } = useStore();
   const focus = studio.focus;
   if (!lib) return null;
-  if (!focus) return <p className="muted pad">Pick a style, a component or the brand on the left. Changes save to <code>~/Vibe/library</code>, so Claude sees them too.</p>;
+  if (!focus) return <p className="muted pad">Pick a style, a component or a brand on the left. Changes save to <code>~/Vibe/library</code>, so Claude sees them too.</p>;
 
   if (focus.kind === 'style') {
     const s = lib.styles[focus.id];
@@ -181,20 +250,29 @@ function StudioInspector() {
     );
   }
 
-  return <BrandEditor brand={lib.brand} />;
+  if (focus.id !== MAIN_BRAND && !lib.brands?.[focus.id]) return null;
+  return <BrandEditor id={focus.id} brand={brandOf(lib, focus.id)} />;
 }
 
-function BrandEditor({ brand }: { brand: Brand }) {
+function BrandEditor({ id, brand }: { id: string; brand: Brand }) {
+  const { project, apply } = useStore();
+  const main = id === MAIN_BRAND;
   const update = (next: Brand) => {
     const lib = useStore.getState().lib!;
-    useStore.setState({ lib: { ...lib, brand: next } });
-    writeLater('library/brand.json', JSON.stringify(next, null, 2) + '\n');
+    useStore.setState({ lib: main ? { ...lib, brand: next } : { ...lib, brands: { ...lib.brands, [id]: next } } });
+    writeLater(brandFile(id), JSON.stringify(next, null, 2) + '\n');
   };
+  const used = !!project && (project.brand ?? MAIN_BRAND) === id;
+  // The workspace's own brand is the one a film uses when it names none, so choosing it takes the name out.
+  const use = () => apply((p) => { const { brand: _old, ...rest } = p; return main ? rest : { ...rest, brand: id }; });
   const colorKeys = Object.keys(brand.colors) as (keyof Brand['colors'])[];
   const fontKeys = Object.keys(brand.fonts) as (keyof Brand['fonts'])[];
   return (
     <div className="pad">
-      <h3>Brand · {brand.name}</h3>
+      <h3>Brand · {brand.name}{main && <small>workspace default</small>}</h3>
+      <div className="form">
+        <Field name="name" spec={{ type: 'text', label: 'name', value: '' }} value={brand.name} onChange={(v) => update({ ...brand, name: String(v) })} />
+      </div>
       <h4>Colours</h4>
       <div className="form">
         {colorKeys.map((k) => <Field key={k} name={k} spec={{ type: 'color', label: k, value: '' }} value={brand.colors[k]} onChange={(v) => update({ ...brand, colors: { ...brand.colors, [k]: String(v) } })} />)}
@@ -206,7 +284,8 @@ function BrandEditor({ brand }: { brand: Brand }) {
       <h4>Design language</h4>
       <p className="hint">The rules Claude follows. Every style keeps these.</p>
       <textarea className="rules" rows={16} value={brand.rules} onChange={(e) => update({ ...brand, rules: e.target.value })} />
-      <p className="hint">Mode tokens (dark / light / green) live in <code>library/brand.json</code>.</p>
+      {project && <button className="primary" disabled={used} onClick={use}>{used ? 'Used in this project' : 'Use in this project'}</button>}
+      <p className="hint">Mode tokens (dark / light / green) live in <code>{brandFile(id)}</code>.{main ? ' Films that name no brand use this one.' : ''}</p>
     </div>
   );
 }

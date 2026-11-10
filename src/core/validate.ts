@@ -1,5 +1,6 @@
 // Checks a project against the library. Shared by the app (top bar) and `vibe check`.
 import type { Project } from './model';
+import { MAIN_BRAND } from './brand';
 
 export type PropType = 'text' | 'number' | 'bool' | 'list' | 'select';
 export interface PropSpec { type: PropType; label: string; options?: string[] }
@@ -13,7 +14,7 @@ export interface ComponentMeta {
   aims?: boolean;
 }
 export interface Issue { level: 'error' | 'warn'; path: string; message: string }
-export interface ValidateContext { components: Record<string, ComponentMeta>; styles: string[]; mediaExists(src: string): boolean }
+export interface ValidateContext { components: Record<string, ComponentMeta>; styles: string[]; /** Ids of the extra brands in library/brands/. */ brands?: string[]; mediaExists(src: string): boolean }
 
 /** Whether a value is right for a prop of this spec. */
 export function propFits(spec: PropSpec, v: unknown): boolean {
@@ -47,6 +48,8 @@ export function validateProject(p: Project, ctx: ValidateContext): Issue[] {
   const issues: Issue[] = [];
   const err = (path: string, message: string) => issues.push({ level: 'error', path, message });
   if (!ctx.styles.includes(p.style)) err('style', `unknown style "${p.style}" (have: ${ctx.styles.join(', ')})`);
+  if (p.brand && p.brand !== MAIN_BRAND && !(ctx.brands ?? []).includes(p.brand))
+    err('brand', `unknown brand "${p.brand}" (have: ${[MAIN_BRAND, ...(ctx.brands ?? [])].join(', ')}); the film draws in the workspace's own brand`);
 
   p.tracks.footage.forEach((c, i) => {
     const at = `tracks.footage[${i}]`;

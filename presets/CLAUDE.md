@@ -6,6 +6,7 @@ This folder is Ismail's Vibe Editing workspace. The Vibe Editing app shows it li
 
 ```
 library/brand.json                     the brand: colours, modes (dark / light / green), fonts, the design-language rules
+library/brands/<id>.json               another brand, same shape (anything left out comes from brand.json); a film picks it with "brand": "<id>"
 library/styles/<id>/style.json         a style's name, description and params (each param: type, label, value, min/max/step or options)
 library/styles/<id>/style.js           its drawing code
 library/components/<id>/component.json name, description, default duration, default props, prop schema
@@ -20,8 +21,8 @@ projects/<name>.vibe/out/              renders and snapshots
 
 ## Rules
 
-- **Read `library/brand.json` → `rules` before designing anything.** Colours come from the brand and the mode, never from a style or a component. One orange accent per shot.
-- When he says "this one" or "here", read `.vibe/session.json` for the selected item and the playhead. In the Studio, `studio.focus` is the style or component he's looking at.
+- **Read the film's brand → `rules` before designing anything** (`library/brands/<id>.json` when vibe.json names a `brand`, otherwise `library/brand.json`). Colours come from the brand and the mode, never from a style or a component. One orange accent per shot.
+- When he says "this one" or "here", read `.vibe/session.json` for the selected item and the playhead. In the Studio, `studio.focus` is the style, component or brand he's looking at (brand `default` is `library/brand.json`).
 - Look at your work: `vibe snapshot <project> --at 1.2,3.5` writes PNGs to `projects/<project>.vibe/out/`. Open them before you say something is done. For a component on its own, `vibe component snap <id>` (see "Writing a component").
 - `vibe check <project>` validates the project against the library, and the components it uses. Fix every error.
 - `vibe render <project>` exports `out/<name>.mp4`. Only render when he asks.

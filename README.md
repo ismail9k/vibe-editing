@@ -53,6 +53,7 @@ Everything lives in `~/Vibe` (or in `$VIBE_HOME`). On first run the app copies i
 ~/Vibe/
   CLAUDE.md                               how Claude Code works in this workspace
   library/brand.json                      colours, modes (dark, light, green), fonts, design-language rules
+  library/brands/<id>.json                more brands (a client's, a second channel's); a film picks one with "brand"
   library/styles/<id>/style.{json,js}     a style: its params, and the painter overrides that restyle everything
   library/components/<id>/component.{json,js}   a component: props schema, defaults, and its draw function
   library/sounds/<name>.wav               sound effects made in code (whoosh, riser, pop, ding, hit…) to copy into a film

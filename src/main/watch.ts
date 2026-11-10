@@ -27,6 +27,7 @@ export function classify(rel: string): { kind: ChangeKind; id: string } | null {
   if (/\.tmp$|\.swp$|~$/.test(base) || base.startsWith(".#")) return null; // atomic-write temps, editor swap files
   if (parts[0] === 'library') {
     if (parts[1] === 'brand.json') return { kind: 'brand', id: 'brand' };
+    if (parts[1] === 'brands' && parts.length === 3 && base.endsWith('.json')) return { kind: 'brand', id: base.slice(0, -5) };
     if (parts[1] === 'styles' && parts[2] && parts.length >= 4) return { kind: 'style', id: parts[2] };
     if (parts[1] === 'components' && parts[2] && parts.length >= 4) return { kind: 'component', id: parts[2] };
     return null;

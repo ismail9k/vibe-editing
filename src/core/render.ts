@@ -5,7 +5,7 @@ import { createBasePainter, applyStyle, type Ctx, type Painter, type StyleModule
 import type { FrameMedia } from './media';
 import { drawCaption } from './captions';
 import { clamp } from './motion';
-import type { Brand } from './brand';
+import { brandOf, type Brand } from './brand';
 import type { ComponentMeta } from './validate';
 
 export interface ParamSpec { type: 'number' | 'select' | 'bool' | 'color' | 'text'; label: string; value: unknown; min?: number; max?: number; step?: number; options?: string[] }
@@ -21,15 +21,16 @@ export interface ComponentModule { draw(p: Painter, a: DrawArgs): void }
 
 export interface LibStyle { id: string; meta: StyleMeta; mod?: StyleModule; error?: string }
 export interface LibComponent { id: string; meta: ComponentMeta; mod?: ComponentModule; error?: string }
-export interface Library { brand: Brand; styles: Record<string, LibStyle>; components: Record<string, LibComponent> }
+/** `brand` is the workspace's own (library/brand.json); `brands` are the extra ones in library/brands/, by id. */
+export interface Library { brand: Brand; brands?: Record<string, Brand>; styles: Record<string, LibStyle>; components: Record<string, LibComponent> }
 
 export const EXIT = 0.25;
 
 /** A film of one component alone, with no footage: a Studio tile, and what `vibe component snap` draws. */
-export function tileProject(lib: Library, style: string, mode: Mode, dir: Dir, comp: string, props: Record<string, unknown>, w: number, h: number): Project {
+export function tileProject(lib: Library, style: string, mode: Mode, dir: Dir, comp: string, props: Record<string, unknown>, w: number, h: number, brand?: string): Project {
   const dur = lib.components[comp]?.meta.duration ?? 2;
   return {
-    name: 'studio', format: { w, h, fps: 30 }, style, mode, dir,
+    name: 'studio', format: { w, h, fps: 30 }, style, ...(brand ? { brand } : {}), mode, dir,
     tracks: { footage: [], graphics: [{ id: `s-${comp}`, type: comp, at: 0, dur, props }], captions: [], audio: [] },
   };
 }
@@ -42,7 +43,7 @@ export function makePainter(ctx: Ctx, project: Project, lib: Library, t: number,
   const style = lib.styles[project.style] ?? lib.styles.flat9k;
   const base = createBasePainter(ctx, {
     W: project.format.w, H: project.format.h, dir: project.dir, mode: project.mode,
-    brand: lib.brand, params: styleParams(style?.meta), t, media, clip: !!footageAt(project, t),
+    brand: brandOf(lib, project.brand), params: styleParams(style?.meta), t, media, clip: !!footageAt(project, t),
   });
   const { painter, error, posts } = applyStyle(base, style?.mod);
   return { p: painter, error: style?.error ?? error, posts };

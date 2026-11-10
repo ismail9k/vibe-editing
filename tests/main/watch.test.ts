@@ -29,6 +29,8 @@ describe('classify', () => {
     expect(classify('library/styles/chalkboard/style.js')).toEqual({ kind: 'style', id: 'chalkboard' });
     expect(classify('library/components/stat/component.json')).toEqual({ kind: 'component', id: 'stat' });
     expect(classify('library/brand.json')).toEqual({ kind: 'brand', id: 'brand' });
+    expect(classify('library/brands/client.json')).toEqual({ kind: 'brand', id: 'client' });
+    expect(classify('library/brands/client.json.123.tmp')).toBeNull();
   });
 
   it('ignores the app’s session file, renders and media', () => {

@@ -1,5 +1,6 @@
 // App state. The project on disk is the source of truth: app edits are saved back to vibe.json,
 // and changes Claude makes on disk replace what the app shows (disk wins).
+import { MAIN_BRAND } from '../core/brand';
 import { create } from 'zustand';
 import { parseProject, projectDir, serializeProject, duration, type Project, type TrackName, type Mode, type Dir } from '../core/model';
 import { coercedIssues, validateProject, type Issue } from '../core/validate';
@@ -10,7 +11,7 @@ import { lastSeen, readDisk, writeDisk } from './disk';
 
 export type Room = 'studio' | 'edit';
 export interface Selection { track: TrackName; id: string }
-export type StudioFocus = { kind: 'style'; id: string } | { kind: 'component'; id: string } | { kind: 'brand' };
+export type StudioFocus = { kind: 'style'; id: string } | { kind: 'component'; id: string } | { kind: 'brand'; id: string };
 
 interface State {
   info: WorkspaceInfo | null;
@@ -31,7 +32,7 @@ interface State {
   future: Project[];
   /** The files in the open project's media folder, with their lengths (vibe.json doesn't say how long a sound is). */
   media: ImportedMedia[];
-  studio: { style: string; mode: Mode; dir: Dir; focus: StudioFocus | null; sample: Record<string, Record<string, unknown>> };
+  studio: { style: string; brand: string; mode: Mode; dir: Dir; focus: StudioFocus | null; sample: Record<string, Record<string, unknown>> };
   exporting: { done: number; total: number; stage: string; message?: string; out?: string; errors?: string[] } | null;
   /** Cutout mattes for the open project, when it uses a cutout or aiming effect. `version` bumps when new ones land. */
   mattes: { state: 'working' | 'ready' | 'error'; src?: string; done?: number; total?: number; message?: string; version: number } | null;
@@ -63,7 +64,7 @@ function changedIds(a: Project | null, b: Project): string[] {
   const map = (p: Project) => new Map(Object.values(p.tracks).flat().map((x) => [x.id, JSON.stringify(x)]));
   const ma = map(a), mb = map(b), ids = new Set([...ma.keys(), ...mb.keys()]);
   const out = [...ids].filter((id) => ma.get(id) !== mb.get(id));
-  for (const k of ['style', 'mode', 'dir', 'name'] as const) if (a[k] !== b[k]) out.unshift(k);
+  for (const k of ['style', 'brand', 'mode', 'dir', 'name'] as const) if (a[k] !== b[k]) out.unshift(k);
   if (JSON.stringify(a.format) !== JSON.stringify(b.format)) out.unshift('format');
   return out;
 }
@@ -71,7 +72,7 @@ function changedIds(a: Project | null, b: Project): string[] {
 export const useStore = create<State>((set, get) => ({
   info: null, lib: null, libError: null, projectName: null, project: null, parseError: null, coerced: [], issues: [],
   room: 'edit', selection: null, playhead: 0, playing: false, diskNote: null, history: [], future: [], media: [],
-  studio: { style: 'flat9k', mode: 'dark', dir: 'ltr', focus: null, sample: {} },
+  studio: { style: 'flat9k', brand: MAIN_BRAND, mode: 'dark', dir: 'ltr', focus: null, sample: {} },
   exporting: null, mattes: null,
 
   async boot() {
@@ -90,6 +91,7 @@ export const useStore = create<State>((set, get) => ({
       const lib = await loadLibrary(get().info!);
       set({ lib, libError: null });
       if (!lib.styles[get().studio.style]) set({ studio: { ...get().studio, style: 'flat9k' } });
+      if (get().studio.brand !== MAIN_BRAND && !lib.brands?.[get().studio.brand]) set({ studio: { ...get().studio, brand: MAIN_BRAND } });
     } catch (e) {
       set({ libError: (e as Error).message });
     }
@@ -102,7 +104,7 @@ export const useStore = create<State>((set, get) => ({
     const text = await readDisk(projectRel(name));
     const { project, error, coerced } = parseProject(text ?? '{}');
     set({ coerced: coercedIssues(coerced), projectName: name, project: project ?? null, parseError: error ?? null, history: [], future: [], selection: null, playhead: 0, playing: false, diskNote: null, mattes: null, media: [] });
-    if (project) set({ studio: { ...get().studio, style: project.style, mode: project.mode, dir: project.dir } });
+    if (project) set({ studio: { ...get().studio, style: project.style, brand: project.brand ?? MAIN_BRAND, mode: project.mode, dir: project.dir } });
     get().validate();
     get().refreshMedia();
   },
@@ -188,7 +190,7 @@ export const useStore = create<State>((set, get) => ({
       const srcs = [...project.tracks.footage, ...project.tracks.audio].map((x) => `${projectDir(projectName)}/${x.src}`);
       const exists = srcs.length ? await window.vibe.exists(srcs) : {};
       const components = Object.fromEntries(Object.entries(lib.components).map(([k, v]) => [k, v.meta]));
-      set({ issues: [...coerced, ...validateProject(project, { components, styles: info.styles, mediaExists: (s) => !!exists[`${projectDir(projectName)}/${s}`] })] });
+      set({ issues: [...coerced, ...validateProject(project, { components, styles: info.styles, brands: info.brands, mediaExists: (s) => !!exists[`${projectDir(projectName)}/${s}`] })] });
       const usable = project.tracks.footage.filter((c) => exists[`${projectDir(projectName)}/${c.src}`]);
       if (usable.length && project.tracks.graphics.some((g) => lib.components[g.type]?.meta.matte || lib.components[g.type]?.meta.aims)) ensureMattes(projectName, usable.map((c) => c.src));
     }, 150);
