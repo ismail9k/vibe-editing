@@ -1,0 +1,12 @@
+// Deploys the built landing page (dist/) to Cloudflare as a Worker that only serves static files.
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "vibe-editing",
+  "compatibility_date": "2026-11-10",
+  // The page's own address. workers.dev is blocked on some networks, so it is not the one to share.
+  "routes": [{ "pattern": "vibe.ismail9k.com", "custom_domain": true }],
+  "assets": {
+    "directory": "./dist",
+    "not_found_handling": "404-page"
+  }
+}

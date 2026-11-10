@@ -67,6 +67,7 @@ Some tests skip themselves: `tests/main/decode-sync.test.ts` without ffmpeg, the
 npm --prefix site install
 npm --prefix site run dev      # the page with hot reload
 npm --prefix site run build    # site/dist, static files with relative paths
+npm --prefix site run deploy   # build, then publish to Cloudflare as the `vibe-editing` Worker (site/wrangler.jsonc; static files only)
 ```
 
 ### Conventions
