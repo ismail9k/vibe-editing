@@ -48,11 +48,18 @@ export function claudeArgs(sessionId: string | null, o: { prompts?: boolean } = 
 }
 
 /** The line in front of every message: what's open in the app right now. */
+const MEDIA_NAME = /^media\/[\p{L}\p{M}\p{N} ._()+@&'-]+$/u;
+
 export function contextLine(project: string, ctx: ChatContext): string {
   const parts = ['Sent from the Vibe Editing app', `project ${project} (${projectDir(project)})`];
-  // Only names the app made itself reach this line; anything else could pass for part of the app's own note.
-  const started = (ctx.started ?? []).filter((s) => /^media\/[^\n\]]+$/.test(s));
-  if (ctx.started) parts.push(started.length ? `a new project he just started from ${started.join(', ')}, already on its timeline` : 'a new project he just started, with nothing on its timeline yet');
+  // A media name reaches this line only if it is made of letters, digits and plain filename punctuation: anything
+  // else (a line break of any kind, a bracket, the separator dot) could pass for part of the app's own note.
+  // A film whose names don't all pass is described by how many files it has, so Claude still knows they are there.
+  const given = (ctx.started ?? []).slice(0, 20);
+  const named = given.filter((s) => typeof s === 'string' && s.length <= 200 && MEDIA_NAME.test(s));
+  if (ctx.started) parts.push(!given.length ? 'a new project he just started, with nothing on its timeline yet'
+    : named.length === given.length ? `a new project he just started from ${named.join(', ')}, already on its timeline`
+    : `a new project he just started from ${given.length} ${given.length === 1 ? 'file' : 'files'} in its media folder, already on its timeline`);
   if (ctx.room === 'edit') {
     parts.push('Edit room', `playhead ${ctx.playhead.toFixed(2)} s`);
     if (ctx.selection) parts.push(`selected ${ctx.selection.track} ${ctx.selection.id}`);
