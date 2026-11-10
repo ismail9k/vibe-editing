@@ -81,6 +81,41 @@ const NINO_BODY = {
 
 const glowCache = new Map<string, OffscreenCanvas>();
 
+/** A soft round glow of one colour, fading to nothing at its edge (cached per colour and size). */
+function glowSprite(color: string, size: number): OffscreenCanvas {
+  const d = Math.ceil(size), key = `glow|${d}|${color}`;
+  let sprite = glowCache.get(key);
+  if (!sprite) {
+    sprite = new OffscreenCanvas(d, d);
+    const o = sprite.getContext('2d')!, half = d / 2;
+    o.fillStyle = color; o.fillRect(0, 0, d, d);
+    o.globalCompositeOperation = 'destination-in';
+    const rad = o.createRadialGradient(half, half, 0, half, half, half);
+    rad.addColorStop(0, '#000'); rad.addColorStop(0.3, 'rgba(0,0,0,0.6)'); rad.addColorStop(0.65, 'rgba(0,0,0,0.18)'); rad.addColorStop(1, 'rgba(0,0,0,0)');
+    o.fillStyle = rad; o.fillRect(0, 0, d, d);
+    glowCache.set(key, sprite);
+  }
+  return sprite;
+}
+
+/** The faint dot grid over the top of the frame, fading out before the middle (cached per frame size and colour). */
+function dotGrid(W: number, H: number, rem: number, color: string): OffscreenCanvas {
+  const key = `dots|${W}|${H}|${color}`;
+  let sprite = glowCache.get(key);
+  if (!sprite) {
+    sprite = new OffscreenCanvas(W, H);
+    const o = sprite.getContext('2d')!, step = Math.max(4, Math.round(rem * 0.7)), dot = Math.max(1, Math.round(rem / 16));
+    o.fillStyle = color; o.globalAlpha = 0.08;
+    for (let y = step / 2; y < H * 0.62; y += step) for (let x = step / 2; x < W; x += step) o.fillRect(Math.round(x), Math.round(y), dot, dot);
+    o.globalAlpha = 1; o.globalCompositeOperation = 'destination-in';
+    const fade = o.createLinearGradient(0, 0, 0, H * 0.62);
+    fade.addColorStop(0, '#000'); fade.addColorStop(0.55, 'rgba(0,0,0,0.7)'); fade.addColorStop(1, 'rgba(0,0,0,0)');
+    o.fillStyle = fade; o.fillRect(0, 0, W, H);
+    glowCache.set(key, sprite);
+  }
+  return sprite;
+}
+
 /** A line with Latin letters and no right-to-left script: in an RTL frame it is laid out on its own, left to
  *  right, or the bidi algorithm moves its leading and trailing punctuation to the wrong end ("VIBE#"). */
 const latinOnly = (s: string) => /[A-Za-z\u00C0-\u024F]/.test(s) && !/[\u0590-\u08FF\uFB1D-\uFDFF\uFE70-\uFEFF]/.test(s);
@@ -115,33 +150,41 @@ export function createBasePainter(ctx: Ctx, env: Env): Painter {
       return Math.max(size, min);
     },
 
+    // The 9k cover: a near-black room with a faint dot grid up top, pixel specks drifting up, a green glow
+    // behind where you stand and an orange one low on the right edge. Everything breathes over 40 s.
     background(t) {
-      const c = this.ctx;
+      const c = this.ctx, W = this.W, H = this.H, rem = this.rem, rtl = this.dir === 'rtl';
       c.fillStyle = this.theme.bg;
-      c.fillRect(0, 0, this.W, this.H);
-      // The glow: green → amber → orange, half off-screen at the end edge, drifting over 20 s.
-      const size = Math.max(this.W, this.H) * 0.8, half = size / 2;
-      const key = `${Math.ceil(size)}|${this.theme.glow.join()}`;
-      let sprite = glowCache.get(key);
-      if (!sprite) {
-        sprite = new OffscreenCanvas(Math.ceil(size), Math.ceil(size));
-        const o = sprite.getContext('2d')!;
-        const [a, b, cc] = this.theme.glow;
-        const lin = o.createLinearGradient(0, 0, 0, size);
-        lin.addColorStop(0.25, a); lin.addColorStop(0.62, b); lin.addColorStop(0.92, cc);
-        o.fillStyle = lin; o.fillRect(0, 0, size, size);
-        o.globalCompositeOperation = 'destination-in';
-        const rad = o.createRadialGradient(half, half, 0, half, half, half);
-        rad.addColorStop(0.45, '#000'); rad.addColorStop(1, 'rgba(0,0,0,0)');
-        o.fillStyle = rad; o.fillRect(0, 0, size, size);
-        glowCache.set(key, sprite);
-      }
-      const ph = 0.5 - 0.5 * Math.cos((Math.PI * (t % 40)) / 20);
-      const cx = (this.dir === 'rtl' ? 0 : this.W) - 0.04 * size * ph, cy = this.H * 0.5 + 0.06 * size * ph;
+      c.fillRect(0, 0, W, H);
+      const [green, mid, orange] = this.theme.glow, ph = 0.5 - 0.5 * Math.cos((Math.PI * (t % 40)) / 20);
+      const blob = (color: string, x: number, y: number, size: number, sy: number, alpha: number) => {
+        const sprite = glowSprite(color, size), half = sprite.width / 2;
+        c.save();
+        c.globalAlpha = alpha;
+        c.translate(x, y); c.scale(1, sy);
+        c.drawImage(sprite, -half, -half);
+        c.restore();
+      };
+      const o = this.theme.glowOpacity, big = Math.max(W, H);
+      // Kept as soft as the site (ismail9k.com): the glows only tint the dark, they never light it up.
+      // Behind the speaker: a tall green glow, brighter at its heart.
+      blob(green, W * 0.5 + (rtl ? 1 : -1) * W * 0.03 * ph, H * (0.6 - 0.02 * ph), big * 0.66 * (1 + 0.05 * ph), 1.2, o * 0.6);
+      blob(mid, W * 0.5, H * 0.6, big * 0.34, 1.3, o * 0.35);
+      // Orange, half off-screen on the right edge, low down (the same in both directions, as on the covers).
+      blob(orange, W, H * (0.86 - 0.04 * ph), big * 0.3, 1.6, o * 0.6);
+      c.drawImage(dotGrid(W, H, rem, this.theme.text), 0, 0);
+      // Pixel specks: whole-pixel squares in green, orange and grey, drifting up and twinkling.
+      const r = this.rng(9), n = Math.round(30 * (W * H) / (1080 * 1920));
+      const colors = [this.theme.primaryText, this.theme.primaryText, this.brand.colors.accent, this.theme.muted, this.theme.muted];
       c.save();
-      c.globalAlpha = this.theme.glowOpacity;
-      c.translate(cx, cy); c.scale(1 + 0.08 * ph, 1 + 0.08 * ph);
-      c.drawImage(sprite, -half, -half);
+      for (let i = 0; i < n; i++) {
+        const x0 = r() * W, y0 = r() * H, s = Math.max(2, Math.round(rem * (r() < 0.6 ? 0.12 : 0.18)));
+        const color = colors[Math.floor(r() * colors.length)], speed = rem * (0.15 + 0.35 * r()), period = 3 + 5 * r(), phase = r();
+        const y = (((y0 - t * speed) % H) + H) % H;
+        c.globalAlpha = 0.12 + 0.33 * (0.5 + 0.5 * Math.sin(2 * Math.PI * (t / period + phase)));
+        c.fillStyle = color;
+        c.fillRect(Math.round(x0), Math.round(y), s, s);
+      }
       c.restore();
     },
 
@@ -262,14 +305,18 @@ export function createBasePainter(ctx: Ctx, env: Env): Painter {
 
     badge(text, x, y, o = {}) {
       const variant = o.variant ?? 'outline', size = o.size ?? this.rem * 0.7;
-      const label = (variant === 'tag' ? '#' : '') + text.toUpperCase();
-      const padX = size * 0.75, h = size * 2, w = this.measure(label, { role: 'body', size, weight: 600 }) + padX * 2;
+      // A tag reads like a hashtag (#Free_Tier): kept in its own case, on a dark outlined pill.
+      const tag = variant === 'tag', weight = tag ? 700 : 600;
+      let label = tag ? `#${text.replace(/^#/, '').replace(/\s+/g, '_')}` : text.toUpperCase();
+      // A Latin tag in an RTL film keeps its # in front: isolate it as left-to-right.
+      if (tag && this.dir === 'rtl' && !/[\u0590-\u08FF]/.test(label)) label = `\u2066${label}\u2069`;
+      const padX = size * (tag ? 1 : 0.75), h = size * (tag ? 2.3 : 2), w = this.measure(label, { role: 'body', size, weight }) + padX * 2;
       const left = alignLeft(this, x, w, o.align);
       if (variant === 'solid') this.pill({ x: left, y, w, h }, { fill: this.brand.colors.primary });
-      else if (variant === 'tag') this.pill({ x: left, y, w, h }, { fill: this.theme.selected, radius: this.rem * 0.5 });
+      else if (tag) this.pill({ x: left, y, w, h }, { fill: this.theme.surface, stroke: this.theme.border });
       else this.pill({ x: left, y, w, h }, { stroke: this.theme.border });
-      const color = variant === 'solid' ? this.brand.colors.onPrimary : variant === 'tag' ? this.theme.primaryText : this.theme.text;
-      this.text(label, left + w / 2, y + h / 2 + size * 0.05, { role: 'body', size, weight: 600, color, align: 'center', baseline: 'middle' });
+      const color = variant === 'solid' ? this.brand.colors.onPrimary : this.theme.text;
+      this.text(label, left + w / 2, y + h / 2 + size * 0.05, { role: 'body', size, weight, color, align: 'center', baseline: 'middle' });
       return { w, h };
     },
 

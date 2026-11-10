@@ -1,12 +1,12 @@
 // The vibe CLI, run inside Electron (`electron . --cli …`) so snapshots and renders use the app's renderer.
 import { join, relative, resolve } from 'node:path';
 import { checkProject, parseCliArgs, USAGE } from './check';
-import { loadProject, runExport, runSnapshot } from './export';
+import { loadProject, runComponentSnap, runExport, runSnapshot } from './export';
 import { ensureMattes } from './matte';
 import { appDir, matteTools, userDataDir } from './paths';
 import { transcribeProject } from './transcribe';
 import { transcriptLines } from '../core/transcript';
-import { listProjects, presetStatus, takePresets } from './workspace';
+import { createComponent, listProjects, presetStatus, takePresets } from './workspace';
 
 const out = (s: string) => process.stdout.write(s + '\n');
 const err = (s: string) => process.stderr.write(s + '\n');
@@ -83,6 +83,20 @@ export async function runCli(root: string, argv: string[], cwd = process.cwd()):
         transcriptLines(words).forEach((l) => out(l));
         err(`${words.length} words -> ${show(file)}`);
         return 0;
+      }
+      case 'component': {
+        const id = args.component!;
+        if (args.sub === 'new') {
+          createComponent(root, id, { from: args.from, name: args.name }).forEach((f) => out(show(join(root, f))));
+          err(`next: write component.json and component.js, then \`vibe component snap ${id}\` and open the PNG`);
+          return 0;
+        }
+        const { file, times, issues, errors } = await runComponentSnap(root, id, { ...args, out: args.out && resolve(cwd, args.out) });
+        for (const i of issues) out(`${i.level === 'error' ? 'error' : 'warn '}  ${i.path}  ${i.message}`);
+        errors.forEach((e) => err(`render error: ${e}`));
+        err(`drawn at ${times.join(', ')} s`);
+        out(show(file));
+        return errors.length || issues.some((i) => i.level === 'error') ? 1 : 0;
       }
       case 'help': case '--help': case '-h':
         out(USAGE);

@@ -81,6 +81,12 @@ export function Inspector() {
       <>
         <h3>{comp?.meta.name ?? g.type} <small>{g.id}</small></h3>
         {comp && <p className="muted">{comp.meta.description}</p>}
+        <label className="field">Component
+          <select value={g.type} onChange={(e) => { const next = lib.components[e.target.value]; if (next) apply((p) => ops.changeComponent(p, g.id, next.id, next.meta)); }}>
+            {!comp && <option value={g.type}>{g.type} (missing)</option>}
+            {Object.values(lib.components).map((c) => <option key={c.id} value={c.id}>{c.meta.name}</option>)}
+          </select>
+        </label>
         {timing(g)}
         {comp && <SchemaForm schema={comp.meta.schema} value={{ ...comp.meta.defaults, ...g.props }} onChange={(k, v) => patch({ props: { ...g.props, [k]: v } })} />}
         <details>
@@ -133,6 +139,7 @@ export function Inspector() {
     <div className="pad">
       {body}
       {itemIssues.length > 0 && <ul className="issues">{itemIssues.map((i, n) => <li key={n} className={i.level}>{i.message}</li>)}</ul>}
+      <p className="hint">⌘D makes a copy right after it.</p>
       <button className="danger" onClick={remove}>Delete</button>
     </div>
   );

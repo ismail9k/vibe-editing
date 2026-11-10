@@ -41,6 +41,8 @@ vibe snapshot <project> --at 1,4.5    # PNGs -> projects/<p>.vibe/out/snap-*.png
 vibe render <project> [-o out.mp4]    # MP4 export
 vibe matte <project>                  # cutout mattes (macOS)
 vibe transcribe <project>             # word timings on the timeline -> projects/<p>.vibe/transcript.json
+vibe component new <id> [--from <c>]  # start library/components/<id>/ (the template, or a copy of <c>)
+vibe component snap <id> [--at 0.5]   # check a component and draw it alone -> .vibe/out/<id>.png (exit 1 on errors)
 vibe open [project]
 ```
 
@@ -82,6 +84,7 @@ Components (`library/components/<id>/component.{json,js}`) and styles (`library/
 - A **component** exports `{ draw(p, { t, dur, props, graphic, place }) }` and must draw through the painter `p`, never raw canvas calls for the look, so styles can restyle it. `component.json` flags: `scene` (draws the footage itself; the plain footage layer is skipped), `matte` (calls `p.subject()`, needs a cutout; export refuses without one), `aims` (only uses `p.subjectBox()`; guesses without a matte).
 - A **style** exports `(base) => ({ ...overrides })`. Base painter methods call each other through `this`, so an override applies everywhere; overrides call the base as `base.method.call(this, ...)`.
 - Colours come from `brand.json` and the project's mode, not from styles or components.
+- **Claude makes and changes components itself**, inside the workspace. `vibe component new` writes the template in `src/core/component-template.ts` (or copies another component: `createComponent` in `src/main/workspace.ts`, also behind the Studio's "+ New component"). `vibe component snap` draws a `kind: 'component'` headless job: the same one-graphic film as a Studio tile (`tileProject` in `render.ts`), as a contact sheet. `validateComponent` in `src/core/validate.ts` is the one component check, run by `vibe component snap`, by `vibe check` for the components a film uses, and by `tests/core/presets.test.ts` on every preset, so a preset that fails it fails the tests. When a new component appears on disk while the Studio is open, the Studio focuses it.
 
 #### `presets/` is the seed for a new workspace
 
@@ -108,4 +111,10 @@ Times are seconds on the output timeline. Footage clips have no `at`: they play 
 
 `src/main/matte.ts` makes one grey matte video per footage file at `media/.matte/<file>.matte.mp4` (white = the speaker), using `native/vibe-matte.swift` (Apple Vision), compiled with `swiftc` on first use into the app's `userData/bin`, not the workspace. ffmpeg decodes the footage upright (tone-mapped for HDR) for the helper and encodes the matte at 30 fps. A clip without a ready matte draws as if it had none, the same in preview, export and snapshots.
 
+#### The Claude panel
+
+The panel (top bar **Claude**, ⌘L) runs the user's own Claude Code, not the API: `src/main/chat.ts` spawns `claude -p --output-format stream-json --verbose --include-partial-messages` in the workspace, one process per message, with `--resume=<sessionId>` after the first. Only a UUID is ever taken as a session id (`isSessionId`, both from `chat.json` and from Claude's output), and it stays bound to its flag: a project someone sends you carries its own `chat.json`, and `--resume` takes an optional value, so anything else could put a flag on claude's command line. The prompt goes in on stdin behind a bracketed line saying what's open (`contextLine`: project, room, playhead, selection). `src/main/chat-events.ts` turns the JSON lines into panel items (streamed text, one line per tool call, notes). Each project's conversation is in `projects/<p>.vibe/.vibe/chat.json`; whether the panel is open is in `userData/ui.json`, not localStorage (Chromium writes that late and can't open it while another copy of the app holds the profile). Nobody can answer a permission prompt headless, so it runs with `acceptEdits` (file edits and `cp`/`mkdir`/`mv` inside the workspace only), `Bash(vibe *)` as the one allowed command, and `--permission-prompts none`; keep the grants that narrow, since nobody sees a prompt; refused commands come back in the result and the panel names them. `$VIBE_CLAUDE` points it at another `claude` (the tests use a stand-in script). The `vibe` that Claude runs is the app's own: at startup `registerChat` writes `userData/bin/vibe` (`vibeShim`: this executable, plus the app folder in dev, with `--cli`) and puts that folder first on the child's PATH, because the user's npm-linked `vibe` lives on an nvm PATH a Finder-launched app never gets. Started from inside a Claude Code session, the app strips that session's `CLAUDE_*` variables and `ANTHROPIC_BASE_URL` from the child (`claudeEnv`).
+
 ### Things agents get wrong
+
+- `window.prompt()` throws in Electron ("prompt() is not supported"), so a button that asks for a name with it does nothing. Ask inline instead, like `NewRow` in `src/renderer/rooms/Studio.tsx` or the new-project field in `TopBar`.

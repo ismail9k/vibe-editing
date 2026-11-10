@@ -4,16 +4,21 @@ import { useStore } from '../store';
 import * as ops from '../../core/ops';
 import type { ImportedMedia } from '../../shared/api';
 
+/** Put media on the timeline: a video joins the end of the footage, a sound starts at the playhead. */
 export function addImported(media: ImportedMedia[]) {
   const st = useStore.getState();
   st.apply((p) => media.reduce((acc, m) => (m.kind === 'video' ? ops.addClip(acc, m.src, m.duration) : ops.addAudio(acc, m.src, st.playhead).project), p));
+  st.refreshMedia();
 }
+
+const length = (s: number) => (s >= 60 ? `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, '0')}` : `${s.toFixed(1)}s`);
 
 export function LibraryPanel() {
   const [tab, setTab] = useState<'components' | 'styles' | 'media'>('components');
   const lib = useStore((s) => s.lib);
   const project = useStore((s) => s.project);
   const name = useStore((s) => s.projectName);
+  const files = useStore((s) => s.media);
   const { apply, select } = useStore.getState();
   if (!lib || !project || !name) return null;
 
@@ -26,7 +31,10 @@ export function LibraryPanel() {
   const importMedia = async () => {
     try { addImported(await window.vibe.importMedia(name)); } catch (e) { alert((e as Error).message); }
   };
-  const media = [...new Set([...project.tracks.footage, ...project.tracks.audio].map((x) => x.src))];
+  // A file the film points at that isn't in the folder (yet) still shows, so it can be seen to be missing.
+  const used = new Map<string, number>();
+  for (const x of [...project.tracks.footage, ...project.tracks.audio]) used.set(x.src, (used.get(x.src) ?? 0) + 1);
+  const gone = [...used.keys()].filter((src) => !files.some((m) => m.src === src));
 
   return (
     <div className="library">
@@ -56,8 +64,15 @@ export function LibraryPanel() {
       {tab === 'media' && (
         <div className="list">
           <button className="primary" onClick={importMedia}>Import video or sound…</button>
-          {media.map((m) => <div key={m} className="row static"><span>{m.replace(/^media\//, '')}</span></div>)}
-          <p className="hint">Or drop files anywhere on the Edit room. Videos join the footage track; sounds land at the playhead.</p>
+          {files.map((m) => (
+            <button key={m.src} className="row" onClick={() => addImported([m])}
+              title={m.kind === 'video' ? 'Add to the end of the footage' : 'Add at the playhead'}>
+              <span>{m.src.replace(/^media\//, '')}</span>
+              <i>{m.kind === 'video' ? 'video' : 'sound'} · {length(m.duration)}{used.get(m.src) ? '' : ' · unused'}</i>
+            </button>
+          ))}
+          {gone.map((src) => <div key={src} className="row static"><span>{src.replace(/^media\//, '')}</span><i className="bad">missing</i></div>)}
+          <p className="hint">Click a file to put it on the timeline again. Or drop files anywhere on the Edit room. Videos join the footage track; sounds land at the playhead.</p>
         </div>
       )}
     </div>

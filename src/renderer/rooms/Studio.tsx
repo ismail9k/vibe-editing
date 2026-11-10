@@ -1,23 +1,16 @@
 // Studio: every component drawn in the chosen style, side by side; style params, brand and components edited on their own.
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useStore, type StudioFocus } from '../store';
 import { FrameCanvas } from '../ui/FrameCanvas';
 import { SchemaForm, Field } from '../ui/SchemaForm';
 import { writeLater } from '../writeLater';
 import { addGraphic } from '../../core/ops';
-import type { Project, Mode, Dir } from '../../core/model';
-import type { Library } from '../../core/render';
+import { componentId } from '../../core/component-template';
+import type { Mode, Dir } from '../../core/model';
+import { tileProject, type Library } from '../../core/render';
 import type { Brand } from '../../core/brand';
 
 const LOOP_PAD = 0.8;
-
-function tileProject(lib: Library, style: string, mode: Mode, dir: Dir, comp: string, props: Record<string, unknown>, w: number, h: number): Project {
-  const dur = lib.components[comp]?.meta.duration ?? 2;
-  return {
-    name: 'studio', format: { w, h, fps: 30 }, style, mode, dir,
-    tracks: { footage: [], graphics: [{ id: `s-${comp}`, type: comp, at: 0, dur, props }], captions: [], audio: [] },
-  };
-}
 
 export function Studio() {
   const { lib, studio, setStudio } = useStore();
@@ -36,13 +29,14 @@ export function Studio() {
             <span>{s.meta.name}</span><i>{s.error ? '⚠' : s.meta.preset ? 'preset' : 'yours'}</i>
           </button>
         ))}
-        <button className="row add" onClick={() => newStyle(lib, studio.style)}>+ New style</button>
+        <NewRow label="+ New style" placeholder={`Name (a copy of ${lib.styles[studio.style]?.meta.name ?? studio.style})`} create={(name) => newStyle(lib, studio.style, name)} />
         <h4>Components</h4>
         {comps.map((id) => (
           <button key={id} className={`row ${isFocus(focus, 'component', id) ? 'focused' : ''}`} onClick={() => setStudio({ focus: { kind: 'component', id } })}>
             <span>{lib.components[id].meta.name}</span><i>{lib.components[id].error ? '⚠' : ''}</i>
           </button>
         ))}
+        <NewRow label="+ New component" placeholder={big ? `Name (a copy of ${lib.components[big]?.meta.name ?? big})` : 'Name (from a template)'} create={(name) => newComponent(lib, big, name)} />
         <h4>Brand</h4>
         <button className={`row ${focus?.kind === 'brand' ? 'focused' : ''}`} onClick={() => setStudio({ focus: { kind: 'brand' } })}>
           <span>{lib.brand.name}</span>
@@ -90,17 +84,52 @@ function Tile({ lib, comp, w, h }: { lib: Library; comp: string; w: number; h: n
 
 const isFocus = (f: StudioFocus | null, kind: string, id: string) => !!f && f.kind === kind && 'id' in f && f.id === id;
 
-async function newStyle(lib: Library, from: string) {
-  const name = prompt(`New style (starts as a copy of ${lib.styles[from]?.meta.name ?? from})`);
-  if (!name) return;
-  const id = name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'style';
-  try {
-    await window.vibe.duplicate(`library/styles/${from}`, `library/styles/${id}`);
-    const meta = { ...lib.styles[from].meta, name, description: `Started from ${lib.styles[from].meta.name}. Ask Claude to rewrite style.js for the look you want.`, preset: false };
-    await window.vibe.write(`library/styles/${id}/style.json`, JSON.stringify(meta, null, 2) + '\n');
-    await useStore.getState().reloadLibrary();
-    useStore.getState().setStudio({ style: id, focus: { kind: 'style', id } });
-  } catch (e) { alert((e as Error).message); }
+/** A "+ New …" row that turns into a name field. Electron has no window.prompt (calling it throws), so new things
+ *  are named inline: Enter makes it, Escape (or leaving it empty) cancels. */
+function NewRow({ label, placeholder, create }: { label: string; placeholder: string; create(name: string): Promise<void> }) {
+  const [naming, setNaming] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  if (!naming) return <button className="row add" onClick={() => { setNaming(true); setError(null); }}>{label}</button>;
+  const done = () => { setNaming(false); setError(null); };
+  return (
+    <>
+      <form className="row add naming" onSubmit={async (e) => {
+        e.preventDefault();
+        const name = String(new FormData(e.currentTarget).get('name') ?? '').trim();
+        if (!name) return done();
+        try { await create(name); done(); } catch (err) { setError((err as Error).message); }
+      }}>
+        <input name="name" autoFocus placeholder={placeholder} onKeyDown={(e) => { if (e.key === 'Escape') done(); }}
+          onBlur={(e) => { if (!e.currentTarget.value.trim()) done(); }} />
+      </form>
+      {error && <p className="bad">{error}</p>}
+    </>
+  );
+}
+
+/** A folder name for a new library item: from its name, or `fallback` for a name with no Latin letters, never taken. */
+function freeId(name: string, fallback: string, taken: Record<string, unknown>) {
+  const base = componentId(name) || fallback;
+  let id = base;
+  for (let n = 2; taken[id]; n++) id = `${base}-${n}`;
+  return id;
+}
+
+async function newStyle(lib: Library, from: string, name: string) {
+  const id = freeId(name, 'style', lib.styles);
+  await window.vibe.duplicate(`library/styles/${from}`, `library/styles/${id}`);
+  const meta = { ...lib.styles[from].meta, name, description: `Started from ${lib.styles[from].meta.name}. Ask Claude to rewrite style.js for the look you want.`, preset: false };
+  await window.vibe.write(`library/styles/${id}/style.json`, JSON.stringify(meta, null, 2) + '\n');
+  await useStore.getState().reloadLibrary();
+  useStore.getState().setStudio({ style: id, focus: { kind: 'style', id } });
+}
+
+/** A copy of the component in focus, or the template when none is: then Claude rewrites it. */
+async function newComponent(lib: Library, from: string | null, name: string) {
+  const id = freeId(name, 'component', lib.components);
+  await window.vibe.createComponent(id, { from: from ?? undefined, name });
+  await useStore.getState().reloadLibrary();
+  useStore.getState().setStudio({ focus: { kind: 'component', id } });
 }
 
 function StudioInspector() {
@@ -147,7 +176,7 @@ function StudioInspector() {
             select({ track: 'graphics', id }); setRoom('edit');
           }}>Add to the film at {playhead.toFixed(1)}s</button>
         )}
-        <p className="hint">Sample text here is only for this preview. Files: <code>library/components/{c.id}/</code></p>
+        <p className="hint">Sample text here is only for this preview. Files: <code>library/components/{c.id}/</code>. Ask Claude to change it: <code>vibe component snap {c.id}</code> shows him the result.</p>
       </div>
     );
   }

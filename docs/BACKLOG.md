@@ -21,13 +21,19 @@ Both are illustrated films with no footage. Their styles came in as footage look
 - **Avatar dashboard, gold chart**: close to `stat` and `chart-grow` under the glass style. Gold is outside the brand's one-accent rule, so it's left out on purpose.
 - **Styles for the other new looks**: knit, PS2, marble and underwater are footage looks only (1930s cartoon has `film`, collage has `collage`, CRT is close to `terminal`).
 
+## The Claude panel
+- **Answer permission prompts in the panel**: today anything outside the allow-list is refused. Needs `--permission-prompt-tool` pointing at a small MCP server the app runs, and an Allow / Deny card in the panel.
+- **Show what Claude looks at**: when it reads a `vibe snapshot` PNG, show the picture inline (the `vibe://ws/` protocol already serves it).
+- **Attach things**: drop a file or a frame grab into the message.
+- **Queue a message** while a turn runs, instead of waiting for it to end.
+- **Pick the model and effort** from the panel instead of Claude Code's defaults.
+
 ## Engine
 - **Zoom headroom**: footage is decoded at the output size, so a 2× punch-in is soft. Decode at 2× for clips under a zoom effect.
 - **Cutouts off the Mac**: mattes use Apple Vision. For open source, add MediaPipe or Robust Video Matting as a second engine.
 - **Matte refinement**: the matte bleeds into a dark chair right behind the head (soft grey that outlines and paper cut make visible), and edges go soft on fast hand movement. Ideas: threshold and feather the edge, a temporal smoothing pass, or Vision's instance labels to drop the chair.
 - **Preview colour on HDR clips**: the preview now draws the video into the canvas, and Chromium's HLG → SDR there is more contrasty than the export's reinhard tone map. Match one to the other.
 - **Light-mode Studio tiles for photo effects**: cover story's white masthead and cover lines vanish on the light stand-in (they're meant for a photo).
-- **Effect timing on a cut**: zoom-through cut must be placed by hand across a cut; snapping it to the cut would help.
 - **Studio tiles with your footage**: tiles use a drawn stand-in; showing a still from the open project would preview cutout effects for real.
 - **Ripple edits** (open question): deleting or trimming footage doesn't move later captions and graphics. CapCut does.
 

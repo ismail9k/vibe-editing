@@ -1,6 +1,6 @@
 // renderFrame: one frame of a project at time t. Pure: same inputs, same pixels.
 // Used by the preview, the Studio grid, snapshots and the export.
-import { footageAt, type Graphic, type Project } from './model';
+import { footageAt, type Dir, type Graphic, type Mode, type Project } from './model';
 import { createBasePainter, applyStyle, type Ctx, type Painter, type StyleModule } from './painter';
 import type { FrameMedia } from './media';
 import { drawCaption } from './captions';
@@ -24,6 +24,15 @@ export interface LibComponent { id: string; meta: ComponentMeta; mod?: Component
 export interface Library { brand: Brand; styles: Record<string, LibStyle>; components: Record<string, LibComponent> }
 
 export const EXIT = 0.25;
+
+/** A film of one component alone, with no footage: a Studio tile, and what `vibe component snap` draws. */
+export function tileProject(lib: Library, style: string, mode: Mode, dir: Dir, comp: string, props: Record<string, unknown>, w: number, h: number): Project {
+  const dur = lib.components[comp]?.meta.duration ?? 2;
+  return {
+    name: 'studio', format: { w, h, fps: 30 }, style, mode, dir,
+    tracks: { footage: [], graphics: [{ id: `s-${comp}`, type: comp, at: 0, dur, props }], captions: [], audio: [] },
+  };
+}
 
 export function styleParams(meta?: StyleMeta): Record<string, unknown> {
   return Object.fromEntries(Object.entries(meta?.params ?? {}).map(([k, v]) => [k, v.value]));

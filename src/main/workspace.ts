@@ -5,6 +5,7 @@ import { createHash } from 'node:crypto';
 import { homedir } from 'node:os';
 import { basename, dirname, extname, isAbsolute, join, relative, resolve } from 'node:path';
 import { PROJECT_EXT, projectDir } from '../core/model';
+import { COMPONENT_ID, componentId, componentName, componentTemplate } from '../core/component-template';
 
 // Absolute even when VIBE_HOME is relative: the self-write guard compares the paths it wrote with the watcher's.
 export const workspaceRoot = () => resolve(process.env.VIBE_HOME || join(homedir(), 'Vibe'));
@@ -191,6 +192,28 @@ export function duplicateDir(root: string, fromRel: string, toRel: string) {
 }
 
 export interface Probe { duration: number; hasVideo: boolean; hasAudio: boolean; hdr: boolean }
+/** Starts library/components/<id>/: the template, or a copy of the component `from` under the new name. Writes
+ *  component.js before component.json, so the app's reload finds the code. Returns the two files (json, js). */
+export function createComponent(root: string, id: string, opts: { from?: string; name?: string; description?: string } = {}): [string, string] {
+  if (!COMPONENT_ID.test(id)) throw new Error(`"${id}" isn't a component id: use lowercase letters, digits and dashes, like "${componentId(id) || 'my-component'}"`);
+  const rel = `library/components/${id}`, dir = resolveInside(root, rel);
+  if (existsSync(dir)) throw new Error(`${rel} already exists`);
+  const json = `${rel}/component.json`, js = `${rel}/component.js`, name = opts.name ?? componentName(id);
+  if (opts.from) {
+    const src = resolveInside(root, `library/components/${opts.from}`);
+    if (!existsSync(join(src, 'component.json'))) throw new Error(`no component "${opts.from}" in library/components`);
+    const from = JSON.parse(readFileSync(join(src, 'component.json'), 'utf8'));
+    cpSync(src, dir, { recursive: true, filter: (f) => f !== join(src, 'component.json') });
+    const description = opts.description ?? `Started from ${from.name ?? opts.from}.${from.description ? ` ${from.description}` : ''}`;
+    writeText(root, json, JSON.stringify({ ...from, name, description }, null, 2) + '\n');
+  } else {
+    const { meta, code } = componentTemplate(name);
+    writeText(root, js, code);
+    writeText(root, json, JSON.stringify({ ...meta, ...(opts.description ? { description: opts.description } : {}) }, null, 2) + '\n');
+  }
+  return [json, js];
+}
+
 export function probe(abs: string): Promise<Probe> {
   return new Promise((ok, fail) => {
     execFile('ffprobe', ['-v', 'error', '-show_entries', 'format=duration:stream=codec_type,color_transfer', '-of', 'json', abs], (err, out) => {
@@ -222,6 +245,32 @@ export async function importMedia(root: string, project: string, paths: string[]
     copyFileSync(p, join(mediaDir, name));
     const info = await probe(join(mediaDir, name));
     out.push({ src: `media/${name}`, duration: info.duration, kind: info.hasVideo ? 'video' : 'audio' });
+  }
+  return out;
+}
+
+// Probing a file costs an ffprobe run; a file that hasn't changed (same size and time) is described from memory.
+const probed = new Map<string, { stamp: string; duration: number; kind: 'video' | 'audio' }>();
+
+/** Every video and sound in projects/<name>.vibe/media, with its length: what the Media tab lists and how the
+ *  timeline knows how long a sound runs (vibe.json only stores where it starts). A file ffprobe can't read is left out. */
+export async function listMedia(root: string, project: string) {
+  const mediaDir = resolveInside(root, `${projectDir(project)}/media`);
+  if (!existsSync(mediaDir)) return [];
+  const out: { src: string; duration: number; kind: 'video' | 'audio' }[] = [];
+  for (const name of readdirSync(mediaDir).sort()) {
+    const abs = join(mediaDir, name);
+    if (name.startsWith('.') || !importable(abs)) continue;
+    const st = statSync(abs), stamp = `${st.size}:${st.mtimeMs}`;
+    let hit = probed.get(abs);
+    if (!hit || hit.stamp !== stamp) {
+      try {
+        const info = await probe(abs);
+        hit = { stamp, duration: info.duration, kind: info.hasVideo ? 'video' : 'audio' };
+        probed.set(abs, hit);
+      } catch { continue; }
+    }
+    out.push({ src: `media/${name}`, duration: hit.duration, kind: hit.kind });
   }
   return out;
 }

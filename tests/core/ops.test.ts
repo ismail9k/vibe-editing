@@ -84,3 +84,70 @@ describe('clips know how long their media is', () => {
     expect(halves.map((c) => c.srcDur)).toEqual([20, 20]);
   });
 });
+
+describe('changeComponent', () => {
+  const schema = { value: { type: 'text' as const, label: 'Value' }, title: { type: 'text' as const, label: 'Title' }, count: { type: 'bool' as const, label: 'Count' } };
+  const placed = () => ops.updateItem(ops.updateItem(base(), 'graphics', 'g1', { props: { value: '90%', label: 'devs', count: 'yes' } }), 'graphics', 'g1', { x: 0.3, y: 0.2, w: 0.5 });
+
+  it('swaps the type in place, keeping the id and timing', () => {
+    const g = ops.changeComponent(placed(), 'g1', 'card', { schema }).tracks.graphics[0];
+    expect([g.id, g.type, g.at, g.dur]).toEqual(['g1', 'card', 1, 2]);
+  });
+
+  it('keeps only props the new component has with the right type', () => {
+    expect(ops.changeComponent(placed(), 'g1', 'card', { schema }).tracks.graphics[0].props).toEqual({ value: '90%' });
+  });
+
+  it('drops the position override', () => {
+    const g = ops.changeComponent(placed(), 'g1', 'card', { schema }).tracks.graphics[0];
+    expect([g.x, g.y, g.w]).toEqual([undefined, undefined, undefined]);
+  });
+
+  it('leaves the project alone for the same type or an unknown id', () => {
+    const p = placed();
+    expect(ops.changeComponent(p, 'g1', 'stat', { schema })).toBe(p);
+    expect(ops.changeComponent(p, 'nope', 'card', { schema })).toBe(p);
+  });
+});
+
+describe('times the app writes', () => {
+  it('are whole milliseconds, however the drag or playhead came out', () => {
+    const { project, id } = ops.addGraphic(parseProject('{}').project!, 'stat', 2.8834999999999993, 2, {});
+    expect(project.tracks.graphics[0].at).toBe(2.883);
+    expect(ops.moveItem(project, 'graphics', id, 3.0833333333333335).tracks.graphics[0].at).toBe(3.083);
+    const trimmed = ops.trimItem(project, 'graphics', id, 'end', 4.00049).tracks.graphics[0];
+    expect(trimmed.dur).toBe(1.117);
+  });
+});
+
+describe('duplicateItem', () => {
+  const base = parseProject(JSON.stringify({ tracks: {
+    footage: [{ id: 'f1', src: 'media/a.mp4', in: 1, out: 3 }, { id: 'f2', src: 'media/b.mp4', in: 0, out: 2 }],
+    graphics: [{ id: 'g1', type: 'stat', at: 1, dur: 2, props: { value: '9' }, x: 0.4 }],
+    captions: [{ id: 'c1', text: 'hi', at: 0.5, dur: 1 }],
+    audio: [{ id: 'a1', src: 'media/pop.wav', at: 2, gain: 0.5 }],
+  } })).project!;
+
+  it('puts a copy of a graphic or caption right after the original, with its own id', () => {
+    const g = ops.duplicateItem(base, 'graphics', 'g1')!;
+    expect(g.id).toBe('g2');
+    expect(g.project.tracks.graphics[1]).toEqual({ id: 'g2', type: 'stat', at: 3, dur: 2, props: { value: '9' }, x: 0.4 });
+    const c = ops.duplicateItem(base, 'captions', 'c1')!;
+    expect(c.project.tracks.captions[1]).toMatchObject({ id: 'c2', at: 1.5, dur: 1, text: 'hi' });
+  });
+
+  it('puts a copy of a clip next in the footage order', () => {
+    const f = ops.duplicateItem(base, 'footage', 'f1')!;
+    expect(f.project.tracks.footage.map((c) => [c.id, c.in, c.out])).toEqual([['f1', 1, 3], ['f3', 1, 3], ['f2', 0, 2]]);
+  });
+
+  it('starts a copy of a sound after the original ends', () => {
+    const a = ops.duplicateItem(base, 'audio', 'a1', 0.8)!;
+    expect(a.project.tracks.audio[1]).toEqual({ id: 'a2', src: 'media/pop.wav', at: 2.8, gain: 0.5 });
+  });
+
+  it('gives nothing for an item that is not there, and leaves the project alone', () => {
+    expect(ops.duplicateItem(base, 'graphics', 'nope')).toBeNull();
+    expect(base.tracks.graphics).toHaveLength(1);
+  });
+});

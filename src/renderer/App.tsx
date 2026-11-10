@@ -4,11 +4,16 @@ import { cancelWriteLater, flushWriteLater } from './writeLater';
 import { TopBar } from './ui/TopBar';
 import { Studio } from './rooms/Studio';
 import { Edit } from './rooms/Edit';
+import { ChatPanel } from './ui/ChatPanel';
+import { initChat, useChat } from './chat';
 
 if (import.meta.env.DEV) (window as unknown as { __store: typeof useStore }).__store = useStore;
 
 export function App() {
   const room = useStore((s) => s.room);
+  const chatOpen = useChat((s) => s.open);
+
+  useEffect(() => initChat(), []);
 
   useEffect(() => {
     const st = useStore.getState();
@@ -61,7 +66,10 @@ export function App() {
   return (
     <div className="app">
       <TopBar />
-      {room === 'studio' ? <Studio /> : <Edit />}
+      <div className={`app-body ${chatOpen ? 'with-chat' : ''}`}>
+        {room === 'studio' ? <Studio /> : <Edit />}
+        {chatOpen && <ChatPanel />}
+      </div>
     </div>
   );
 }

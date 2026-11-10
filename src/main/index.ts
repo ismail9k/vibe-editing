@@ -3,7 +3,7 @@
 import { app, BrowserWindow, dialog } from 'electron';
 import { join } from 'node:path';
 import { registerScheme, handleProtocol } from './protocol';
-import { registerIpc } from './ipc';
+import { registerChat, registerIpc } from './ipc';
 import { migrateProjects, projectAtPath, seedWorkspace, workspaceRoot } from './workspace';
 import { projectName } from '../core/model';
 import { SelfWriteGuard, watchWorkspace } from './watch';
@@ -75,7 +75,8 @@ app.whenReady().then(async () => {
   const watcher = watchWorkspace(root, guard, (change) => {
     for (const w of BrowserWindow.getAllWindows()) w.webContents.send('ws:change', change);
   });
-  app.on('will-quit', () => watcher.close());
+  const chats = registerChat(root);
+  app.on('will-quit', () => { watcher.close(); chats.stopAll(); });
 });
 
 app.on('window-all-closed', () => { if (!cliArgs) app.quit(); });

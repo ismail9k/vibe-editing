@@ -23,13 +23,18 @@ export function Edit() {
       const tag = (e.target as HTMLElement).tagName;
       if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
       const st = useStore.getState();
+      // Letters are matched by key position (e.code), so S and ⌘Z work on an Arabic layout and with Caps Lock on.
+      const cmd = e.metaKey || e.ctrlKey;
+      const frame = 1 / (st.project?.format.fps ?? 30);
       if (e.code === 'Space') { e.preventDefault(); togglePlay(); }
-      else if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); e.shiftKey ? st.redo() : st.undo(); }
-      else if (e.key === 's' && !e.metaKey && !e.ctrlKey) st.apply((p) => ops.splitFootage(p, st.playhead));
+      else if (cmd && e.code === 'KeyZ') { e.preventDefault(); e.shiftKey ? st.redo() : st.undo(); }
+      else if (cmd && e.code === 'KeyD' && st.selection) { e.preventDefault(); duplicateSelected(); }
+      else if (e.code === 'KeyS' && !cmd && !e.altKey) st.apply((p) => ops.splitFootage(p, st.playhead));
       else if ((e.key === 'Backspace' || e.key === 'Delete') && st.selection) { const s = st.selection; st.apply((p) => ops.deleteItem(p, s.track, s.id)); st.select(null); }
-      else if (e.key === 'ArrowLeft') st.seek(st.playhead - (e.shiftKey ? 1 : 1 / (st.project?.format.fps ?? 30)));
-      else if (e.key === 'ArrowRight') st.seek(st.playhead + (e.shiftKey ? 1 : 1 / (st.project?.format.fps ?? 30)));
+      else if (e.key === 'ArrowLeft') st.seek(st.playhead - (e.shiftKey ? 1 : frame));
+      else if (e.key === 'ArrowRight') st.seek(st.playhead + (e.shiftKey ? 1 : frame));
       else if (e.key === 'Home') st.seek(0);
+      else if (e.key === 'End' && st.project) st.seek(duration(st.project));
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
@@ -63,6 +68,21 @@ export function Edit() {
       <Timeline />
     </div>
   );
+}
+
+/** ⌘D: a copy of the selected item, right after it, selected in its place. */
+function duplicateSelected() {
+  const st = useStore.getState(), sel = st.selection;
+  if (!sel) return;
+  let id = '';
+  st.apply((p) => {
+    const a = sel.track === 'audio' ? p.tracks.audio.find((x) => x.id === sel.id) : undefined;
+    const r = ops.duplicateItem(p, sel.track, sel.id, st.media.find((m) => m.src === a?.src)?.duration);
+    if (!r) return p;
+    id = r.id;
+    return r.project;
+  });
+  if (id) st.select({ track: sel.track, id });
 }
 
 function togglePlay() {

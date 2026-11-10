@@ -1,0 +1,23 @@
+{
+  "name": "Cover",
+  "description": "The 9k reel cover: wordmark and hashtag up top, a huge typed headline with its key words in green, the sub line on a green box and one orange burst. Put it over a backdrop (glow) to stand in front of the glow.",
+  "duration": 4,
+  "defaults": {
+    "title": "Host your site for zero dollars?",
+    "highlight": "zero dollars",
+    "sub": "6 free services to start with",
+    "tag": "Free_Tier",
+    "handle": "Ismail9k",
+    "burst": true,
+    "size": 4.2
+  },
+  "schema": {
+    "title": { "type": "text", "label": "Headline (\\n breaks a line)" },
+    "highlight": { "type": "text", "label": "Words in green" },
+    "sub": { "type": "text", "label": "Sub line (green box)" },
+    "tag": { "type": "text", "label": "Hashtag" },
+    "handle": { "type": "text", "label": "Wordmark" },
+    "burst": { "type": "bool", "label": "Orange burst" },
+    "size": { "type": "number", "label": "Headline size (rem)" }
+  }
+}

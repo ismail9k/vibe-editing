@@ -3,7 +3,7 @@
 A small desktop video editor that Claude Code drives. Your components, your brand and a library of styles live in one place; Claude edits plain files on disk, and the app shows every change live while you watch, nudge and approve.
 
 - **Studio**: your components in every style, side by side and looping. Tune a style's knobs, edit the brand, try a component's props, then add it to the film.
-- **Edit**: a footage track, graphics, captions and sounds on one timeline, with a live preview and an Export button.
+- **Edit**: a footage track, graphics, captions and sounds on one timeline (dragged edges snap to cuts, other items and the playhead; hold Option to drag freely), with a live preview and an Export button. Space plays, S splits the clip under the playhead, ⌘D copies the selected item, Delete removes it, ⌘Z undoes; the Media tab lists the film's files, and a click puts one on the timeline again.
 - **Styles** restyle the same components natively (9k Flat, Chalkboard, Pixel Art, Editorial, Blueprint, Sticker and Terminal ship as presets). Make your own by duplicating one, or start from nothing.
 - **Effects** from short-form editing: punch-in zooms, zoom-through cuts, a phone mock-up, checklists and growing charts, and effects that cut you out of the shot (a new backdrop, paper cut-out, doodles, a magazine cover, breaking out of the frame, words orbiting you, a dolly zoom, a wall of headlines or screens, frosted-glass type).
 
@@ -65,7 +65,7 @@ Everything lives in `~/Vibe` (or in `$VIBE_HOME`). On first run the app copies i
 
 Each project is a `.vibe` folder that Finder shows as a single document; double-clicking it opens it in the app (right-click → Show Package Contents to see inside). Projects made before this were plain `projects/<name>/` folders; the app renames them the next time it starts.
 
-To work with Claude, open a Claude Code session in `~/Vibe` next to the app. Claude edits `vibe.json`, styles and components, and the app reloads them within a second. If Claude writes a broken file, the app keeps showing the last good version and puts the error in the top bar. A component or style that throws draws a red box with the error instead of crashing.
+To work with Claude, click **Claude** in the top bar (or press ⌘L) and type. The panel runs your own Claude Code (it needs `claude` installed and signed in) in the workspace, streams its reply, and shows each file it touches or command it runs as one line; it knows which room you're in, where the playhead is and what's selected. Each project keeps its own conversation. File edits and simple file commands (`cp`, `mkdir`, `mv`) inside the workspace go through without asking, and so does `vibe`; anything else is refused unless your Claude Code permissions allow it, and the panel names what was refused so you can run it. You can still open a Claude Code session in `~/Vibe` next to the app instead. Either way, Claude edits `vibe.json`, styles and components, and the app reloads them within a second. If Claude writes a broken file, the app keeps showing the last good version and puts the error in the top bar. A component or style that throws draws a red box with the error instead of crashing.
 
 ## The CLI
 
@@ -76,8 +76,12 @@ vibe snapshot <project> --at 1,4.5,8   # PNGs at those seconds -> projects/<p>.v
 vibe render <project> [-o out.mp4]     # export the MP4 -> projects/<p>.vibe/out/<p>.mp4
 vibe matte <project>                   # cut you out of every clip -> media/.matte/ (macOS)
 vibe transcribe <project>              # what you say, word by word, on the timeline -> projects/<p>.vibe/transcript.json
+vibe component new <id> [--from <c>]   # start a component: a working template, or a copy of <c>
+vibe component snap <id>               # check a component and draw it alone through its duration -> .vibe/out/<id>.png
 vibe open [project]                    # open the app
 ```
+
+Claude makes and changes components the same way it edits a film: it writes `library/components/<id>/`, and the Studio shows the result live, focusing a new component as soon as it appears. `vibe component snap` is how Claude sees its own work: it checks both files (schema, defaults, the cutout flags, no randomness) and draws the component alone, as its Studio tile does, at six moments side by side, printing anything that broke and when. You can also start one from the Studio with **+ New component**: it copies the component you're looking at, or starts from the template, for Claude to rewrite.
 
 `snapshot` and `render` run the app's own renderer in a hidden window, so they match the preview frame for frame: ffmpeg decodes the footage to raw frames, the window draws each whole frame (footage, effects, graphics, captions), and ffmpeg encodes the result with the sound. Export is H.264 + AAC, with the sound levelled to -14 LUFS (the level Instagram, TikTok and YouTube play at) and its peaks kept under -1.5 dB. Footage is scaled and cropped to fill the frame, and HDR footage (iPhone HLG or PQ) is tone-mapped to SDR.
 

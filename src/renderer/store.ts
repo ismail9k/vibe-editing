@@ -4,7 +4,7 @@ import { create } from 'zustand';
 import { parseProject, projectDir, serializeProject, duration, type Project, type TrackName, type Mode, type Dir } from '../core/model';
 import { coercedIssues, validateProject, type Issue } from '../core/validate';
 import type { Library } from '../core/render';
-import type { WorkspaceInfo, WsChange } from '../shared/api';
+import type { ImportedMedia, WorkspaceInfo, WsChange } from '../shared/api';
 import { loadLibrary } from './library';
 import { lastSeen, readDisk, writeDisk } from './disk';
 
@@ -29,6 +29,8 @@ interface State {
   diskNote: { text: string; at: number } | null;
   history: Project[];
   future: Project[];
+  /** The files in the open project's media folder, with their lengths (vibe.json doesn't say how long a sound is). */
+  media: ImportedMedia[];
   studio: { style: string; mode: Mode; dir: Dir; focus: StudioFocus | null; sample: Record<string, Record<string, unknown>> };
   exporting: { done: number; total: number; stage: string; message?: string; out?: string; errors?: string[] } | null;
   /** Cutout mattes for the open project, when it uses a cutout or aiming effect. `version` bumps when new ones land. */
@@ -38,6 +40,7 @@ interface State {
   refreshInfo(): Promise<void>;
   reloadLibrary(): Promise<void>;
   openProject(name: string): Promise<void>;
+  refreshMedia(): Promise<void>;
   onDiskChange(c: WsChange): Promise<void>;
   apply(fn: (p: Project) => Project): void;
   undo(): void;
@@ -67,7 +70,7 @@ function changedIds(a: Project | null, b: Project): string[] {
 
 export const useStore = create<State>((set, get) => ({
   info: null, lib: null, libError: null, projectName: null, project: null, parseError: null, coerced: [], issues: [],
-  room: 'edit', selection: null, playhead: 0, playing: false, diskNote: null, history: [], future: [],
+  room: 'edit', selection: null, playhead: 0, playing: false, diskNote: null, history: [], future: [], media: [],
   studio: { style: 'flat9k', mode: 'dark', dir: 'ltr', focus: null, sample: {} },
   exporting: null, mattes: null,
 
@@ -98,13 +101,30 @@ export const useStore = create<State>((set, get) => ({
     matteFailed = ''; // opening a project tries its cutouts again
     const text = await readDisk(projectRel(name));
     const { project, error, coerced } = parseProject(text ?? '{}');
-    set({ coerced: coercedIssues(coerced), projectName: name, project: project ?? null, parseError: error ?? null, history: [], future: [], selection: null, playhead: 0, playing: false, diskNote: null, mattes: null });
+    set({ coerced: coercedIssues(coerced), projectName: name, project: project ?? null, parseError: error ?? null, history: [], future: [], selection: null, playhead: 0, playing: false, diskNote: null, mattes: null, media: [] });
     if (project) set({ studio: { ...get().studio, style: project.style, mode: project.mode, dir: project.dir } });
     get().validate();
+    get().refreshMedia();
+  },
+
+  async refreshMedia() {
+    const name = get().projectName;
+    if (!name) return;
+    try {
+      const media = await window.vibe.listMedia(name);
+      if (get().projectName === name) set({ media });
+    } catch { /* the list is a convenience: the film still plays without it */ }
   },
 
   async onDiskChange(c) {
-    if (c.kind !== 'project') { await get().reloadLibrary(); set({ diskNote: { text: `${c.rel} changed on disk`, at: Date.now() } }); return; }
+    if (c.kind !== 'project') {
+      const isNew = c.kind === 'component' && !get().lib?.components[c.id];
+      await get().reloadLibrary();
+      set({ diskNote: { text: `${c.rel} changed on disk`, at: Date.now() } });
+      // A component Claude just made: show it in the Studio, so you watch it take shape. Never leave the Edit room for it.
+      if (isNew && get().lib?.components[c.id] && get().room === 'studio') get().setStudio({ focus: { kind: 'component', id: c.id } });
+      return;
+    }
     if (c.id !== get().projectName) { await get().refreshInfo(); return; }
     const before = lastSeen(c.rel);
     const text = await readDisk(c.rel);
@@ -126,6 +146,9 @@ export const useStore = create<State>((set, get) => ({
       diskNote: { text: `vibe.json changed on disk${ids.length ? ` · ${ids.slice(0, 6).join(', ')}` : ''}${hadPending ? ' (replaced your unsaved edit)' : ''}`, at: Date.now() },
     });
     get().validate();
+    // Claude usually copies a sound or a take into media/ just before pointing vibe.json at it.
+    const known = new Set(get().media.map((m) => m.src));
+    if ([...project.tracks.footage, ...project.tracks.audio].some((x) => !known.has(x.src))) get().refreshMedia();
   },
 
   apply(fn) {

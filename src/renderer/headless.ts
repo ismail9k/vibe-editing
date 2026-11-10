@@ -1,8 +1,45 @@
 // The hidden render window: draws frames for the export and snapshots with the same renderer as the preview.
 import { parseProject, projectDir } from '../core/model';
-import { renderFrame } from '../core/render';
+import { renderFrame, tileProject, type Library } from '../core/render';
 import { loadLibrary } from './library';
 import type { FrameMedia } from '../core/media';
+import type { ComponentJob, HeadlessResult } from '../shared/api';
+
+const png = async (canvas: HTMLCanvasElement) => (await new Promise<Blob>((ok) => canvas.toBlob((b) => ok(b!), 'image/png'))).arrayBuffer();
+
+/** A component drawn alone at each time, side by side with the time under each frame (one time: the full frame).
+ *  Errors carry the first time they happened, so a component that breaks mid-way says where. */
+async function componentSheet(lib: Library, job: ComponentJob): Promise<HeadlessResult> {
+  const comp = lib.components[job.component], style = lib.styles[job.style];
+  if (!comp) return { errors: [], fatal: `no component "${job.component}" in library/components` };
+  if (!style) return { errors: [], fatal: `no style "${job.style}" (have: ${Object.keys(lib.styles).join(', ')})` };
+  const errors = new Map<string, number>();
+  for (const e of [style.error, comp.error]) if (e) errors.set(e, -1);
+  const project = tileProject(lib, job.style, job.mode, job.dir, job.component, job.props, job.w, job.h);
+  const frame = document.createElement('canvas');
+  frame.width = job.w; frame.height = job.h;
+  const ctx = frame.getContext('2d')!;
+  const one = job.times.length === 1, scale = one ? 1 : 1 / 3, gap = one ? 0 : 16, label = one ? 0 : 40;
+  const tw = Math.round(job.w * scale), th = Math.round(job.h * scale);
+  const cols = Math.min(job.times.length, 6), rows = Math.ceil(job.times.length / cols);
+  const sheet = document.createElement('canvas');
+  sheet.width = cols * tw + (cols + 1) * gap;
+  sheet.height = rows * (th + label) + (rows + 1) * gap;
+  const sc = sheet.getContext('2d')!;
+  sc.fillStyle = '#262626';
+  sc.fillRect(0, 0, sheet.width, sheet.height);
+  job.times.forEach((t, i) => {
+    for (const e of renderFrame(ctx, project, lib, t)) if (!errors.has(e)) errors.set(e, t);
+    const x = gap + (i % cols) * (tw + gap), y = gap + Math.floor(i / cols) * (th + label + gap);
+    sc.drawImage(frame, x, y, tw, th);
+    if (!one) {
+      sc.fillStyle = '#d8d8d8';
+      sc.font = '600 24px "IBM Plex Mono"';
+      sc.fillText(`${t.toFixed(2)} s`, x, y + th + 30);
+    }
+  });
+  return { errors: [...errors].map(([e, t]) => (t < 0 ? e : `at ${t.toFixed(2)} s: ${e}`)), pngs: [await png(sheet)] };
+}
 
 /** Raw footage from main as canvases the painter can draw: the frame as-is, the grey matte as an alpha mask. */
 function mediaMaker(W: number, H: number) {
@@ -28,6 +65,7 @@ export async function runHeadless() {
   const errors = new Set<string>();
   try {
     const lib = await loadLibrary(await window.vibe.info());
+    if (job.kind === 'component') { await window.vibe.headlessDone(await componentSheet(lib, job)); return; }
     for (const s of Object.values(lib.styles)) if (s.error) errors.add(s.error);
     for (const c of Object.values(lib.components)) if (c.error) errors.add(c.error);
     const { project, error } = parseProject((await window.vibe.read(`${projectDir(job.project)}/vibe.json`)) ?? '');
@@ -48,8 +86,7 @@ export async function runHeadless() {
       const pngs: ArrayBuffer[] = [];
       for (let i = 0; i < job.times.length; i++) {
         await draw(job.times[i], i);
-        const blob = await new Promise<Blob>((ok) => canvas.toBlob((b) => ok(b!), 'image/png'));
-        pngs.push(await blob.arrayBuffer());
+        pngs.push(await png(canvas));
       }
       await window.vibe.headlessDone({ errors: [...errors], pngs });
     }

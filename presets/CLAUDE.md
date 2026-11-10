@@ -21,9 +21,9 @@ projects/<name>.vibe/out/              renders and snapshots
 ## Rules
 
 - **Read `library/brand.json` → `rules` before designing anything.** Colours come from the brand and the mode, never from a style or a component. One orange accent per shot.
-- When he says "this one" or "here", read `.vibe/session.json` for the selected item and the playhead.
-- Look at your work: `vibe snapshot <project> --at 1.2,3.5` writes PNGs to `projects/<project>.vibe/out/`. Open them before you say something is done.
-- `vibe check <project>` validates the project against the library. Fix every error.
+- When he says "this one" or "here", read `.vibe/session.json` for the selected item and the playhead. In the Studio, `studio.focus` is the style or component he's looking at.
+- Look at your work: `vibe snapshot <project> --at 1.2,3.5` writes PNGs to `projects/<project>.vibe/out/`. Open them before you say something is done. For a component on its own, `vibe component snap <id>` (see "Writing a component").
+- `vibe check <project>` validates the project against the library, and the components it uses. Fix every error.
 - `vibe render <project>` exports `out/<name>.mp4`. Only render when he asks.
 - Before cutting or timing anything to speech, run `vibe transcribe <project>`. It prints what he says as timed lines on the output timeline and writes every word to `projects/<project>.vibe/transcript.json` (`at`/`end` on the timeline, `srcAt`/`srcEnd` in the footage file, for `in`/`out`). Run it again after changing the cuts; whisper only re-runs when the footage changes. Whisper misspells Arabic: fix captions by ear, not by copying.
 - Cutout effects need a matte per clip (`media/.matte/`). The app makes them in the background; from the terminal run `vibe matte <project>` (macOS only, about 1.5× the clip's length). `vibe check` warns when one is missing.
@@ -63,14 +63,37 @@ projects/<name>.vibe/out/              renders and snapshots
 
 ## Writing a component
 
+- **Start one**: `vibe component new <id>` makes `library/components/<id>/` from a small working component (a panel with a typed title and a sub line) for you to rewrite. `--from <component>` starts from a copy of the ready-made one closest to what he wants; `--name "…"` names it. The id is lowercase letters, digits and dashes. The Studio shows it as soon as it exists.
+- **Change one**: edit its two files in place. The app reloads it on save and never overwrites a file you changed (`vibe presets` lists them).
+- **Look at it**: `vibe component snap <id>` checks both files and draws the component alone, as its Studio tile does (no footage: a stand-in speaker), at six times through its duration, side by side in `.vibe/out/<id>.png`. Open the PNG before you say it's done, and fix every `error` line and `render error` (each says the time it first broke). `--at 1.2` draws one full frame; `--dir rtl`, `--mode light`/`green`, `--style <id>` and `--props '{"title":"…"}'` try it the ways he'll use it. Check RTL whenever it has text.
+
+`component.json`:
+
+```json
+{
+  "name": "Deal card",
+  "description": "What it shows and when to use it: the Studio and you both read this.",
+  "duration": 3,
+  "defaults": { "title": "50% off", "items": ["One", "Two"], "kind": "big" },
+  "schema": {
+    "title": { "type": "text", "label": "Title" },
+    "items": { "type": "list", "label": "Items" },
+    "kind": { "type": "select", "label": "Kind", "options": ["big", "small"] }
+  }
+}
+```
+
+Prop types are `text`, `number`, `bool`, `list` and `select` (with `options`). Every prop needs a default of its type: the Studio's form is built from the schema, and a graphic that leaves a prop out gets the default. Add `"scene"`, `"matte"` or `"aims"` when the code draws the footage or the cutout (see below).
+
 ```js
 // library/components/<id>/component.js
 export default {
   draw(p, { t, dur, props, graphic, place }) {
     const box = place({ y: 0.4, w: 0.8 });          // { x, y, w, left, right, start, end } in pixels
+    const pad = p.rem, start = p.dir === 'rtl' ? box.right - pad : box.left + pad; // reading-start edge, inside
     const k = p.enter(t, 'default');                 // 0 → 1 spring: snappy | default | heavy | playful
     p.panel({ x: box.left, y: box.y, w: box.w, h: p.rem * 6 }, { variant: 'feature', progress: k });
-    p.text(String(props.title), box.start + p.rem, box.y + p.rem * 2.5, { role: 'display', size: p.rem * 2, progress: Math.min(1, t * 20 / props.title.length) });
+    p.text(String(props.title), start, box.y + p.rem * 2.5, { role: 'display', size: p.rem * 2, progress: Math.min(1, t * 20 / props.title.length) });
   },
 };
 ```
@@ -93,7 +116,7 @@ Flag `"matte": true` on any component that calls `p.subject()`, so the app makes
 
 Ready-made effects: `checklist`, `chart-grow`, `digital-zoom`, `phone`, `zoom-cut` (put it across a cut, half on each side), `backdrop`, `paper-cut`, `doodle-boil`, `cover-story`, `frame-break`, `orbit`, `vertigo`, `wall`, `glass-type`, `look` (your shot in one look, wiping in and out), `look-roll` (title, a numbered list filling in, and a card wiping through the looks: the "10 styles" reel format; `looks` picks any of the twenty-nine in order, e.g. `["hologram", "cyberpunk", "papercut", "isometric", "blueprint", "thermal", "anime", "terminal", "watercolor", "clay"]`; `names` relabels the list, e.g. in Arabic), `look-grid` (closing shot: every look as tiles round a typed "Comment «KEYWORD»" line), `look-cutout` (a look on just you (`on: "you"`, with `dim` darkening the room so a hologram floats in it) or just the room (`on: "room"`, you stay real in front); needs the cutout). `bar-race` (bars race through periods and re-sort as one overtakes another; each bar is a line `"Name: 10, 40, 90"`, one value per period), `flowchart` (boxes and arrows drawing in step by step; `links` like `"1>3"` branch and join, none makes a chain), `type-slam` (kinetic type: one word a beat, thrown at the lens; `stack` keeps the earlier words), `flying-cards` (a deck dealt into a fan while a number counts up to `count`), `pixel-dissolve` (the shot coarsens into big pixels that flip one by one from look `from` to look `to`, then sharpens; `"none"` is the plain shot; put it between two `look`s or across a cut). One effect per beat: they're loud.
 
-Other ready-made components: `hook`, `stat`, `list`, `card`, `band`, `cta`, `nino`, `lower-third`, `quote`, `code`, `compare`, `timeline`, `callout`, `comic-burst` (a jagged orange "BOOM!" slammed in beside your head, for the comic look), `pixel-hud` (a game HUD on a dark strip: a score counting up, a level, pixel hearts; `lose` hearts blink out at `at` seconds; for the pixel look), `note-arrow` (a note typed beside you and an arrow drawing onto your head or body; chalk on the chalkboard style), `scenery` (a drawn scene for a film with no footage, in the mode's colours and gently moving: `night` (a moon over a house on the hills), `sea` (fish, weed, light shafts, bubbles) or `museum` (a bust under a spotlight, a framed picture); it takes the frame over, so put graphics after it). Styles: `flat9k`, `chalkboard`, `pixel`, `editorial` (serif, printed page), `blueprint` (grid, dashed construction lines, mono), `sticker` (thick edges, hard shadows), `terminal` (mono, terminal windows), `synthwave` (a striped sun setting into a rolling grid floor, cards with a lit outline, headlines leaning on a hard shadow), `woodblock` (ukiyo-e: wood grain, uneven key lines, colour printed a hair off, a stepped sky), `noir` (halftone dots, square ink-bordered panels with halftone shadows, capital headlines), `sumi` (rice paper, cards as dry-brush strokes, tapered brush rules, a red seal on feature cards), `glass` (frosted panes that blur whatever is behind them), `collage` (torn paper stuck down crooked with tape, tape-strip rules, scraps on the board), `film` (1930s reel: serif title cards with a double border, motion at 12 drawings a second, the graphics weaving, flickering and scratched; pair it with the `oldcartoon` look), `comic` (thick ink borders, hard drop shadows, a green pop-art halftone, headlines leaning on a drop), `riso` (grainy two-ink print, the green block printed off its black line), `papercut` (cards as stacks of cut sheets with soft shadows, paper hills along the bottom), `bricks` (toy-brick plates with studs on top, a baseplate background). From `synthwave` on, each style matches the footage look of the same name (`glass` has none; `film` goes with `oldcartoon`), so a film can carry one look through the shot and the graphics. Their suns, grids, paper and boards are backgrounds: they show in films without footage.
+Other ready-made components: `cover` (the reel cover: wordmark, `#tag`, a huge typed headline with its `highlight` words in green, the sub line on a green box, one orange burst; `\n` in the title breaks a line; put it over a `backdrop` with `glow` to stand in front of the glow), `hook`, `stat`, `list`, `card`, `band`, `cta`, `nino`, `lower-third`, `quote`, `code`, `compare`, `timeline`, `callout`, `comic-burst` (a jagged orange "BOOM!" slammed in beside your head, for the comic look), `pixel-hud` (a game HUD on a dark strip: a score counting up, a level, pixel hearts; `lose` hearts blink out at `at` seconds; for the pixel look), `note-arrow` (a note typed beside you and an arrow drawing onto your head or body; chalk on the chalkboard style), `scenery` (a drawn scene for a film with no footage, in the mode's colours and gently moving: `night` (a moon over a house on the hills), `sea` (fish, weed, light shafts, bubbles) or `museum` (a bust under a spotlight, a framed picture); it takes the frame over, so put graphics after it). Styles: `flat9k`, `chalkboard`, `pixel`, `editorial` (serif, printed page), `blueprint` (grid, dashed construction lines, mono), `sticker` (thick edges, hard shadows), `terminal` (mono, terminal windows), `synthwave` (a striped sun setting into a rolling grid floor, cards with a lit outline, headlines leaning on a hard shadow), `woodblock` (ukiyo-e: wood grain, uneven key lines, colour printed a hair off, a stepped sky), `noir` (halftone dots, square ink-bordered panels with halftone shadows, capital headlines), `sumi` (rice paper, cards as dry-brush strokes, tapered brush rules, a red seal on feature cards), `glass` (frosted panes that blur whatever is behind them), `collage` (torn paper stuck down crooked with tape, tape-strip rules, scraps on the board), `film` (1930s reel: serif title cards with a double border, motion at 12 drawings a second, the graphics weaving, flickering and scratched; pair it with the `oldcartoon` look), `comic` (thick ink borders, hard drop shadows, a green pop-art halftone, headlines leaning on a drop), `riso` (grainy two-ink print, the green block printed off its black line), `papercut` (cards as stacks of cut sheets with soft shadows, paper hills along the bottom), `bricks` (toy-brick plates with studs on top, a baseplate background). From `synthwave` on, each style matches the footage look of the same name (`glass` has none; `film` goes with `oldcartoon`), so a film can carry one look through the shot and the graphics. Their suns, grids, paper and boards are backgrounds: they show in films without footage.
 
 A style's `post()` runs on the graphics layer, never on the footage under it: pixel art pixelates the graphics and leaves you sharp.
 

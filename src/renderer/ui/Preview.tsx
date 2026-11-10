@@ -171,6 +171,8 @@ function syncSounds(sounds: Map<string, HTMLAudioElement>, p: Project, name: str
     const inside = local >= 0 && local < (len || 0.05);
     if (playing && inside) {
       if (el.paused) { el.currentTime = local; el.play().catch(() => {}); }
+      // Scrubbing while the film plays moves the playhead under a sound that's already going: put it back in step.
+      else if (Math.abs(el.currentTime - local) > 0.25) el.currentTime = local;
     } else if (!el.paused) el.pause();
   }
 }

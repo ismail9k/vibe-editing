@@ -1,8 +1,9 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, renameSync } from 'node:fs';
 import { tmpdir } from 'node:os';
+import { execFileSync } from 'node:child_process';
 import { isAbsolute, join } from 'node:path';
-import { resolveInside, workspaceRoot, seedWorkspace, presetStatus, takePresets, listLibrary, listProjects, uniqueName, importable, writeChecked, migrateProjects, projectAtPath } from '../../src/main/workspace';
+import { resolveInside, workspaceRoot, seedWorkspace, presetStatus, takePresets, listLibrary, listProjects, uniqueName, importable, writeChecked, migrateProjects, projectAtPath, createComponent, listMedia } from '../../src/main/workspace';
 import { projectName } from '../../src/core/model';
 
 let root: string, presets: string;
@@ -210,5 +211,62 @@ describe('preset updates', () => {
   it('refuses to take a file that is not a preset', () => {
     seedWorkspace(root, presets);
     expect(() => takePresets(root, presets, ['library/styles/nope/style.json'])).toThrow(/not a preset/);
+  });
+});
+
+describe('createComponent', () => {
+  const read = (rel: string) => readFileSync(join(root, rel), 'utf8');
+
+  it('starts a component from the template, named after its folder', () => {
+    const files = createComponent(root, 'big-number');
+    expect(files).toEqual(['library/components/big-number/component.json', 'library/components/big-number/component.js']);
+    expect(JSON.parse(read(files[0])).name).toBe('Big Number');
+    expect(read(files[1])).toMatch(/export default/);
+  });
+
+  it('takes a name and a description', () => {
+    createComponent(root, 'promo', { name: 'Promo card', description: 'A deal.' });
+    expect(JSON.parse(read('library/components/promo/component.json'))).toMatchObject({ name: 'Promo card', description: 'A deal.' });
+  });
+
+  it('copies another component, keeping its code and props under the new name', () => {
+    mkdirSync(join(root, 'library/components/card'), { recursive: true });
+    writeFileSync(join(root, 'library/components/card/component.json'), JSON.stringify({ name: 'Card', description: 'A claim.', duration: 3.5, defaults: { title: 'Hi' }, schema: { title: { type: 'text', label: 'Title' } } }));
+    writeFileSync(join(root, 'library/components/card/component.js'), 'export default { draw() {} };');
+    createComponent(root, 'deal-card', { from: 'card' });
+    expect(JSON.parse(read('library/components/deal-card/component.json'))).toEqual({
+      name: 'Deal Card', description: 'Started from Card. A claim.', duration: 3.5, defaults: { title: 'Hi' }, schema: { title: { type: 'text', label: 'Title' } },
+    });
+    expect(read('library/components/deal-card/component.js')).toBe('export default { draw() {} };');
+  });
+
+  it('refuses a folder name that is taken or not a plain id, and an unknown source', () => {
+    createComponent(root, 'big-number');
+    expect(() => createComponent(root, 'big-number')).toThrow(/already/);
+    expect(() => createComponent(root, 'Big Number')).toThrow(/big-number/);
+    expect(() => createComponent(root, '../escape')).toThrow(/escape/);
+    expect(() => createComponent(root, 'x', { from: 'nope' })).toThrow(/no component "nope"/);
+  });
+});
+
+const hasFfmpeg = (() => { try { execFileSync('ffmpeg', ['-version'], { stdio: 'ignore' }); return true; } catch { return false; } })();
+
+describe.skipIf(!hasFfmpeg)('listMedia', () => {
+  it('lists the videos and sounds in a project\'s media folder with their lengths, and nothing else', async () => {
+    const media = join(root, 'projects/film.vibe/media');
+    mkdirSync(join(media, '.matte'), { recursive: true });
+    execFileSync('ffmpeg', ['-v', 'error', '-f', 'lavfi', '-i', 'sine=frequency=440:duration=1.5', join(media, 'pop.wav')]);
+    execFileSync('ffmpeg', ['-v', 'error', '-f', 'lavfi', '-i', 'color=c=black:s=64x64:r=10:d=2', join(media, 'take.mp4')]);
+    writeFileSync(join(media, 'notes.txt'), 'not media');
+    writeFileSync(join(media, 'broken.mp4'), 'not a video');
+    writeFileSync(join(media, '.matte/take.mp4.matte.mp4'), '');
+    const list = await listMedia(root, 'film');
+    expect(list.map((m) => [m.src, m.kind])).toEqual([['media/pop.wav', 'audio'], ['media/take.mp4', 'video']]);
+    expect(list[0].duration).toBeCloseTo(1.5, 1);
+    expect(list[1].duration).toBeCloseTo(2, 1);
+  });
+
+  it('gives an empty list for a project with no media folder', async () => {
+    expect(await listMedia(root, 'empty')).toEqual([]);
   });
 });

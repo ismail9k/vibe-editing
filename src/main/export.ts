@@ -4,13 +4,15 @@ import { spawn } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync, rmSync } from 'node:fs';
 import { once } from 'node:events';
 import { join } from 'node:path';
-import { duration, footageAt, matteSrc, parseProject, projectDir, type Project } from '../core/model';
+import { duration, footageAt, matteSrc, parseProject, projectDir, type Dir, type Mode, type Project } from '../core/model';
+import { validateComponent, type Issue } from '../core/validate';
+import { snapTimes } from './check';
 import { buildDecodeArgs, buildEncodeArgs, buildMeasureArgs, buildMixArgs, buildStillArgs, clipOverruns, masterGain, parseLoudness } from './ffmpeg';
 import { FrameReader } from './frames';
 import { componentMetas, ensureMattes, matteReady, usesMatte, wantsMatte } from './matte';
 import { matteTools } from './paths';
 import { runHeadless, type MediaSource } from './headless';
-import { probe, resolveInside } from './workspace';
+import { listLibrary, probe, resolveInside } from './workspace';
 import type { ExportProgress } from '../shared/api';
 
 export function loadProject(root: string, name: string): { project: Project; dir: string } {
@@ -186,6 +188,30 @@ export async function runSnapshot(root: string, name: string, times: number[], o
     files.push(dest);
   }
   return { files, errors: result.errors };
+}
+
+/** `vibe component snap`: checks a component's files and draws it alone, as a Studio tile does, at each time. */
+export async function runComponentSnap(root: string, id: string, o: { at?: number[]; style?: string; mode?: Mode; dir?: Dir; props?: Record<string, unknown>; out?: string } = {}) {
+  const rel = `library/components/${id}`, dir = resolveInside(root, rel);
+  if (!existsSync(dir)) throw new Error(`no component "${id}" in library/components (\`vibe component new ${id}\` starts one)`);
+  const jsFile = join(dir, 'component.js'), code = existsSync(jsFile) ? readFileSync(jsFile, 'utf8') : null;
+  let meta: unknown, issues: Issue[];
+  try {
+    meta = JSON.parse(readFileSync(join(dir, 'component.json'), 'utf8'));
+    issues = validateComponent(id, meta, code);
+  } catch (e) {
+    // Without its JSON only the code can be checked: the rest would be noise about a file that didn't parse.
+    issues = [{ level: 'error', path: `${rel}/component.json`, message: (e as Error).message }, ...validateComponent(id, {}, code).filter((i) => i.path.endsWith('.js'))];
+  }
+  const dur = (meta as { duration?: unknown })?.duration;
+  const times = o.at ?? snapTimes(typeof dur === 'number' && dur > 0 ? dur : 2);
+  const style = o.style ?? (existsSync(resolveInside(root, 'library/styles/flat9k')) ? 'flat9k' : listLibrary(root).styles[0]);
+  const result = await runHeadless({ kind: 'component', component: id, style, mode: o.mode ?? 'dark', dir: o.dir ?? 'ltr', props: o.props ?? {}, times, w: 1080, h: 1920 });
+  if (result.fatal) throw new Error(result.fatal);
+  const file = o.out ?? resolveInside(root, `.vibe/out/${id}.png`);
+  mkdirSync(join(file, '..'), { recursive: true });
+  writeFileSync(file, Buffer.from(result.pngs![0]));
+  return { file, times, issues, errors: result.errors };
 }
 
 export function registerExport(root: string) {
