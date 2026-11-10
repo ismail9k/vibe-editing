@@ -35,7 +35,7 @@ Both are illustrated films with no footage. Their styles came in as footage look
 - **Preview colour on HDR clips**: the preview now draws the video into the canvas, and Chromium's HLG → SDR there is more contrasty than the export's reinhard tone map. Match one to the other.
 - **Light-mode Studio tiles for photo effects**: cover story's white masthead and cover lines vanish on the light stand-in (they're meant for a photo).
 - **Studio tiles with your footage**: tiles use a drawn stand-in; showing a still from the open project would preview cutout effects for real.
-- **Ripple edits** (open question): deleting or trimming footage doesn't move later captions and graphics. CapCut does.
+- **Ripple edits**: deleting or trimming a clip moves later graphics, captions and sounds with the footage (`closeGap`/`openGap` in `ops.ts`). Reordering clips still doesn't. CapCut does.
 
 ## Deferred from the effects review
 - Some effect text fades in instead of typing: orbit's words (badges have no typed reveal in the painter yet) and wall's headline rows (they scroll in from off-frame, so a typed reveal would barely show; maybe type just the row behind your head).

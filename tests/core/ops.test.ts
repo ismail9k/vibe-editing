@@ -151,3 +151,95 @@ describe('duplicateItem', () => {
     expect(base.tracks.graphics).toHaveLength(1);
   });
 });
+
+describe('deleting a clip', () => {
+  // Three clips: 0-3, 3-5 (the one deleted), 5-9.
+  const film = (): Project => parseProject(JSON.stringify({
+    tracks: {
+      footage: [
+        { id: 'f1', src: 'media/a.mov', in: 0, out: 3 },
+        { id: 'f2', src: 'media/a.mov', in: 3, out: 5 },
+        { id: 'f3', src: 'media/a.mov', in: 5, out: 9 },
+      ],
+      graphics: [
+        { id: 'before', type: 'stat', at: 1, dur: 1.5, props: {} },
+        { id: 'inside', type: 'stat', at: 3.2, dur: 1, props: {} },
+        { id: 'across', type: 'stat', at: 2, dur: 5, props: {} },
+        { id: 'tail', type: 'stat', at: 4, dur: 3, props: {} },
+        { id: 'after', type: 'stat', at: 6, dur: 2, props: {} },
+      ],
+      captions: [{ id: 'c1', text: 'gone', at: 3, dur: 2 }, { id: 'c2', text: 'kept', at: 5, dur: 1 }],
+      audio: [{ id: 'bed', src: 'media/bed.wav', at: 0 }, { id: 'in', src: 'media/hit.wav', at: 4 }, { id: 'hit', src: 'media/hit.wav', at: 5.5 }],
+    },
+  })).project!;
+  const times = (list: { id: string; at: number; dur?: number }[]) => Object.fromEntries(list.map((x) => [x.id, x.dur === undefined ? x.at : [x.at, x.dur]]));
+
+  it('pulls everything after it back by its length, so it stays on the same footage', () => {
+    const p = ops.deleteItem(film(), 'footage', 'f2');
+    expect(times(p.tracks.graphics)).toEqual({ before: [1, 1.5], across: [2, 3], tail: [3, 2], after: [4, 2] });
+    expect(times(p.tracks.captions)).toEqual({ c2: [3, 1] });
+    expect(times(p.tracks.audio)).toEqual({ bed: 0, in: 3, hit: 3.5 });
+    expect(duration(p)).toBe(7);
+  });
+
+  it('leaves the other tracks alone when the item deleted is not a clip', () => {
+    const p = ops.deleteItem(film(), 'captions', 'c1');
+    expect(p.tracks.graphics).toEqual(film().tracks.graphics);
+    expect(p.tracks.audio).toEqual(film().tracks.audio);
+  });
+
+  it('keeps a sound that starts with the first clip', () => {
+    expect(ops.deleteItem(film(), 'footage', 'f1').tracks.audio.map((a) => [a.id, a.at])).toEqual([['bed', 0], ['in', 1], ['hit', 2.5]]);
+  });
+});
+
+describe('trimming a clip', () => {
+  // Two clips, 0-4 and 4-8, each from the middle of a 10 s file so both edges can go either way.
+  const film = (): Project => parseProject(JSON.stringify({
+    tracks: {
+      footage: [
+        { id: 'f1', src: 'media/a.mov', in: 2, out: 6, srcDur: 10 },
+        { id: 'f2', src: 'media/a.mov', in: 2, out: 6, srcDur: 10 },
+      ],
+      graphics: [
+        { id: 'early', type: 'stat', at: 0.5, dur: 1, props: {} },
+        { id: 'late', type: 'stat', at: 3.2, dur: 0.6, props: {} },
+        { id: 'across', type: 'stat', at: 2, dur: 4, props: {} },
+        { id: 'next', type: 'stat', at: 4, dur: 2, props: {} },
+      ],
+      captions: [{ id: 'c1', text: 'one', at: 3, dur: 1 }, { id: 'c2', text: 'two', at: 5, dur: 1 }],
+      audio: [{ id: 'bed', src: 'media/bed.wav', at: 0 }, { id: 'hit', src: 'media/hit.wav', at: 4 }],
+    },
+  })).project!;
+  const times = (p: Project) => Object.fromEntries([...p.tracks.graphics, ...p.tracks.captions, ...p.tracks.audio]
+    .map((x) => [x.id, 'dur' in x ? [x.at, x.dur] : x.at]));
+
+  it('pulls later items back when the end is trimmed off', () => {
+    expect(times(ops.trimClip(film(), 'f1', 'end', -1))).toEqual({
+      early: [0.5, 1], across: [2, 3], next: [3, 2], c2: [4, 1], bed: 0, hit: 3,
+    });
+  });
+
+  it('pushes later items on when the end is drawn out', () => {
+    expect(times(ops.trimClip(film(), 'f1', 'end', 1))).toEqual({
+      early: [0.5, 1], late: [3.2, 0.6], across: [2, 5], next: [5, 2], c1: [3, 1], c2: [6, 1], bed: 0, hit: 5,
+    });
+  });
+
+  it('keeps items on their footage when the start is trimmed off', () => {
+    expect(times(ops.trimClip(film(), 'f1', 'start', 1))).toEqual({
+      early: [0, 0.5], late: [2.2, 0.6], across: [1, 4], next: [3, 2], c1: [2, 1], c2: [4, 1], bed: 0, hit: 3,
+    });
+  });
+
+  it('keeps items on their footage when the start is drawn out', () => {
+    expect(times(ops.trimClip(film(), 'f2', 'start', -1))).toEqual({
+      early: [0.5, 1], late: [3.2, 0.6], across: [2, 5], next: [5, 2], c1: [3, 1], c2: [6, 1], bed: 0, hit: 5,
+    });
+  });
+
+  it('moves nothing when the trim is stopped by the end of the media', () => {
+    const full = ops.trimClip(film(), 'f1', 'end', 4);
+    expect(times(ops.trimClip(full, 'f1', 'end', 3))).toEqual(times(full));
+  });
+});
