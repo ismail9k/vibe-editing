@@ -59,6 +59,16 @@ Some tests skip themselves: `tests/main/decode-sync.test.ts` without ffmpeg, the
 - `app.getAppPath()` is the `app.asar` archive. Node's `fs` reads inside it, but other programs can't, so anything handed to a child process must be unpacked (`asarUnpack`) and addressed through `unpacked()` in `src/main/paths.ts`, as the Swift source for `swiftc` is.
 - Opened from Finder, the app gets a bare `PATH`; `src/main/tool-path.ts` adds the Homebrew folders at startup so `ffmpeg`, `ffprobe` and `whisper-cli` are found.
 
+#### The landing page
+
+`site/` is the public landing page, a small Vite + Vue app of its own (its own `package.json`; nothing in the app depends on it). Its chrome comes from the 9k design system, `@9klabs/design`, installed from GitHub at a pinned commit (docs: https://design.the9klabs.com, every page also as Markdown at its URL plus `.md`); the editor demo, the style tiles and the page-wide timeline are drawn by the page itself in `site/src/App.vue` and `site/src/style.css`. It shows graphics only, never footage of a person.
+
+```bash
+npm --prefix site install
+npm --prefix site run dev      # the page with hot reload
+npm --prefix site run build    # site/dist, static files with relative paths
+```
+
 ### Conventions
 
 - Commit messages are short plain-English imperatives describing the user-visible effect ("Keep the picture on the sound across cuts"), with no type prefixes.

@@ -1,0 +1,18 @@
+{
+  "name": "vibe-editing-site",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@9klabs/design": "github:the9klabs/design#334ef3f1b01763b728a04e4b803b619030597f0c",
+    "vue": "^3.5.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^6.0.0",
+    "vite": "^7.0.0"
+  }
+}
