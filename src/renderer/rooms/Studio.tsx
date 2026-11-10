@@ -8,7 +8,7 @@ import { addGraphic } from '../../core/ops';
 import { componentId } from '../../core/component-template';
 import type { Mode, Dir } from '../../core/model';
 import { tileProject, type Library } from '../../core/render';
-import { MAIN_BRAND, brandFile, brandOf, type Brand } from '../../core/brand';
+import { MAIN_BRAND, allBrands, brandFile, brandOf, type Brand } from '../../core/brand';
 
 const LOOP_PAD = 0.8;
 
@@ -25,7 +25,12 @@ export function Studio() {
 
       <main className="studio-main">
         <div className="studio-bar">
-          <span className="muted">{lib.styles[studio.style]?.meta.name} · {brandOf(lib, studio.brand).name} · {studio.mode} · {studio.dir.toUpperCase()}</span>
+          {/* The style list on the left is behind a tab, and the tab leaves when a component is focused, so the style
+              can always be switched here. It keeps the focus: a component being looked at stays up as its style changes. */}
+          <select className="style-pick" aria-label="Style" title="Style" value={studio.style} onChange={(e) => setStudio({ style: e.target.value })}>
+            {Object.values(lib.styles).map((s) => <option key={s.id} value={s.id}>{s.meta.name}</option>)}
+          </select>
+          <span className="muted">{brandOf(lib, studio.brand).name} · {studio.mode} · {studio.dir.toUpperCase()}</span>
           <div className="seg">{(['dark', 'light', 'green'] as Mode[]).map((m) => <button key={m} className={studio.mode === m ? 'on' : ''} onClick={() => setStudio({ mode: m })}>{m}</button>)}</div>
           <div className="seg">{(['ltr', 'rtl'] as Dir[]).map((d) => <button key={d} className={studio.dir === d ? 'on' : ''} onClick={() => setStudio({ dir: d })}>{d.toUpperCase()}</button>)}</div>
           {big && <button className="ghost" onClick={() => setStudio({ focus: null })}>← All components</button>}
@@ -57,9 +62,6 @@ type LibraryTab = 'styles' | 'components';
 const TABS: { id: LibraryTab; label: string; one: string }[] = [
   { id: 'styles', label: 'Styles', one: 'style' }, { id: 'components', label: 'Components', one: 'component' },
 ];
-
-/** Every brand by id, the workspace's own first. */
-const allBrands = (lib: Library): [string, Brand][] => [[MAIN_BRAND, lib.brand], ...Object.entries(lib.brands ?? {})];
 
 /** The left panel. Styles and components are two long lists, so each gets its own tab with a filter, and the tab
  *  follows the focus: a tile clicked in the grid, or a component Claude just made, brings its own list forward.

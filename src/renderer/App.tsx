@@ -6,6 +6,7 @@ import { Studio } from './rooms/Studio';
 import { Edit } from './rooms/Edit';
 import { ChatPanel } from './ui/ChatPanel';
 import { initChat, useChat } from './chat';
+import { initMenu } from './menu';
 
 if (import.meta.env.DEV) (window as unknown as { __store: typeof useStore }).__store = useStore;
 
@@ -14,6 +15,7 @@ export function App() {
   const chatOpen = useChat((s) => s.open);
 
   useEffect(() => initChat(), []);
+  useEffect(() => initMenu(), []);
 
   useEffect(() => {
     const st = useStore.getState();

@@ -6,6 +6,7 @@ import { createComponent, duplicateDir, importMedia, MEDIA_EXTENSIONS, listLibra
 import type { SelfWriteGuard } from './watch';
 import { projectDir } from '../core/model';
 import { Chats, vibeShim } from './chat';
+import { startProject } from './start';
 import { userDataDir } from './paths';
 import type { ChatContext } from '../shared/api';
 
@@ -18,12 +19,13 @@ export function registerIpc(root: string, guard: SelfWriteGuard, initialProject:
     Object.fromEntries(rels.map((r) => { try { return [r, existsSync(resolveInside(root, r))]; } catch { return [r, false]; } })));
   ipcMain.handle('ws:duplicate', (_e, a: string, b: string) => duplicateDir(root, a, b));
   ipcMain.handle('ws:createComponent', (_e, id: string, opts?: { from?: string; name?: string }) => { createComponent(root, id, opts); });
-  ipcMain.handle('ws:createProject', (_e, name: string) => {
-    const slug = name.trim().toLowerCase().replace(/[^a-z0-9؀-ۿ]+/g, '-').replace(/^-|-$/g, '') || 'untitled';
-    const rel = `${projectDir(slug)}/vibe.json`;
-    if (existsSync(join(root, rel))) throw new Error(`a project called ${slug} already exists`);
-    writeText(root, rel, JSON.stringify({ name: slug, format: { w: 1080, h: 1920, fps: 30 }, style: 'flat9k', mode: 'dark', dir: 'ltr', tracks: { footage: [], graphics: [], captions: [], audio: [] } }, null, 2) + '\n');
-    return slug;
+  ipcMain.handle('ws:startProject', (_e, name: string, paths?: string[]) => startProject(root, name, paths ?? []));
+  ipcMain.handle('media:pick', async (e) => {
+    const r = await dialog.showOpenDialog(BrowserWindow.fromWebContents(e.sender)!, {
+      properties: ['openFile', 'multiSelections'],
+      filters: [{ name: 'Video and audio', extensions: MEDIA_EXTENSIONS }],
+    });
+    return r.canceled ? [] : r.filePaths;
   });
   ipcMain.handle('media:import', async (e, project: string, paths?: string[]) => {
     let files = paths;

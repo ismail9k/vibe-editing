@@ -6,7 +6,7 @@ This folder is Ismail's Vibe Editing workspace. The Vibe Editing app shows it li
 
 ```
 library/brand.json                     the brand: colours, modes (dark / light / green), fonts, the design-language rules
-library/brands/<id>.json               another brand, same shape (anything left out comes from brand.json); a film picks it with "brand": "<id>"
+library/brands/<id>.json               another brand, same shape (anything left out comes from brand.json); a film picks it with "brand": "<id>" (shipped: ember, tide, orchid)
 library/styles/<id>/style.json         a style's name, description and params (each param: type, label, value, min/max/step or options)
 library/styles/<id>/style.js           its drawing code
 library/components/<id>/component.json name, description, default duration, default props, prop schema
@@ -21,11 +21,12 @@ projects/<name>.vibe/out/              renders and snapshots
 
 ## Rules
 
-- **Read the film's brand → `rules` before designing anything** (`library/brands/<id>.json` when vibe.json names a `brand`, otherwise `library/brand.json`). Colours come from the brand and the mode, never from a style or a component. One orange accent per shot.
+- **Read the film's brand → `rules` before designing anything** (`library/brands/<id>.json` when vibe.json names a `brand`, otherwise `library/brand.json`). Colours come from the brand and the mode, never from a style or a component. One accent per shot (orange in 9k). The `green` mode is the brand-colour band, whatever the brand's colour is.
 - When he says "this one" or "here", read `.vibe/session.json` for the selected item and the playhead. In the Studio, `studio.focus` is the style, component or brand he's looking at (brand `default` is `library/brand.json`).
 - Look at your work: `vibe snapshot <project> --at 1.2,3.5` writes PNGs to `projects/<project>.vibe/out/`. Open them before you say something is done. For a component on its own, `vibe component snap <id>` (see "Writing a component").
 - `vibe check <project>` validates the project against the library, and the components it uses. Fix every error.
 - `vibe render <project>` exports `out/<name>.mp4`. Only render when he asks.
+- A film he starts from the app's New project sheet arrives with his video already in `media/`, on the footage track, and the frame shaped to it; the bracketed line on his first message says so. Don't import or re-add it: transcribe it and start editing.
 - Before cutting or timing anything to speech, run `vibe transcribe <project>`. It prints what he says as timed lines on the output timeline and writes every word to `projects/<project>.vibe/transcript.json` (`at`/`end` on the timeline, `srcAt`/`srcEnd` in the footage file, for `in`/`out`). Run it again after changing the cuts; whisper only re-runs when the footage changes. Whisper misspells Arabic: fix captions by ear, not by copying.
 - Cutout effects need a matte per clip (`media/.matte/`). The app makes them in the background; from the terminal run `vibe matte <project>` (macOS only, about 1.5× the clip's length). `vibe check` warns when one is missing.
 - No `Math.random`: use `p.rng(seed)` so every frame is the same in preview and export.

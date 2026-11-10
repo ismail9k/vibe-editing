@@ -57,6 +57,13 @@ export async function sendChat(text: string) {
   await window.vibe.chatSend(project, text.trim(), context());
 }
 
+/** The first message of a project just started from the New project sheet: opens the panel and sends it, with the
+ *  media the project was started from, so Claude knows the video is already on the timeline. */
+export async function startChat(project: string, text: string, started: string[]) {
+  setChatOpen(true);
+  await window.vibe.chatSend(project, text.trim(), { ...context(), started });
+}
+
 export function stopChat() {
   const { project } = useChat.getState();
   if (project) window.vibe.chatStop(project);

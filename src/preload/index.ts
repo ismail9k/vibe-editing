@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer, webUtils } from 'electron';
-import type { VibeApi, WsChange, ExportProgress, MatteProgressEvent, ChatUpdate } from '../shared/api';
+import type { VibeApi, WsChange, ExportProgress, MatteProgressEvent, ChatUpdate, MenuCommand } from '../shared/api';
 
 const on = <T>(channel: string, cb: (v: T) => void) => {
   const h = (_: unknown, v: T) => cb(v);
@@ -14,7 +14,8 @@ const api: VibeApi = {
   exists: (rels) => ipcRenderer.invoke('ws:exists', rels),
   duplicate: (a, b) => ipcRenderer.invoke('ws:duplicate', a, b),
   createComponent: (id, opts) => ipcRenderer.invoke('ws:createComponent', id, opts),
-  createProject: (name) => ipcRenderer.invoke('ws:createProject', name),
+  startProject: (name, paths) => ipcRenderer.invoke('ws:startProject', name, paths),
+  pickMedia: () => ipcRenderer.invoke('media:pick'),
   importMedia: (project, paths) => ipcRenderer.invoke('media:import', project, paths),
   listMedia: (project) => ipcRenderer.invoke('media:list', project),
   pathForFile: (file) => webUtils.getPathForFile(file),
@@ -33,6 +34,8 @@ const api: VibeApi = {
   onChat: (cb) => on<ChatUpdate>('chat:update', cb),
   chatPanelOpen: () => ipcRenderer.invoke('ui:chatOpen'),
   setChatPanelOpen: (open) => ipcRenderer.invoke('ui:setChatOpen', open),
+  onMenu: (cb) => on<MenuCommand>('menu:command', cb),
+  menuState: (state) => ipcRenderer.invoke('menu:state', state),
   frameReady: (rgba) => ipcRenderer.invoke('headless:frame', rgba),
   headlessJob: () => ipcRenderer.invoke('headless:job'),
   headlessDone: (r) => ipcRenderer.invoke('headless:done', r),

@@ -42,9 +42,29 @@ h4 { margin: 16px 0 6px; font-size: 10.5px; font-weight: 600; letter-spacing: .0
 .brandmark { font: 600 15px 'IBM Plex Mono', monospace; -webkit-app-region: drag; }
 .brandmark b { color: var(--orange); }
 .project-select { background: var(--panel-2); border: 1px solid var(--line-2); border-radius: 6px; padding: 3px 8px; }
-.project-new { display: flex; align-items: center; gap: 8px; }
-.project-new input { width: 170px; background: var(--panel-2); border: 1px solid var(--orange); border-radius: 6px; padding: 3px 8px; outline: none; color: var(--text); font: inherit; }
-.project-new span.bad { font-size: 11.5px; white-space: nowrap; }
+/* the New project sheet */
+.sheet-scrim { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; background: rgba(0, 0, 0, .55); -webkit-app-region: no-drag; }
+.sheet { width: min(480px, calc(100vw - 48px)); max-height: calc(100vh - 48px); overflow-y: auto; background: var(--panel); border: 1px solid var(--line-2); border-radius: 12px; padding: 20px; display: flex; flex-direction: column; gap: 14px; box-shadow: 0 24px 60px rgba(0, 0, 0, .5); }
+.sheet h2 { margin: 0; font-size: 15px; font-weight: 600; }
+.sheet-drop { border: 1px dashed var(--line-2); border-radius: 8px; padding: 14px; display: flex; flex-direction: column; gap: 6px; }
+.sheet-drop.on { border-color: var(--orange); }
+.sheet-drop p { margin: 0; text-align: center; }
+.sheet-file { display: flex; align-items: center; gap: 8px; background: var(--panel-2); border-radius: 6px; padding: 4px 6px 4px 10px; }
+.sheet-file span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 12px 'IBM Plex Mono', monospace; }
+.sheet-file button { border: 0; background: none; color: var(--muted); font-size: 16px; line-height: 1; cursor: pointer; padding: 0 4px; }
+.sheet-file button:hover { color: var(--text); }
+.sheet-link { border: 0; background: none; padding: 0; color: var(--green-text); cursor: pointer; }
+.sheet-link:hover { text-decoration: underline; }
+.sheet-field { display: flex; flex-direction: column; gap: 5px; }
+.sheet-field > span { color: var(--muted); font-size: 12px; }
+.sheet-field input, .sheet-field textarea { background: var(--panel-2); border: 1px solid var(--line-2); border-radius: 6px; padding: 6px 9px; color: var(--text); outline: none; line-height: 1.5; }
+.sheet-field input:focus, .sheet-field textarea:focus { border-color: var(--orange); }
+.sheet-field textarea { resize: vertical; min-height: 84px; }
+.sheet .hint { margin: -6px 0 0; }
+.sheet-foot { display: flex; align-items: center; gap: 8px; }
+.sheet-foot .spacer { flex: 1; }
+.sheet-foot .bad { font-size: 12px; min-width: 0; }
+.sheet-foot button.primary { margin: 0; }
 .rooms { display: flex; background: var(--panel-2); border-radius: 99px; padding: 2px; }
 .rooms button { border: 0; background: none; padding: 3px 14px; border-radius: 99px; color: var(--muted); cursor: pointer; }
 .rooms button.on { background: var(--green); color: #fff; }
@@ -123,6 +143,7 @@ summary { cursor: pointer; color: var(--muted); font-size: 12px; }
 .library-foot.focused .brand-pick select, .library-foot.focused .brand-edit { border-color: var(--orange); }
 .studio-main { display: flex; flex-direction: column; min-height: 0; min-width: 0; }
 .studio-bar { display: flex; align-items: center; gap: 12px; padding: 10px 16px; border-bottom: 1px solid var(--line); }
+.style-pick { background: var(--panel-2); border: 1px solid var(--line-2); border-radius: 6px; padding: 3px 8px; color: var(--text); font: inherit; }
 .seg { display: flex; background: var(--panel-2); border-radius: 6px; padding: 2px; }
 .seg button { border: 0; background: none; padding: 3px 10px; border-radius: 5px; color: var(--muted); cursor: pointer; font-size: 12px; }
 .seg button.on { background: #2a2a2a; color: #fff; }
@@ -164,7 +185,9 @@ summary { cursor: pointer; color: var(--muted); font-size: 12px; }
 .library .tabs { display: flex; gap: 2px; padding: 10px 10px 0; }
 .library .tabs button { flex: 1; border: 0; background: none; color: var(--muted); padding: 5px 0; border-bottom: 2px solid transparent; cursor: pointer; font-size: 12px; }
 .library .tabs button.on { color: #fff; border-bottom-color: var(--green); }
-.library .list { padding: 8px 10px; }
+.library { display: flex; flex-direction: column; height: 100%; }
+.library .list { flex: 1; min-height: 0; overflow-y: auto; padding: 8px 10px; }
+.library .library-foot { padding: 0 10px 8px; }
 
 /* timeline */
 .timeline { grid-column: 1 / -1; display: grid; grid-template-columns: 110px 1fr; border-top: 1px solid var(--line); background: #101010; min-height: 0; }

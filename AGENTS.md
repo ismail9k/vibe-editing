@@ -25,7 +25,7 @@ npm run dev          # app with hot reload (electron-vite)
 npm run build        # build to out/
 npm test             # vitest run (tests/**/*.test.ts)
 npm run typecheck    # tsc --noEmit
-npm run dist         # dist/mac-arm64/Vibe Editing.app (electron-builder.yml; unsigned)
+npm run dist         # dist/mac-arm64/Vibe Editing.app (electron-builder.yml; signed ad hoc, no Developer ID)
 npm run dist:dmg     # dist/Vibe-Editing-<version>-arm64.dmg, the drag-to-Applications installer (`dmg` in electron-builder.yml)
 npm run dmg:background  # redraw the installer window's picture from build/dmg-background.svg (needs rsvg-convert; commit the PNGs)
 npm run sounds       # rewrite presets/library/sounds/*.wav from src/core/sounds.ts
@@ -85,7 +85,7 @@ Components (`library/components/<id>/component.{json,js}`) and styles (`library/
 
 - A **component** exports `{ draw(p, { t, dur, props, graphic, place }) }` and must draw through the painter `p`, never raw canvas calls for the look, so styles can restyle it. `component.json` flags: `scene` (draws the footage itself; the plain footage layer is skipped), `matte` (calls `p.subject()`, needs a cutout; export refuses without one), `aims` (only uses `p.subjectBox()`; guesses without a matte).
 - A **style** exports `(base) => ({ ...overrides })`. Base painter methods call each other through `this`, so an override applies everywhere; overrides call the base as `base.method.call(this, ...)`.
-- Colours come from the brand and the project's mode, not from styles or components. The workspace's own brand is `library/brand.json` (id `default`, `MAIN_BRAND`); more live beside it as `library/brands/<id>.json`, and a film picks one with `"brand": "<id>"` in `vibe.json` (left out, it uses the workspace's own). `brandOf(lib, project.brand)` in `src/core/brand.ts` is the one place that choice is made, and `fillBrand` fills whatever an extra brand's file leaves out from the workspace's own.
+- Colours come from the brand and the project's mode, not from styles or components. The workspace's own brand is `library/brand.json` (id `default`, `MAIN_BRAND`); more live beside it as `library/brands/<id>.json`, and a film picks one with `"brand": "<id>"` in `vibe.json` (left out, it uses the workspace's own). `brandOf(lib, project.brand)` in `src/core/brand.ts` is the one place that choice is made, and `fillBrand` fills whatever an extra brand's file leaves out from the workspace's own. The presets ship three extra brands (`presets/library/brands/`: Ember, Tide, Orchid), each complete and using only the bundled IBM Plex fonts (`tests/core/brand.test.ts` checks both). Both rooms switch brand from a menu at the foot of the left panel: the Studio's changes what the tiles are drawn in, the Edit room's (`LibraryPanel.tsx`) sets the open film's `brand`.
 - **Claude makes and changes components itself**, inside the workspace. `vibe component new` writes the template in `src/core/component-template.ts` (or copies another component: `createComponent` in `src/main/workspace.ts`, also behind the Studio's "+ New component"). `vibe component snap` draws a `kind: 'component'` headless job: the same one-graphic film as a Studio tile (`tileProject` in `render.ts`), as a contact sheet. `validateComponent` in `src/core/validate.ts` is the one component check, run by `vibe component snap`, by `vibe check` for the components a film uses, and by `tests/core/presets.test.ts` on every preset, so a preset that fails it fails the tests. When a new component appears on disk while the Studio is open, the Studio focuses it.
 
 #### `presets/` is the seed for a new workspace
@@ -104,6 +104,14 @@ The project file on disk is the source of truth, since Claude edits it while the
 #### Projects are `.vibe` packages
 
 A project lives in `projects/<name>.vibe/`; its name everywhere else (picker, CLI, export file) is `<name>`. Build paths with `projectDir()` from `src/core/model.ts`, never by hand. The packaged app declares `.vibe` a document package (`mac.extendInfo` in `electron-builder.yml`), so Finder shows one icon and double-clicking sends `open-file` to `src/main/index.ts`, which opens only projects inside the workspace (`projectAtPath`). `migrateProjects` renames old `projects/<name>/` folders at startup, before seeding. The Finder side only works in the built app, not `npm run dev`.
+
+#### Starting a film
+
+"+ New project…" in the top bar opens the sheet in `src/renderer/ui/NewProject.tsx`: a video (dropped or chosen), a name and what Claude should make of it. `startProject` in `src/main/start.ts` makes the package in one go: the files copied into `media/`, videos back to back on the footage track, and the frame shaped to the first video as it's seen (`formatFor`: 9:16, 16:9 or square); a file that can't be used leaves nothing behind. With instructions, `startChat` opens the Claude panel and sends them as the first message, and `contextLine` tells Claude the project is new and which media is already on its timeline (`ChatContext.started`).
+
+#### The menu bar
+
+`menuTemplate` in `src/main/menu-template.ts` is the Mac menu bar as data (File, Edit, Playback, View, Window, Help), kept free of Electron so `tests/main/menu.test.ts` can check it; `src/main/menu.ts` installs it. Items don't act in main: they send a `MenuCommand` to the window, and `runMenuCommand` in `src/renderer/menu.ts` does it the way the app's own buttons and keys do. The window reports what's open (`MenuState`: projects, open project, room, panel, selection) and the menu is rebuilt for its ticks, greyed-out items and the Open Project list. Two rules: a plain key (S, Space, Backspace) is shown with `registerAccelerator: false`, or it could no longer be typed into a field; and Undo/Redo are commands, not roles, because the window gives them to a focused text field and otherwise to the film. A new command needs the type in `src/shared/api.ts`, the item, and its case in `runMenuCommand`.
 
 #### Timeline model
 

@@ -18,8 +18,17 @@ export type ChatItem =
 /** A project's conversation with Claude Code. `sessionId` is Claude Code's, for `--resume`. */
 export interface ChatState { sessionId: string | null; items: ChatItem[]; busy: boolean }
 /** What the app has open when you send a message, so "this one" means something to Claude. */
-export interface ChatContext { room: 'studio' | 'edit'; playhead: number; selection: { track: string; id: string } | null; focus: string | null }
+export interface ChatContext { room: 'studio' | 'edit'; playhead: number; selection: { track: string; id: string } | null; focus: string | null;
+  /** On the first message of a project just started in the app: the media it was started from. */
+  started?: string[] }
 export interface ChatUpdate { project: string; state: ChatState }
+
+/** What a menu bar item asks the window to do. `open:<project>` switches to that project. */
+export type MenuCommand =
+  | 'new-project' | 'import-media' | 'export' | 'undo' | 'redo' | 'duplicate' | 'delete' | 'split'
+  | 'play' | 'start' | 'end' | 'room:studio' | 'room:edit' | 'toggle-chat' | `open:${string}`;
+/** What the window has open, for the menu bar's ticks and greyed-out items. */
+export interface MenuState { projects: string[]; project: string | null; room: 'studio' | 'edit'; chatOpen: boolean; selected: boolean }
 
 export interface VibeApi {
   info(): Promise<WorkspaceInfo>;
@@ -30,7 +39,11 @@ export interface VibeApi {
   duplicate(fromRel: string, toRel: string): Promise<void>;
   /** Starts library/components/<id>/ from the template, or as a copy of `from` (see createComponent). */
   createComponent(id: string, opts?: { from?: string; name?: string }): Promise<void>;
-  createProject(name: string): Promise<string>;
+  /** Makes a project, with these files (absolute paths) copied in and on its timeline. No name: the first file's.
+   *  Returns the project and the media it now holds. */
+  startProject(name: string, paths?: string[]): Promise<{ project: string; media: string[] }>;
+  /** Asks for videos and sounds with the system's file dialog; returns their paths (none if cancelled). */
+  pickMedia(): Promise<string[]>;
   importMedia(project: string, paths?: string[]): Promise<ImportedMedia[]>;
   /** Every video and sound in the project's media folder, with its length. */
   listMedia(project: string): Promise<ImportedMedia[]>;
@@ -56,6 +69,9 @@ export interface VibeApi {
   /** Whether the Claude panel was open when the app last ran. */
   chatPanelOpen(): Promise<boolean>;
   setChatPanelOpen(open: boolean): Promise<void>;
+  /** The Mac menu bar: commands from it, and what's open for it to show. */
+  onMenu(cb: (c: MenuCommand) => void): () => void;
+  menuState(state: MenuState): Promise<void>;
   // export window only
   frameReady(rgba: ArrayBuffer): Promise<void>;
   headlessJob(): Promise<HeadlessJob | null>;

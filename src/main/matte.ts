@@ -143,7 +143,7 @@ export function parseRotation(json: { streams?: ProbedStream[] }): { w: number; 
   return { w: s.width ?? 0, h: s.height ?? 0, rotation };
 }
 
-function rotationOf(file: string): Promise<{ w: number; h: number; rotation: number }> {
+export function rotationOf(file: string): Promise<{ w: number; h: number; rotation: number }> {
   const entries = 'stream=width,height:stream_side_data=rotation:stream_tags=rotate';
   return new Promise((ok, fail) => execFile('ffprobe', ['-v', 'error', '-select_streams', 'v:0', '-show_entries', entries, '-of', 'json', file], (err, out) => {
     if (err) return fail(new Error(`ffprobe failed: ${err.message}`));

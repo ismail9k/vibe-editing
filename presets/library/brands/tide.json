@@ -1,0 +1,77 @@
+{
+  "name": "Tide",
+  "colors": {
+    "primary": "#1F5FBF",
+    "onPrimary": "#FFFFFF",
+    "accent": "#FFC53D",
+    "onAccent": "#000000",
+    "ink": "#07111F"
+  },
+  "modes": {
+    "dark": {
+      "bg": "#0B0F14",
+      "text": "#F2F5F9",
+      "muted": "#8F9AA8",
+      "primaryText": "#6FA8F5",
+      "surface": "#141A22",
+      "raised": "#1D2530",
+      "sunken": "#0F141B",
+      "border": "#364250",
+      "selected": "#172A45",
+      "success": "#72DA9A",
+      "error": "#F39191",
+      "warning": "#F4C871",
+      "glow": [
+        "#1F5FBF",
+        "#3F8BE0",
+        "#FFC53D"
+      ],
+      "glowOpacity": 0.3
+    },
+    "light": {
+      "bg": "#F7F9FC",
+      "text": "#121A24",
+      "muted": "#5C6877",
+      "primaryText": "#1F5FBF",
+      "surface": "#FFFFFF",
+      "raised": "#FFFFFF",
+      "sunken": "#EEF2F7",
+      "border": "#D0D8E2",
+      "selected": "#E4EEFB",
+      "success": "#166434",
+      "error": "#A02222",
+      "warning": "#885207",
+      "glow": [
+        "#9CC4F7",
+        "#BFE0FF",
+        "#FFE29A"
+      ],
+      "glowOpacity": 0.5
+    },
+    "green": {
+      "bg": "#1F5FBF",
+      "text": "#FFFFFF",
+      "muted": "rgba(255,255,255,0.75)",
+      "primaryText": "#FFFFFF",
+      "surface": "rgba(255,255,255,0.15)",
+      "raised": "rgba(255,255,255,0.2)",
+      "sunken": "rgba(0,0,0,0.12)",
+      "border": "rgba(255,255,255,0.2)",
+      "selected": "rgba(255,255,255,0.15)",
+      "glow": [
+        "#9CC4F7",
+        "#BFE0FF",
+        "#FFE29A"
+      ],
+      "glowOpacity": 0.25
+    }
+  },
+  "fonts": {
+    "display": "IBM Plex Sans",
+    "body": "IBM Plex Sans",
+    "mono": "IBM Plex Mono",
+    "serif": "IBM Plex Serif",
+    "arabic": "IBM Plex Sans Arabic"
+  },
+  "rules": "Clear, confident and clean: a product explaining itself.\n\n- Blue #1F5FBF is the brand: bands, primary buttons, solid badges. The third mode (\"green\" in vibe.json) is the blue band.\n- Yellow #FFC53D is the accent and gets ONE hit per shot: an underline, a highlight, a key number. Text on yellow is black, never white.\n- The glow (blue → sky → yellow, half off-screen, drifting) is the only gradient allowed. Never behind small text.\n- Type: IBM Plex Sans 700 for headlines, Plex Mono for numbers, code and labels, Plex Serif only for a quote. Arabic: IBM Plex Sans Arabic; RTL mirrors the layout.\n- Say one thing per shot, in as few words as it takes. Numbers are big; their labels are small.\n- Motion is quick and exact: things land where they belong and stop. No bounce on text.\n- Never: a red or green accent beside the blue; more than one accent colour in a shot; neon, lens flares, particle bursts."
+}

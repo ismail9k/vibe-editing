@@ -16,8 +16,13 @@ asarUnpack:
 mac:
   category: public.app-category.video
   icon: build/icon.icns
-  # Unsigned: it runs on the Mac that built it. Sharing it needs a Developer ID and notarisation.
-  identity: null
+  # Signed ad hoc ("-"): no certificate, but the whole bundle is sealed, so another Mac sees a valid app from an
+  # unidentified developer (Privacy & Security → Open Anyway) instead of a broken one it refuses outright.
+  # Opening with a plain double-click there needs a Developer ID Application certificate and notarisation.
+  identity: "-"
+  # The hardened runtime only matters for notarisation, and with no team behind the signature it can refuse to
+  # load the app's own frameworks. Turn it back on together with a Developer ID.
+  hardenedRuntime: false
   # A project folder (projects/<name>.vibe) is a document package: Finder shows it as one file with the app's icon,
   # and double-clicking it opens the app (main/index.ts handles the open-file event).
   extendInfo:

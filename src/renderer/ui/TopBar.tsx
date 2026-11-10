@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { retryMattes, useStore } from '../store';
 import { setChatOpen, useChat } from '../chat';
+import { NewProject, useNewProject } from './NewProject';
 
 // The workspace as people type it: ~/Vibe, not /Users/name/Vibe. It's $VIBE_HOME when that's set, so say which.
 const short = (root?: string) => (root ? root.replace(/^\/(Users|home)\/[^/]+(?=\/|$)/, '~') : '~/Vibe');
@@ -12,31 +13,16 @@ export function TopBar() {
   useEffect(() => { const i = setInterval(() => tick((n) => n + 1), 5000); return () => clearInterval(i); }, []);
   const errors = issues.filter((i) => i.level === 'error');
 
-  // Electron has no window.prompt (calling it throws), so a new project is named in the bar itself.
-  const [naming, setNaming] = useState(false);
-  const [nameError, setNameError] = useState<string | null>(null);
-  const stopNaming = () => { setNaming(false); setNameError(null); };
-  const newProject = async (name: string) => {
-    if (!name) return stopNaming();
-    try { const slug = await window.vibe.createProject(name); await useStore.getState().refreshInfo(); await openProject(slug); stopNaming(); }
-    catch (e) { setNameError((e as Error).message.replace(/^Error invoking remote method '[^']+': (Error: )?/, '')); } // the reason, without Electron's wrapping
-  };
+  const starting = useNewProject((s) => s.open), setStarting = (open: boolean) => useNewProject.setState({ open });
 
   return (
     <header className="topbar">
       <div className="brandmark">vibe<b>_</b></div>
-      {naming ? (
-        <form className="project-new" onSubmit={(e) => { e.preventDefault(); newProject(String(new FormData(e.currentTarget).get('name') ?? '').trim()); }}>
-          <input name="name" autoFocus placeholder="New project name" title={nameError ?? 'Enter makes it, Escape cancels'} className={nameError ? 'bad' : ''}
-            onChange={() => setNameError(null)} onKeyDown={(e) => { if (e.key === 'Escape') stopNaming(); else if (e.key === 'Enter') { e.preventDefault(); newProject(e.currentTarget.value.trim()); } }} onBlur={(e) => { if (!e.currentTarget.value.trim()) stopNaming(); }} />
-          {nameError && <span className="bad">{nameError}</span>}
-        </form>
-      ) : (
-        <select className="project-select" value={projectName ?? ''} onChange={(e) => e.target.value === '+new' ? setNaming(true) : openProject(e.target.value)}>
-          {(info?.projects ?? []).map((p) => <option key={p} value={p}>{p}</option>)}
-          <option value="+new">+ New project…</option>
-        </select>
-      )}
+      <select className="project-select" value={projectName ?? ''} onChange={(e) => e.target.value === '+new' ? setStarting(true) : openProject(e.target.value)}>
+        {(info?.projects ?? []).map((p) => <option key={p} value={p}>{p}</option>)}
+        <option value="+new">+ New project…</option>
+      </select>
+      {starting && <NewProject onClose={() => setStarting(false)} />}
       <nav className="rooms">
         <button className={room === 'studio' ? 'on' : ''} onClick={() => setRoom('studio')}>Studio</button>
         <button className={room === 'edit' ? 'on' : ''} onClick={() => setRoom('edit')}>Edit</button>

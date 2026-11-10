@@ -1,7 +1,8 @@
-// The Edit room library: add components at the playhead, switch the film's style, import media.
+// The Edit room library: add components at the playhead, switch the film's style and brand, import media.
 import { useState } from 'react';
 import { useStore } from '../store';
 import * as ops from '../../core/ops';
+import { MAIN_BRAND, allBrands, brandOf } from '../../core/brand';
 import type { ImportedMedia } from '../../shared/api';
 
 /** Put media on the timeline: a video joins the end of the footage, a sound starts at the playhead. */
@@ -19,8 +20,15 @@ export function LibraryPanel() {
   const project = useStore((s) => s.project);
   const name = useStore((s) => s.projectName);
   const files = useStore((s) => s.media);
-  const { apply, select } = useStore.getState();
+  const { apply, select, setRoom, setStudio } = useStore.getState();
   if (!lib || !project || !name) return null;
+
+  // A film naming a brand that isn't there draws in the workspace's own, so that's the one the menu shows.
+  const brandId = project.brand && lib.brands?.[project.brand] ? project.brand : MAIN_BRAND;
+  const brand = brandOf(lib, brandId);
+  // The workspace's own brand is the one a film uses when it names none, so choosing it takes the name out.
+  const pickBrand = (id: string) => apply((p) => { const { brand: _old, ...rest } = p; return id === MAIN_BRAND ? rest : { ...rest, brand: id }; });
+  const editBrand = () => { setStudio({ brand: brandId, focus: { kind: 'brand', id: brandId } }); setRoom('studio'); };
 
   const add = (type: string) => {
     const meta = lib.components[type].meta;
@@ -75,6 +83,19 @@ export function LibraryPanel() {
           <p className="hint">Click a file to put it on the timeline again. Or drop files anywhere on the Edit room. Videos join the footage track; sounds land at the playhead.</p>
         </div>
       )}
+      {/* The brand holds whatever the tab, like the Studio's: a menu pinned at the foot. */}
+      <div className="library-foot">
+        <h4>Brand</h4>
+        <div className="brand-pick">
+          <select aria-label="Brand" value={brandId} onChange={(e) => pickBrand(e.target.value)}>
+            {allBrands(lib).map(([id, b]) => <option key={id} value={id}>{b.name}</option>)}
+          </select>
+          <button className="brand-edit" title={`Edit ${brand.name} in the Studio`} onClick={editBrand}>
+            <i className="swatches">{[brand.colors.primary, brand.colors.accent, brand.colors.ink].map((c, i) => <b key={i} style={{ background: c }} />)}</i>
+            <span>Edit</span>
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

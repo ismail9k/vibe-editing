@@ -1,0 +1,77 @@
+{
+  "name": "Ember",
+  "colors": {
+    "primary": "#B23A1E",
+    "onPrimary": "#FFFFFF",
+    "accent": "#F2B134",
+    "onAccent": "#000000",
+    "ink": "#1A0F0B"
+  },
+  "modes": {
+    "dark": {
+      "bg": "#120E0C",
+      "text": "#F6F1EC",
+      "muted": "#A3978F",
+      "primaryText": "#F0764F",
+      "surface": "#1E1815",
+      "raised": "#29211D",
+      "sunken": "#171210",
+      "border": "#453A34",
+      "selected": "#3A1F17",
+      "success": "#8FD6A0",
+      "error": "#F39191",
+      "warning": "#F4C871",
+      "glow": [
+        "#B23A1E",
+        "#D9642F",
+        "#F2B134"
+      ],
+      "glowOpacity": 0.3
+    },
+    "light": {
+      "bg": "#FBF7F2",
+      "text": "#1F1613",
+      "muted": "#6E625B",
+      "primaryText": "#B23A1E",
+      "surface": "#FFFFFF",
+      "raised": "#FFFFFF",
+      "sunken": "#F4EDE5",
+      "border": "#DDD2C7",
+      "selected": "#F8E7E0",
+      "success": "#1F6B3A",
+      "error": "#A02222",
+      "warning": "#885207",
+      "glow": [
+        "#F5A58A",
+        "#FAC871",
+        "#F7D9A0"
+      ],
+      "glowOpacity": 0.5
+    },
+    "green": {
+      "bg": "#B23A1E",
+      "text": "#FFFFFF",
+      "muted": "rgba(255,255,255,0.75)",
+      "primaryText": "#FFFFFF",
+      "surface": "rgba(255,255,255,0.15)",
+      "raised": "rgba(255,255,255,0.2)",
+      "sunken": "rgba(0,0,0,0.12)",
+      "border": "rgba(255,255,255,0.2)",
+      "selected": "rgba(255,255,255,0.15)",
+      "glow": [
+        "#F5A58A",
+        "#FAC871",
+        "#FFD9A0"
+      ],
+      "glowOpacity": 0.25
+    }
+  },
+  "fonts": {
+    "display": "IBM Plex Serif",
+    "body": "IBM Plex Sans",
+    "mono": "IBM Plex Mono",
+    "serif": "IBM Plex Serif",
+    "arabic": "IBM Plex Sans Arabic"
+  },
+  "rules": "Warm, unhurried and editorial: a magazine page, not a dashboard.\n\n- Rust #B23A1E is the brand: bands, primary buttons, solid badges. The third mode (\"green\" in vibe.json) is the rust band.\n- Amber #F2B134 is the accent and gets ONE hit per shot: an underline, a highlight, a key number. Text on amber is black, never white.\n- The glow (rust → orange → amber, half off-screen, drifting) is the only gradient allowed. Never behind small text.\n- Type: IBM Plex Serif 700 for headlines, Plex Sans for everything read at small sizes, Plex Mono for numbers and code. Arabic: IBM Plex Sans Arabic; RTL mirrors the layout.\n- Let headlines breathe: short lines, generous margins, one idea per shot.\n- Motion is slow and settled: things arrive and rest. No bounce, no elastic easing.\n- Never: a cool blue or violet accent; more than one accent colour in a shot; neon, lens flares, particle bursts."
+}

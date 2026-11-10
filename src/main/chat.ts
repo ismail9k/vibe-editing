@@ -50,6 +50,9 @@ export function claudeArgs(sessionId: string | null, o: { prompts?: boolean } = 
 /** The line in front of every message: what's open in the app right now. */
 export function contextLine(project: string, ctx: ChatContext): string {
   const parts = ['Sent from the Vibe Editing app', `project ${project} (${projectDir(project)})`];
+  // Only names the app made itself reach this line; anything else could pass for part of the app's own note.
+  const started = (ctx.started ?? []).filter((s) => /^media\/[^\n\]]+$/.test(s));
+  if (ctx.started) parts.push(started.length ? `a new project he just started from ${started.join(', ')}, already on its timeline` : 'a new project he just started, with nothing on its timeline yet');
   if (ctx.room === 'edit') {
     parts.push('Edit room', `playhead ${ctx.playhead.toFixed(2)} s`);
     if (ctx.selection) parts.push(`selected ${ctx.selection.track} ${ctx.selection.id}`);

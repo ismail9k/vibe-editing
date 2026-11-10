@@ -43,11 +43,11 @@ npm run dist
 
 This builds `dist/mac-arm64/Vibe Editing.app`. Drag it into `/Applications` and open it from the Dock or Spotlight like any other app. `npm run dist:dmg` makes `dist/Vibe-Editing-<version>-arm64.dmg` instead: open it and drag the app onto the Applications folder beside it. Rebuild after pulling changes; the installed app doesn't follow the repo.
 
-The app is unsigned, so it is meant for the Mac that built it. ffmpeg and whisper-cli still come from Homebrew: opened from Finder, the app looks in `/opt/homebrew/bin` and `/usr/local/bin` as well as the usual `PATH`. The `vibe` command keeps running the repo's own build, not the installed app.
+The app is signed ad hoc, without an Apple Developer ID. On the Mac that built it, it just opens. On another Mac, the first launch is refused as coming from an unidentified developer: open System Settings → Privacy & Security and click **Open Anyway** once. ffmpeg and whisper-cli still come from Homebrew: opened from Finder, the app looks in `/opt/homebrew/bin` and `/usr/local/bin` as well as the usual `PATH`. The `vibe` command keeps running the repo's own build, not the installed app.
 
 ## The workspace
 
-Everything lives in `~/Vibe` (or in `$VIBE_HOME`). On first run the app copies in the presets: the 9k brand, seven styles, twenty-seven components, nine sound effects, two demo films and a `CLAUDE.md` that teaches Claude Code how to work here. It copies in missing files, and later updates the ones nobody has touched since; a file you (or Claude) changed is never overwritten. `vibe presets` lists library files that differ from the app's version, and `vibe presets --take <file>` takes the app's (keeping yours in `.vibe/replaced/`).
+Everything lives in `~/Vibe` (or in `$VIBE_HOME`). On first run the app copies in the presets: four brands (9k, Ember, Tide, Orchid), seven styles, twenty-seven components, nine sound effects, two demo films and a `CLAUDE.md` that teaches Claude Code how to work here. It copies in missing files, and later updates the ones nobody has touched since; a file you (or Claude) changed is never overwritten. `vibe presets` lists library files that differ from the app's version, and `vibe presets --take <file>` takes the app's (keeping yours in `.vibe/replaced/`).
 
 ```
 ~/Vibe/
@@ -65,6 +65,10 @@ Everything lives in `~/Vibe` (or in `$VIBE_HOME`). On first run the app copies i
 ```
 
 Each project is a `.vibe` folder that Finder shows as a single document; double-clicking it opens it in the app (right-click → Show Package Contents to see inside). Projects made before this were plain `projects/<name>/` folders; the app renames them the next time it starts.
+
+To start a film, pick **+ New project…** in the top bar, drop in the video you want to edit and say what you want made of it. The app copies the video into the project, puts it on the timeline with the frame shaped to it (9:16, 16:9 or square), and hands your instructions to Claude in the panel, where you carry on the conversation. The name defaults to the video's; the instructions are optional.
+
+The Mac menu bar has the same commands with their shortcuts: New Project (⌘N), Open Project, Import (⌘I), Export (⌘E), Show Project in Finder, undo and redo, the two rooms (⌘1, ⌘2) and the Claude panel (⌘L).
 
 To work with Claude, click **Claude** in the top bar (or press ⌘L) and type. The panel runs your own Claude Code (it needs `claude` installed and signed in) in the workspace, streams its reply, and shows each file it touches or command it runs as one line; it knows which room you're in, where the playhead is and what's selected. Each project keeps its own conversation. File edits and simple file commands (`cp`, `mkdir`, `mv`) inside the workspace go through without asking, and so does `vibe`; anything else is refused unless your Claude Code permissions allow it, and the panel names what was refused so you can run it. You can still open a Claude Code session in `~/Vibe` next to the app instead. Either way, Claude edits `vibe.json`, styles and components, and the app reloads them within a second. If Claude writes a broken file, the app keeps showing the last good version and puts the error in the top bar. A component or style that throws draws a red box with the error instead of crashing.
 

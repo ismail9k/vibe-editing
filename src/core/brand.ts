@@ -24,6 +24,9 @@ export const brandFile = (id: string) => (id === MAIN_BRAND ? 'library/brand.jso
 /** The brand a film asks for, or the workspace's own when it names none (or one that isn't there). */
 export const brandOf = (lib: { brand: Brand; brands?: Record<string, Brand> }, id?: string): Brand => (id && lib.brands?.[id]) || lib.brand;
 
+/** Every brand by id, the workspace's own first. */
+export const allBrands = (lib: { brand: Brand; brands?: Record<string, Brand> }): [string, Brand][] => [[MAIN_BRAND, lib.brand], ...Object.entries(lib.brands ?? {})];
+
 /** A hand-written brand file may leave things out: whatever is missing comes from the workspace's own brand, so a
  *  brand that only changes two colours still draws. */
 export function fillBrand(main: Brand, raw: Partial<Brand>, id: string): Brand {

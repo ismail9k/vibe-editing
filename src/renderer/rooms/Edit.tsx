@@ -71,7 +71,7 @@ export function Edit() {
 }
 
 /** ⌘D: a copy of the selected item, right after it, selected in its place. */
-function duplicateSelected() {
+export function duplicateSelected() {
   const st = useStore.getState(), sel = st.selection;
   if (!sel) return;
   let id = '';
@@ -85,7 +85,7 @@ function duplicateSelected() {
   if (id) st.select({ track: sel.track, id });
 }
 
-function togglePlay() {
+export function togglePlay() {
   const st = useStore.getState();
   if (!st.project) return;
   if (!st.playing && st.playhead >= duration(st.project) - 0.01) st.seek(0);
@@ -94,7 +94,7 @@ function togglePlay() {
 
 const exportBusy = (x: { stage: string } | null) => !!x && (x.stage === 'frames' || x.stage === 'encoding');
 
-async function startExport(name: string) {
+export async function startExport(name: string) {
   if (exportBusy(useStore.getState().exporting)) return; // one export at a time
   useStore.setState({ exporting: { done: 0, total: 1, stage: 'frames' } });
   try { await window.vibe.exportProject(name); }

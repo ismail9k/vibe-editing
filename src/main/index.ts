@@ -12,6 +12,7 @@ import { runCli } from './cli';
 import { registerHeadless } from './headless';
 import { preloadPath, rendererUrl } from './paths';
 import { withToolDirs } from './tool-path';
+import { registerMenu } from './menu';
 
 // Before anything spawns ffmpeg: an app opened from Finder doesn't get the shell's PATH.
 process.env.PATH = withToolDirs(process.env.PATH);
@@ -69,6 +70,7 @@ app.whenReady().then(async () => {
     backgroundColor: '#0F0F0F', titleBarStyle: 'hiddenInset', title: 'Vibe Editing',
     webPreferences: { preload: preloadPath, sandbox: false, contextIsolation: true },
   });
+  registerMenu(root, () => win);
   win.on('closed', () => { win = null; });
   win.webContents.once('did-finish-load', () => { for (const n of notices.splice(0)) if (win) dialog.showMessageBox(win, n); });
   win.loadURL(rendererUrl());
