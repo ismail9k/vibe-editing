@@ -41,7 +41,7 @@ vibe open
 npm run dist
 ```
 
-This builds `dist/mac-arm64/Vibe Editing.app`. Drag it into `/Applications` and open it from the Dock or Spotlight like any other app. `npm run dist:dmg` makes a disk image instead. Rebuild after pulling changes; the installed app doesn't follow the repo.
+This builds `dist/mac-arm64/Vibe Editing.app`. Drag it into `/Applications` and open it from the Dock or Spotlight like any other app. `npm run dist:dmg` makes `dist/Vibe-Editing-<version>-arm64.dmg` instead: open it and drag the app onto the Applications folder beside it. Rebuild after pulling changes; the installed app doesn't follow the repo.
 
 The app is unsigned, so it is meant for the Mac that built it. ffmpeg and whisper-cli still come from Homebrew: opened from Finder, the app looks in `/opt/homebrew/bin` and `/usr/local/bin` as well as the usual `PATH`. The `vibe` command keeps running the repo's own build, not the installed app.
 

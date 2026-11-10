@@ -26,6 +26,8 @@ npm run build        # build to out/
 npm test             # vitest run (tests/**/*.test.ts)
 npm run typecheck    # tsc --noEmit
 npm run dist         # dist/mac-arm64/Vibe Editing.app (electron-builder.yml; unsigned)
+npm run dist:dmg     # dist/Vibe-Editing-<version>-arm64.dmg, the drag-to-Applications installer (`dmg` in electron-builder.yml)
+npm run dmg:background  # redraw the installer window's picture from build/dmg-background.svg (needs rsvg-convert; commit the PNGs)
 npm run sounds       # rewrite presets/library/sounds/*.wav from src/core/sounds.ts
 npx vitest run tests/core/ops.test.ts          # one file
 npx vitest run tests/core/ops.test.ts -t "split"   # one test by name

@@ -35,5 +35,18 @@ mac:
         LSTypeIsPackage: true
         LSItemContentTypes: [com.ismail9k.vibe-editing.project]
         CFBundleTypeIconFile: icon.icns
+# The installer window: the app on the left, the Applications folder on the right, drag one onto the other.
 dmg:
   artifactName: Vibe-Editing-${version}-${arch}.dmg
+  title: Vibe Editing
+  # Drawn from build/dmg-background.svg (`npm run dmg:background`); the @2x file beside it is picked up for Retina.
+  # The icon positions below are drawn into the picture, so move them together.
+  background: build/dmg-background.png
+  iconSize: 120
+  iconTextSize: 12
+  window:
+    width: 660
+    height: 420
+  contents:
+    - { x: 180, y: 190, type: file }
+    - { x: 480, y: 190, type: link, path: /Applications }

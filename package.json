@@ -16,6 +16,7 @@
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "dist": "electron-vite build && electron-builder --mac --dir",
     "dist:dmg": "electron-vite build && electron-builder --mac dmg",
+    "dmg:background": "rsvg-convert -w 660 build/dmg-background.svg -o build/dmg-background.png && rsvg-convert -w 1320 build/dmg-background.svg -o build/dmg-background@2x.png",
     "sounds": "node scripts/sounds.ts"
   },
   "devDependencies": {

@@ -1,0 +1,85 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 660 420" width="660" height="420">
+  <!-- The installer window drawn as the app's own timeline: the app icon sits at the start of a track, the Applications
+       folder at the end, and a green clip under the playhead points from one to the other.
+       Finder puts the icons at (180,190) and (480,190) (`dmg.contents` in electron-builder.yml) and writes their names
+       black in light mode and white in dark mode, so each name gets a mid-tone chip that both read on.
+       Source for dmg-background.png and dmg-background@2x.png: `npm run dmg:background`. -->
+  <defs>
+    <radialGradient id="tintGreen" gradientUnits="userSpaceOnUse" cx="120" cy="80" r="330">
+      <stop offset="0" stop-color="#166434" stop-opacity="0.22"/>
+      <stop offset="1" stop-color="#166434" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="tintOrange" gradientUnits="userSpaceOnUse" cx="590" cy="380" r="280">
+      <stop offset="0" stop-color="#e85a02" stop-opacity="0.10"/>
+      <stop offset="1" stop-color="#e85a02" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="clip" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#166434" stop-opacity="0.35"/>
+      <stop offset="1" stop-color="#1f8a4a"/>
+    </linearGradient>
+    <linearGradient id="head" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ff7a24"/>
+      <stop offset="1" stop-color="#e85a02"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="660" height="420" fill="#0f0f0f"/>
+  <rect width="660" height="420" fill="url(#tintGreen)"/>
+  <rect width="660" height="420" fill="url(#tintOrange)"/>
+
+  <!-- ruler -->
+  <rect width="660" height="30" fill="#131313"/>
+  <line x1="0" y1="30.5" x2="660" y2="30.5" stroke="#262626"/>
+  <g stroke="#333" stroke-width="1">
+    <path d="M30.5,18v12 M130.5,18v12 M230.5,18v12 M330.5,18v12 M430.5,18v12 M530.5,18v12 M630.5,18v12"/>
+    <path stroke="#262626" d="M55.5,24v6 M80.5,24v6 M105.5,24v6 M155.5,24v6 M180.5,24v6 M205.5,24v6 M255.5,24v6 M280.5,24v6 M305.5,24v6 M355.5,24v6 M380.5,24v6 M405.5,24v6 M455.5,24v6 M480.5,24v6 M505.5,24v6 M555.5,24v6 M580.5,24v6 M605.5,24v6"/>
+  </g>
+  <g font-family="Menlo, monospace" font-size="9" fill="#5c5c5c">
+    <text x="35" y="14">0:00</text>
+    <text x="135" y="14">0:01</text>
+    <text x="235" y="14">0:02</text>
+    <text x="435" y="14">0:04</text>
+    <text x="535" y="14">0:05</text>
+  </g>
+
+  <!-- track lanes -->
+  <g fill="#141414" stroke="#1f1f1f">
+    <rect x="-10" y="52.5" width="680" height="34" rx="0"/>
+    <rect x="-10" y="173.5" width="680" height="34"/>
+    <rect x="-10" y="322.5" width="680" height="34"/>
+  </g>
+
+  <!-- quiet clips on the lanes above and below, in the timeline's own clip colours -->
+  <g>
+    <rect x="42" y="57" width="150" height="25" rx="5" fill="#24384f" opacity="0.55"/>
+    <rect x="198" y="57" width="96" height="25" rx="5" fill="#24384f" opacity="0.4"/>
+    <rect x="372" y="57" width="210" height="25" rx="5" fill="#24384f" opacity="0.55"/>
+    <rect x="96" y="327" width="250" height="25" rx="5" fill="#4a3a1f" opacity="0.5"/>
+    <rect x="410" y="327" width="130" height="25" rx="5" fill="#4a3a1f" opacity="0.4"/>
+    <!-- a hint of waveform in the sound clips -->
+    <path stroke="#8a6c35" stroke-opacity="0.55" stroke-width="2" stroke-linecap="round"
+      d="M110,336v7 M118,333v13 M126,337v5 M134,331v17 M142,335v9 M150,337v5 M158,332v15 M166,335v9 M174,337v5 M182,334v11 M190,331v17 M198,336v7 M206,337v5 M214,333v13 M222,335v9 M230,337v5 M238,332v15 M246,336v7 M254,334v11 M262,337v5 M270,333v13 M278,336v7 M286,331v17 M294,335v9 M302,337v5 M310,334v11 M318,336v7 M326,337v5
+         M424,335v9 M432,332v15 M440,337v5 M448,334v11 M456,331v17 M464,336v7 M472,337v5 M480,333v13 M488,335v9 M496,337v5 M504,334v11 M512,336v7 M520,337v5"/>
+  </g>
+
+  <!-- the clip that carries the app across, with its direction cut into it -->
+  <rect x="256" y="177" width="148" height="27" rx="6" fill="url(#clip)"/>
+  <g fill="none" stroke="#0f0f0f" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M352,183.5 l7,7 l-7,7" opacity="0.5"/>
+    <path d="M366,183.5 l7,7 l-7,7" opacity="0.7"/>
+    <path d="M380,183.5 l7,7 l-7,7" opacity="0.9"/>
+  </g>
+
+  <!-- chips behind the two names Finder writes -->
+  <g fill="#7b8a80">
+    <rect x="114" y="255" width="132" height="22" rx="6"/>
+    <rect x="414" y="255" width="132" height="22" rx="6"/>
+  </g>
+
+  <!-- playhead -->
+  <line x1="330" y1="24" x2="330" y2="372" stroke="#0f0f0f" stroke-width="5"/>
+  <line x1="330" y1="24" x2="330" y2="372" stroke="#f06a12" stroke-width="1.5"/>
+  <path d="M322,6 h16 a2.5,2.5 0 0 1 2.5,2.5 v7 a2.5,2.5 0 0 1 -0.9,1.9 l-8,6.6 a2.5,2.5 0 0 1 -3.2,0 l-8,-6.6 a2.5,2.5 0 0 1 -0.9,-1.9 v-7 a2.5,2.5 0 0 1 2.5,-2.5 z" fill="url(#head)"/>
+
+  <text x="330" y="306" text-anchor="middle" font-family="'SF Pro Text', 'Helvetica Neue', sans-serif" font-size="12.5" fill="#8a8a8a" letter-spacing="0.2">Drag <tspan fill="#e8e8e8" font-weight="500">Vibe Editing</tspan> onto <tspan fill="#e8e8e8" font-weight="500">Applications</tspan> to install</text>
+</svg>
