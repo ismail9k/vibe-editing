@@ -32,6 +32,12 @@ describe('claudeArgs', () => {
     expect(resumeArgs(args)).toEqual([]);
   });
 
+  it('can leave out the flag an older Claude Code refuses', () => {
+    const args = claudeArgs(null, { prompts: false });
+    expect(args).not.toContain('--permission-prompts');
+    expect(args.join(' ')).toContain('--permission-mode acceptEdits');
+  });
+
   it('allows no command beyond the vibe CLI: acceptEdits already covers cp and mkdir, and only inside the workspace', () => {
     const args = claudeArgs(null);
     expect(args[args.indexOf('--allowedTools') + 1]).toBe('Bash(vibe *)');
@@ -78,6 +84,20 @@ describe('claudeEnv', () => {
     expect(path).toContain('/opt/homebrew/bin');
   });
 
+  it("prefers Claude Code's own install over an old npm copy in /usr/local/bin", () => {
+    // index.ts has already added the Homebrew folders by the time the panel runs.
+    const path = claudeEnv({ PATH: '/usr/bin:/bin:/opt/homebrew/bin:/usr/local/bin' }).PATH!.split(':');
+    expect(path.indexOf(join(homedir(), '.local/bin'))).toBeLessThan(path.indexOf('/usr/local/bin'));
+    expect(path.indexOf(join(homedir(), '.claude/local'))).toBeLessThan(path.indexOf('/usr/local/bin'));
+    expect(path[0]).toBe('/usr/bin');
+  });
+
+  it('leaves the order alone where the user already chose one', () => {
+    const local = join(homedir(), '.local/bin');
+    const path = claudeEnv({ PATH: `/usr/local/bin:${local}:/usr/bin` }).PATH!.split(':');
+    expect(path.filter((d) => ['/usr/local/bin', local, '/usr/bin'].includes(d))).toEqual(['/usr/local/bin', local, '/usr/bin']);
+  });
+
   it("drops a parent Claude Code session's plumbing when the app was started from one", () => {
     const env = claudeEnv({
       PATH: '/bin', HOME: '/h', ANTHROPIC_API_KEY: 'k',
@@ -113,6 +133,10 @@ process.stdin.on('end', () => {
     process.stdout.write(JSON.stringify({ type: 'result', subtype: 'error_during_execution', is_error: true, session_id: '${GONE}', errors: [why] }) + '\n');
     process.exitCode = 1;
     return;
+  }
+  if (input.includes('old claude') && args.includes('--permission-prompts')) { // as claude 2.1.170 does
+    process.stderr.write("error: unknown option '--permission-prompts'\n");
+    process.exit(1);
   }
   if (input.includes('crash')) { process.stderr.write('something broke\n'); process.exit(2); }
   const say = (m) => process.stdout.write(JSON.stringify(m) + '\n');
@@ -218,6 +242,15 @@ describe('Chats', () => {
     const chats = make();
     await chats.send('demo', 'crash please', edit);
     expect(chats.state('demo').items.at(-1)).toEqual({ kind: 'note', tone: 'error', text: 'Claude Code stopped (exit code 2): something broke' });
+  });
+
+  it("runs an older Claude Code that doesn't know --permission-prompts, and remembers it", async () => {
+    const chats = make();
+    await chats.send('demo', 'old claude, hello', edit);
+    expect(chats.state('demo').items.at(-1)).toMatchObject({ kind: 'tool', state: 'done' });
+    expect(chats.state('demo').items.some((i) => i.kind === 'note')).toBe(false);
+    await chats.send('demo', 'old claude, again', edit);
+    expect(calls().map((c) => c.args.includes('--permission-prompts'))).toEqual([true, false, false]);
   });
 
   it('starts a new conversation when the old one is gone', async () => {

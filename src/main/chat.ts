@@ -25,13 +25,21 @@ const APP_PROMPT = [
 // Anything else that would ask is refused (--permission-prompts none), and the panel says what.
 const ALLOWED = ['Bash(vibe *)'];
 
+// Where Claude Code's own installers put it. An npm copy left behind in /usr/local/bin stops updating once the
+// native install takes over, so these go ahead of the Homebrew folders.
+const CLAUDE_DIRS = [join(homedir(), '.local/bin'), join(homedir(), '.claude/local')];
+
+// What a Claude Code from before --permission-prompts says about it. Headless, it refuses what it would have
+// asked about anyway, so the turn runs again without the flag.
+const NO_PROMPTS_FLAG = /unknown option '--permission-prompts'/;
+
 const STOP_GRACE_MS = 3000;
 const STDERR_KEEP = 2000;
 
-export function claudeArgs(sessionId: string | null): string[] {
+export function claudeArgs(sessionId: string | null, o: { prompts?: boolean } = {}): string[] {
   return [
     '-p', '--output-format', 'stream-json', '--verbose', '--include-partial-messages',
-    '--permission-mode', 'acceptEdits', '--permission-prompts', 'none',
+    '--permission-mode', 'acceptEdits', ...(o.prompts === false ? [] : ['--permission-prompts', 'none']),
     '--allowedTools', ALLOWED.join(' '),
     '--append-system-prompt', APP_PROMPT,
     // Bound to its flag: --resume takes an optional value, so a separate argument could be read as an option.
@@ -52,13 +60,16 @@ export function contextLine(project: string, ctx: ChatContext): string {
   return `[${parts.join(' · ')}]`;
 }
 
-/** The child's environment. A Finder-launched app has a bare PATH, so add where Claude Code's installers put it,
- *  and put `binDir` (the app's own `vibe`, see vibeShim) first.
+/** The child's environment. A Finder-launched app has a bare PATH, so add where Claude Code's installers put it
+ *  (ahead of the Homebrew folders, unless the user's PATH already places them), and put `binDir` (the app's own
+ *  `vibe`, see vibeShim) first.
  *  Started from inside a Claude Code session (`npm run dev` in its terminal), the app inherits that session's
  *  plumbing (a proxy base URL, a "simple mode" flag, its session ids), which would change how our claude runs. */
 export function claudeEnv(env: NodeJS.ProcessEnv, binDir?: string): NodeJS.ProcessEnv {
-  const path = binDir ? `${binDir}:${env.PATH ?? ''}` : env.PATH;
-  const out: NodeJS.ProcessEnv = { ...env, PATH: withToolDirs(path, [join(homedir(), '.local/bin'), join(homedir(), '.claude/local'), ...TOOL_DIRS]) };
+  const parts = [...(binDir ? [binDir] : []), ...(env.PATH ?? '').split(':').filter(Boolean)];
+  const at = parts.findIndex((p) => TOOL_DIRS.includes(p));
+  parts.splice(at < 0 ? parts.length : at, 0, ...CLAUDE_DIRS.filter((d) => !parts.includes(d)));
+  const out: NodeJS.ProcessEnv = { ...env, PATH: withToolDirs(parts.join(':')) };
   if (env.CLAUDECODE) {
     for (const k of Object.keys(out)) if (k === 'CLAUDECODE' || k.startsWith('CLAUDE_')) delete out[k];
     delete out.ANTHROPIC_BASE_URL;
@@ -98,6 +109,8 @@ export class Chats {
   private runs = new Map<string, Run>();
   private timers = new Map<string, ReturnType<typeof setTimeout>>();
   private command: string;
+  /** False once this claude has refused --permission-prompts, so later turns don't start twice. */
+  private promptsFlag = true;
 
   constructor(private o: ChatsOptions) {
     this.command = o.command ?? (process.env.VIBE_CLAUDE || 'claude');
@@ -144,7 +157,7 @@ export class Chats {
     const resumed = s.sessionId;
     const reader = new ChatReader(this.o.root);
     let stderr = '';
-    const child = spawn(this.command, claudeArgs(resumed), { cwd: this.o.root, env: claudeEnv(process.env, this.o.binDir), stdio: ['pipe', 'pipe', 'pipe'] });
+    const child = spawn(this.command, claudeArgs(resumed, { prompts: this.promptsFlag }), { cwd: this.o.root, env: claudeEnv(process.env, this.o.binDir), stdio: ['pipe', 'pipe', 'pipe'] });
     let finish!: () => void;
     const run: Run = { child, stopped: false, done: new Promise<void>((r) => { finish = r; }) };
     this.runs.set(project, run);
@@ -162,6 +175,12 @@ export class Chats {
       if (!run.stopped && resumed && (reader.sessionMissing || (!reader.sawResult && /no conversation found/i.test(stderr)))) {
         s.sessionId = null;
         s.items.push({ kind: 'note', tone: 'info', text: "The earlier conversation wasn't found, so this is a new one." });
+        await this.run(project, prompt);
+        finish();
+        return;
+      }
+      if (!run.stopped && !reader.sawResult && this.promptsFlag && NO_PROMPTS_FLAG.test(stderr)) {
+        this.promptsFlag = false;
         await this.run(project, prompt);
         finish();
         return;
