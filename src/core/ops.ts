@@ -1,5 +1,5 @@
 // Pure edit operations. Each returns a new Project; the input is never mutated (undo keeps old ones).
-import { footageAt, type Project, type TimedTrack, type TrackName, type Clip } from './model';
+import { footageAt, footageSpans, type Project, type TimedTrack, type TrackName, type Clip } from './model';
 import { propFits, type ComponentMeta } from './validate';
 
 const MIN = 0.1;
@@ -70,8 +70,39 @@ export function trimItem(p: Project, track: 'graphics' | 'captions', id: string,
   return updateItem(p, track, id, { dur: ms(Math.max(MIN, t - item.at)) });
 }
 
+type Timed = { at: number; dur: number };
+/** Move every graphic, caption and sound through `start` (where an item begins) and `end` (where one stops).
+ *  One left with no length is dropped. */
+function retime(project: Project, start: (t: number) => number, end: (t: number) => number): void {
+  const moved = <T extends Timed>(list: T[]): T[] => list.flatMap((x) => {
+    const at = start(x.at), dur = end(x.at + x.dur) - at;
+    return dur < 1e-3 ? [] : [{ ...x, at: ms(at), dur: ms(dur) }];
+  });
+  project.tracks.graphics = moved(project.tracks.graphics);
+  project.tracks.captions = moved(project.tracks.captions);
+  project.tracks.audio = project.tracks.audio.map((a) => ({ ...a, at: ms(start(a.at)) }));
+}
+
+/** Footage from `from` to `to` is gone and what follows has closed up, so everything after comes back with it.
+ *  A graphic or caption that only played over the part that's gone goes too; one that reaches past it loses
+ *  just that part. Sounds have no length here, so one that started in it is kept, at the cut. */
+function closeGap(project: Project, from: number, to: number): void {
+  const cut = (t: number) => (t <= from ? t : t >= to ? t - (to - from) : from);
+  retime(project, cut, cut);
+}
+
+/** `len` more seconds of footage now play from `at`, so what followed moves on by that much. An item that
+ *  starts on the cut belongs to what follows; one running across it grows to still end where it did. */
+function openGap(project: Project, at: number, len: number): void {
+  retime(project, (t) => (t >= at ? t + len : t), (t) => (t > at ? t + len : t));
+}
+
+/** Deleting a clip closes the gap it leaves, so the later graphics, captions and sounds stay on the footage
+ *  they were made for (see `closeGap`). */
 export function deleteItem(p: Project, track: TrackName, id: string): Project {
   const project = clone(p);
+  const span = track === 'footage' ? footageSpans(p).find((s) => s.clip.id === id) : undefined;
+  if (span && span.end > span.start) closeGap(project, span.start, span.end);
   const list = project.tracks[track] as { id: string }[];
   (project.tracks as unknown as Record<string, unknown>)[track] = list.filter((x) => x.id !== id);
   return project;
@@ -103,12 +134,22 @@ export function splitFootage(p: Project, t: number): Project {
   return project;
 }
 
-/** Move a clip's in point (edge 'start') or out point (edge 'end') by delta source seconds. */
+/** Move a clip's in point (edge 'start') or out point (edge 'end') by delta source seconds. The clip gets longer
+ *  or shorter where that edge is on the timeline, and the graphics, captions and sounds from there on move with
+ *  the footage. */
 export function trimClip(p: Project, id: string, edge: 'start' | 'end', delta: number): Project {
-  const c = p.tracks.footage.find((x) => x.id === id);
-  if (!c) return p;
-  if (edge === 'start') return updateItem(p, 'footage', id, { in: ms(Math.min(Math.max(0, c.in + delta), c.out - MIN)) });
-  return updateItem(p, 'footage', id, { out: Math.min(ms(Math.max(c.out + delta, c.in + MIN)), c.srcDur ?? Infinity) });
+  const span = footageSpans(p).find((s) => s.clip.id === id);
+  if (!span) return p;
+  const c = span.clip;
+  const to = edge === 'start' ? ms(Math.min(Math.max(0, c.in + delta), c.out - MIN))
+    : Math.min(ms(Math.max(c.out + delta, c.in + MIN)), c.srcDur ?? Infinity);
+  const project = updateItem(p, 'footage', id, edge === 'start' ? { in: to } : { out: to });
+  // How much longer the clip is now, and the point on the timeline where that time went in or came out.
+  const grew = edge === 'start' ? c.in - to : to - c.out, at = edge === 'start' ? span.start : span.end;
+  if (grew > 0) openGap(project, at, grew);
+  else if (grew < 0 && edge === 'start') closeGap(project, at, at - grew);
+  else if (grew < 0) closeGap(project, at + grew, at);
+  return project;
 }
 
 export function moveClip(p: Project, id: string, toIndex: number): Project {
